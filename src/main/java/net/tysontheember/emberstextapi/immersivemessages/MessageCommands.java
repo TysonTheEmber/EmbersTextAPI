@@ -282,19 +282,19 @@ public class MessageCommands {
     private static void runTest(ServerPlayer player, int id) {
         switch (id) {
             case 1 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(60f, "Basic message"));
+                    ImmersiveMessage.builder(75f, "Basic message"));
             case 2 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(80f, "Typewriter demo").typewriter(1f));
+                    ImmersiveMessage.builder(100f, "Typewriter demo").typewriter(1f));
             case 3 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(500f, "Secret text").obfuscate(ObfuscateMode.RANDOM, 0.1f));
+                    ImmersiveMessage.builder(200f, "Secret text").obfuscate(ObfuscateMode.RANDOM, 0.1f));
             case 4 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(80f, "Framed text").background(true));
+                    ImmersiveMessage.builder(100f, "Framed text").background(true));
             case 5 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(80f, "Wrapped text demo that is quite long").wrap(120));
+                    ImmersiveMessage.builder(100f, "Wrapped text demo that is quite long").wrap(120));
             case 6 -> {
                 ResourceLocation font = new ResourceLocation(EmbersTextAPI.MODID, "norse");
                 Component text = Component.literal("\u16A0\u16A2\u16A6\u16A8\u16AB\u16B2").withStyle(s -> s.withFont(font));
-                EmbersTextAPI.sendMessage(player, new ImmersiveMessage(text, 80f));
+                EmbersTextAPI.sendMessage(player, new ImmersiveMessage(text, 100f));
             }
             case 7 -> {
                 MutableComponent component = Component.literal("You shall die here...")
@@ -309,9 +309,9 @@ public class MessageCommands {
                 EmbersTextAPI.sendMessage(player, msg);
             }
             case 8 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(80f, "Jittery chars").charShake(ShakeType.RANDOM, 0.5f));
+                    ImmersiveMessage.builder(100f, "Jittery chars").charShake(ShakeType.RANDOM, 0.5f));
             case 9 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(80f, "Wavy jitter")
+                    ImmersiveMessage.builder(100f, "Wavy jitter")
                             .shake(ShakeType.WAVE, 0.5f)
                             .charShake(ShakeType.RANDOM, 2f));
         }
