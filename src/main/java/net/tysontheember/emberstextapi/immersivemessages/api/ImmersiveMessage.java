@@ -10,6 +10,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraftforge.fml.ModList;
+import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
 import xyz.flirora.caxton.render.CaxtonTextRenderer;
@@ -594,7 +595,7 @@ public class ImmersiveMessage {
     public void render(GuiGraphics graphics) {
         Component draw = typewriter ? current : (current.getString().isEmpty() ? text : current);
         var font = Minecraft.getInstance().font;
-        var caxtonHandler = ModList.get().isLoaded("caxton") ? CaxtonTextRenderer.getInstance().getHandler() : null;
+        var caxtonHandler = CaxtonCompat.getHandler();
         List<FormattedCharSequence> lines = null;
         int baseWidth;
         int baseHeight;
@@ -602,13 +603,26 @@ public class ImmersiveMessage {
             lines = font.split(draw, wrapMaxWidth);
             float maxWidth = 0f;
             for (FormattedCharSequence line : lines) {
-                float w = caxtonHandler != null ? caxtonHandler.getWidth(line) : font.getSplitter().stringWidth(line);
-                maxWidth = Math.max(maxWidth, w);
+                float width = font.getSplitter().stringWidth(line);
+                if (caxtonHandler != null) {
+                    float caxtonWidth = caxtonHandler.getWidth(line);
+                    if (!Float.isNaN(caxtonWidth)) {
+                        width = caxtonWidth;
+                    }
+                }
+                maxWidth = Math.max(maxWidth, width);
             }
             baseWidth = Mth.ceil(maxWidth);
             baseHeight = lines.size() * font.lineHeight;
         } else {
-            float width = caxtonHandler != null ? caxtonHandler.getWidth(draw.getVisualOrderText()) : font.getSplitter().stringWidth(draw.getVisualOrderText());
+//            float width = caxtonHandler != null ? caxtonHandler.getWidth(draw.getVisualOrderText()) : font.getSplitter().stringWidth(draw.getVisualOrderText());
+            float width = font.getSplitter().stringWidth(draw.getVisualOrderText());
+            if (caxtonHandler != null) {
+                float caxtonWidth = caxtonHandler.getWidth(draw.getVisualOrderText());
+                if (!Float.isNaN(caxtonWidth)) {
+                    width = caxtonWidth;
+                }
+            }
             baseWidth = Mth.ceil(width);
             baseHeight = font.lineHeight;
         }
@@ -647,8 +661,20 @@ public class ImmersiveMessage {
         int colour = ((int)(alpha * 255) << 24) | (text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF);
 
         if (typewriter && typewriterCenter && wrapMaxWidth <= 0) {
-            float fullWidth = caxtonHandler != null ? caxtonHandler.getWidth(text.getVisualOrderText()) : font.width(text);
-            float currentWidth = caxtonHandler != null ? caxtonHandler.getWidth(draw.getVisualOrderText()) : font.width(draw);
+            float fullWidth = font.width(text);
+            if (caxtonHandler != null) {
+                float caxtonWidth = caxtonHandler.getWidth(text.getVisualOrderText());
+                if (!Float.isNaN(caxtonWidth)) {
+                    fullWidth = caxtonWidth;
+                }
+            }
+            float currentWidth = font.width(draw);
+            if (caxtonHandler != null) {
+                float caxtonWidth = caxtonHandler.getWidth(draw.getVisualOrderText());
+                if (!Float.isNaN(caxtonWidth)) {
+                    currentWidth = caxtonWidth;
+                }
+            }
             x += (fullWidth - currentWidth) / 2f * textScale;
         }
 
@@ -689,7 +715,7 @@ public class ImmersiveMessage {
 
     private void renderCharShake(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int colour, float padding) {
         var font = Minecraft.getInstance().font;
-        var handler = ModList.get().isLoaded("caxton") ? CaxtonTextRenderer.getInstance().getHandler() : null;
+        var handler = CaxtonCompat.getHandler();
         int[] index = {0};
 
         if (lines != null) {
@@ -713,7 +739,13 @@ public class ImmersiveMessage {
                     }
                     Component comp = Component.literal(ch).withStyle(style);
                     FormattedCharSequence charSeq = comp.getVisualOrderText();
-                    float cw = handler != null ? handler.getWidth(charSeq) : font.width(charSeq);
+                    float cw = font.width(charSeq);
+                    if (handler != null) {
+                        float caxtonWidth = handler.getWidth(charSeq);
+                        if (!Float.isNaN(caxtonWidth)) {
+                            cw = caxtonWidth;
+                        }
+                    }
                     graphics.pose().pushPose();
                     graphics.pose().translate(xAdvance[0] + sx, baseY + sy, 0);
                     graphics.drawString(font, charSeq, 0, 0, colour, shadow);
