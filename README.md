@@ -4,10 +4,6 @@ Ember’s Text API lets your mod display polished, animated text overlays withou
 
  
 
-**NOTE: THIS WILL BECOME OPEN-SOURCE SOON**
-
- 
-
 ## **Why make this?**
 
 **Immersive Messaging API**(which this was built to replace) uses her lib, **txnilib**, which jar-in-jars(aka has another mod inside her mod) **Forgified Fabric API**, making all of his FORGE mods have FABRIC overhead. That, along with the features I want that IM didn't have(like multiple attributes working together like obfuscation and typewriter, and gradients), made me want to make this, so... cheers 🍻
