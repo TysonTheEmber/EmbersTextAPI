@@ -7,6 +7,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraftforge.fml.ModList;
@@ -40,6 +42,21 @@ public class ImmersiveMessage {
     private ImmersiveColor backgroundColor = new ImmersiveColor(0xAA000000);
     private ImmersiveColor borderStart = new ImmersiveColor(0xAAFFFFFF);
     private ImmersiveColor borderEnd = new ImmersiveColor(0xAA000000);
+    private boolean useTextureBackground = false;
+    private ResourceLocation backgroundTexture;
+    private int textureU = 0;
+    private int textureV = 0;
+    private int textureWidth = 256;
+    private int textureHeight = 256;
+    private int textureAtlasWidth = 256;
+    private int textureAtlasHeight = 256;
+    private float texturePaddingX = 0f;
+    private float texturePaddingY = 0f;
+    private float textureScaleX = 1f;
+    private float textureScaleY = 1f;
+    private float textureOverrideWidth = -1f;
+    private float textureOverrideHeight = -1f;
+    private TextureSizingMode textureSizingMode = TextureSizingMode.STRETCH;
 
     // Text gradient (multi-stop)
     private TextColor[] gradientStops;
@@ -161,7 +178,14 @@ public class ImmersiveMessage {
         this.background = true;
         return this;
     }
-    public ImmersiveMessage background(boolean enabled) { this.background = enabled; return this; }
+    public ImmersiveMessage background(boolean enabled) {
+        this.background = enabled;
+        if (!enabled) {
+            this.useTextureBackground = false;
+            this.backgroundTexture = null;
+        }
+        return this;
+    }
     public ImmersiveMessage bgColor(ChatFormatting vanilla) {
         if (vanilla != null && vanilla.getColor() != null) {
             this.backgroundColor = new ImmersiveColor(0xFF000000 | vanilla.getColor());
@@ -206,6 +230,87 @@ public class ImmersiveMessage {
         }
         if (bg != null || borderStart != null || borderEnd != null) {
             this.background = true;
+        }
+        return this;
+    }
+
+    public ImmersiveMessage textureBackground(ResourceLocation texture) {
+        return textureBackground(texture, 0, 0, 256, 256, 256, 256);
+    }
+
+    public ImmersiveMessage textureBackground(ResourceLocation texture, int width, int height) {
+        return textureBackground(texture, 0, 0, width, height, width, height);
+    }
+
+    public ImmersiveMessage textureBackground(ResourceLocation texture, int u, int v, int regionWidth, int regionHeight, int atlasWidth, int atlasHeight) {
+        if (texture != null) {
+            this.backgroundTexture = texture;
+            this.textureU = u;
+            this.textureV = v;
+            this.textureWidth = Math.max(1, regionWidth);
+            this.textureHeight = Math.max(1, regionHeight);
+            this.textureAtlasWidth = Math.max(1, atlasWidth);
+            this.textureAtlasHeight = Math.max(1, atlasHeight);
+            this.useTextureBackground = true;
+            this.background = true;
+        } else {
+            this.backgroundTexture = null;
+            this.useTextureBackground = false;
+        }
+        return this;
+    }
+
+    public ImmersiveMessage textureBackgroundScale(float scale) {
+        return textureBackgroundScale(scale, scale);
+    }
+
+    public ImmersiveMessage textureBackgroundScale(float scaleX, float scaleY) {
+        this.textureScaleX = Float.isFinite(scaleX) ? Math.max(0f, scaleX) : this.textureScaleX;
+        this.textureScaleY = Float.isFinite(scaleY) ? Math.max(0f, scaleY) : this.textureScaleY;
+        return this;
+    }
+
+    public ImmersiveMessage textureBackgroundPadding(float padding) {
+        return textureBackgroundPadding(padding, padding);
+    }
+
+    public ImmersiveMessage textureBackgroundPadding(float paddingX, float paddingY) {
+        if (Float.isFinite(paddingX)) {
+            this.texturePaddingX = Math.max(0f, paddingX);
+        }
+        if (Float.isFinite(paddingY)) {
+            this.texturePaddingY = Math.max(0f, paddingY);
+        }
+        return this;
+    }
+
+    public ImmersiveMessage textureBackgroundSize(float width, float height) {
+        textureBackgroundWidth(width);
+        textureBackgroundHeight(height);
+        return this;
+    }
+
+    public ImmersiveMessage textureBackgroundWidth(float width) {
+        if (Float.isFinite(width) && width > 0f) {
+            this.textureOverrideWidth = width;
+        } else {
+            this.textureOverrideWidth = -1f;
+        }
+        return this;
+    }
+
+    public ImmersiveMessage textureBackgroundHeight(float height) {
+        if (Float.isFinite(height) && height > 0f) {
+            this.textureOverrideHeight = height;
+        } else {
+            this.textureOverrideHeight = -1f;
+        }
+        return this;
+    }
+
+    public ImmersiveMessage textureBackgroundMode(TextureSizingMode mode) {
+        if (mode != null) {
+            this.textureSizingMode = mode;
         }
         return this;
     }
@@ -468,6 +573,30 @@ public class ImmersiveMessage {
         buf.writeEnum(obfuscateMode);
         buf.writeFloat(obfuscateSpeed);
 
+        buf.writeBoolean(useTextureBackground && backgroundTexture != null);
+        if (useTextureBackground && backgroundTexture != null) {
+            buf.writeResourceLocation(backgroundTexture);
+            buf.writeVarInt(textureU);
+            buf.writeVarInt(textureV);
+            buf.writeVarInt(textureWidth);
+            buf.writeVarInt(textureHeight);
+            buf.writeVarInt(textureAtlasWidth);
+            buf.writeVarInt(textureAtlasHeight);
+            buf.writeFloat(texturePaddingX);
+            buf.writeFloat(texturePaddingY);
+            buf.writeFloat(textureScaleX);
+            buf.writeFloat(textureScaleY);
+            buf.writeBoolean(textureOverrideWidth >= 0f);
+            if (textureOverrideWidth >= 0f) {
+                buf.writeFloat(textureOverrideWidth);
+            }
+            buf.writeBoolean(textureOverrideHeight >= 0f);
+            if (textureOverrideHeight >= 0f) {
+                buf.writeFloat(textureOverrideHeight);
+            }
+            buf.writeEnum(textureSizingMode);
+        }
+
         // Text gradient stops
         buf.writeBoolean(gradientStops != null);
         if (gradientStops != null) {
@@ -513,6 +642,25 @@ public class ImmersiveMessage {
         msg.typewriterCenter = buf.readBoolean();
         msg.obfuscateMode = buf.readEnum(ObfuscateMode.class);
         msg.obfuscateSpeed = buf.readFloat();
+
+        if (buf.readBoolean()) {
+            msg.backgroundTexture = buf.readResourceLocation();
+            msg.textureU = buf.readVarInt();
+            msg.textureV = buf.readVarInt();
+            msg.textureWidth = Math.max(1, buf.readVarInt());
+            msg.textureHeight = Math.max(1, buf.readVarInt());
+            msg.textureAtlasWidth = Math.max(1, buf.readVarInt());
+            msg.textureAtlasHeight = Math.max(1, buf.readVarInt());
+            msg.texturePaddingX = buf.readFloat();
+            msg.texturePaddingY = buf.readFloat();
+            msg.textureScaleX = buf.readFloat();
+            msg.textureScaleY = buf.readFloat();
+            msg.textureOverrideWidth = buf.readBoolean() ? buf.readFloat() : -1f;
+            msg.textureOverrideHeight = buf.readBoolean() ? buf.readFloat() : -1f;
+            msg.textureSizingMode = buf.readEnum(TextureSizingMode.class);
+            msg.useTextureBackground = true;
+            msg.background = true;
+        }
 
         // Text gradient stops
         if (buf.readBoolean()) {
@@ -627,9 +775,25 @@ public class ImmersiveMessage {
             baseHeight = font.lineHeight;
         }
 
-        float padding = charShake ? charShakeStrength : 0f;
-        int textWidth = baseWidth + (int) Math.ceil(padding * 2f);
-        int textHeight = baseHeight + (int) Math.ceil(padding * 2f);
+        float charPadding = charShake ? charShakeStrength : 0f;
+        float textAreaWidth = baseWidth + charPadding * 2f;
+        float textAreaHeight = baseHeight + charPadding * 2f;
+
+        float scaledWidth = textureOverrideWidth >= 0f ? textureOverrideWidth : textAreaWidth * Math.max(textureScaleX, 0f);
+        float scaledHeight = textureOverrideHeight >= 0f ? textureOverrideHeight : textAreaHeight * Math.max(textureScaleY, 0f);
+        scaledWidth = Math.max(scaledWidth, textAreaWidth);
+        scaledHeight = Math.max(scaledHeight, textAreaHeight);
+
+        float backgroundWidth = scaledWidth + texturePaddingX * 2f;
+        float backgroundHeight = scaledHeight + texturePaddingY * 2f;
+
+        float extraX = (backgroundWidth - textAreaWidth) / 2f;
+        float extraY = (backgroundHeight - textAreaHeight) / 2f;
+        float textStartX = extraX + charPadding;
+        float textStartY = extraY + charPadding;
+
+        int backgroundWidthInt = Mth.ceil(backgroundWidth);
+        int backgroundHeightInt = Mth.ceil(backgroundHeight);
 
         int screenW = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         int screenH = Minecraft.getInstance().getWindow().getGuiScaledHeight();
@@ -679,49 +843,71 @@ public class ImmersiveMessage {
         }
 
         graphics.pose().pushPose();
-        graphics.pose().translate(x - padding * textScale, y - padding * textScale, 0);
+        graphics.pose().translate(x - textStartX * textScale, y - textStartY * textScale, 0);
         graphics.pose().scale(textScale, textScale, 1f);
         if (background) {
             int start = (Math.min(255, (int)(borderStart.getAlpha() * alpha)) << 24) | borderStart.getRGB();
             int end = (Math.min(255, (int)(borderEnd.getAlpha() * alpha)) << 24) | borderEnd.getRGB();
-            int widthForBg = shake ? textWidth + 200 : textWidth;
+            int widthForBg = shake ? backgroundWidthInt + 200 : backgroundWidthInt;
 
-            if (backgroundGradientStops != null) {
+            if (useTextureBackground && backgroundTexture != null) {
+                RenderSystem.enableBlend();
+                RenderSystem.setShaderColor(1f, 1f, 1f, alpha);
+                if (textureSizingMode == TextureSizingMode.STRETCH) {
+                    graphics.blit(backgroundTexture, 0, 0, widthForBg, backgroundHeightInt, textureU, textureV, textureWidth, textureHeight, textureAtlasWidth, textureAtlasHeight);
+                } else {
+                    int drawWidth = Math.min(widthForBg, textureWidth);
+                    int drawHeight = Math.min(backgroundHeightInt, textureHeight);
+                    int destX = Math.max(0, (widthForBg - drawWidth) / 2);
+                    int destY = Math.max(0, (backgroundHeightInt - drawHeight) / 2);
+                    int uOffset = textureU;
+                    int vOffset = textureV;
+                    if (drawWidth < textureWidth) {
+                        uOffset += (textureWidth - drawWidth) / 2;
+                    }
+                    if (drawHeight < textureHeight) {
+                        vOffset += (textureHeight - drawHeight) / 2;
+                    }
+                    graphics.blit(backgroundTexture, destX, destY, drawWidth, drawHeight, uOffset, vOffset, drawWidth, drawHeight, textureAtlasWidth, textureAtlasHeight);
+                }
+                RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+                RenderSystem.disableBlend();
+            } else if (backgroundGradientStops != null) {
                 int[] cols = new int[backgroundGradientStops.length];
                 for (int i = 0; i < backgroundGradientStops.length; i++) {
                     ImmersiveColor c = backgroundGradientStops[i];
                     int a = Math.min(255, (int)(c.getAlpha() * alpha));
                     cols[i] = (a << 24) | c.getRGB();
                 }
-                RenderUtil.drawBackgroundGradient(graphics, 0, 0, widthForBg, textHeight, cols, start, end);
+                RenderUtil.drawBackgroundGradient(graphics, 0, 0, widthForBg, backgroundHeightInt, cols, start, end);
             } else {
                 int bg = (Math.min(255, (int)(backgroundColor.getAlpha() * alpha)) << 24) | backgroundColor.getRGB();
-                RenderUtil.drawBackground(graphics, 0, 0, widthForBg, textHeight, bg, start, end);
+                RenderUtil.drawBackground(graphics, 0, 0, widthForBg, backgroundHeightInt, bg, start, end);
             }
         }
         if (onRender != null) {
             onRender.render(graphics, this, 0, 0, alpha);
         } else if (charShake) {
-            renderCharShake(graphics, lines, draw, colour, padding);
+            renderCharShake(graphics, lines, draw, colour, textStartX, textStartY);
         } else if (lines != null) {
             for (int i = 0; i < lines.size(); i++) {
-                graphics.drawString(font, lines.get(i), 0, i * font.lineHeight, colour, shadow);
+                graphics.drawString(font, lines.get(i), textStartX, textStartY + i * font.lineHeight, colour, shadow);
             }
         } else {
-            graphics.drawString(font, draw, 0, 0, colour, shadow);
+            graphics.drawString(font, draw, textStartX, textStartY, colour, shadow);
         }
         graphics.pose().popPose();
     }
 
-    private void renderCharShake(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int colour, float padding) {
+    private void renderCharShake(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int colour, float baseX, float baseY) {
         var font = Minecraft.getInstance().font;
         var handler = CaxtonCompat.getHandler();
         int[] index = {0};
 
         if (lines != null) {
             for (int i = 0; i < lines.size(); i++) {
-                final float baseY = padding + i * font.lineHeight;
-                final float[] xAdvance = {padding};
+                final float lineBaseY = baseY + i * font.lineHeight;
+                final float[] xAdvance = {baseX};
                 FormattedCharSequence lineSeq = lines.get(i);
                 lineSeq.accept((pos, style, codePoint) -> {
                     String ch = new String(Character.toChars(codePoint));
@@ -747,7 +933,7 @@ public class ImmersiveMessage {
                         }
                     }
                     graphics.pose().pushPose();
-                    graphics.pose().translate(xAdvance[0] + sx, baseY + sy, 0);
+                    graphics.pose().translate(xAdvance[0] + sx, lineBaseY + sy, 0);
                     graphics.drawString(font, charSeq, 0, 0, colour, shadow);
                     graphics.pose().popPose();
                     xAdvance[0] += cw;
@@ -756,7 +942,7 @@ public class ImmersiveMessage {
                 });
             }
         } else {
-            final float[] xAdvance = {padding};
+            final float[] xAdvance = {baseX};
             draw.getVisualOrderText().accept((pos, style, codePoint) -> {
                 String ch = new String(Character.toChars(codePoint));
                 float sx = 0f, sy = 0f;
@@ -775,13 +961,28 @@ public class ImmersiveMessage {
                 FormattedCharSequence charSeq = comp.getVisualOrderText();
                 float cw = handler != null ? handler.getWidth(charSeq) : font.width(charSeq);
                 graphics.pose().pushPose();
-                graphics.pose().translate(xAdvance[0] + sx, padding + sy, 0);
+                graphics.pose().translate(xAdvance[0] + sx, baseY + sy, 0);
                 graphics.drawString(font, charSeq, 0, 0, colour, shadow);
                 graphics.pose().popPose();
                 xAdvance[0] += cw;
                 index[0]++;
                 return true;
             });
+        }
+    }
+
+    public enum TextureSizingMode {
+        STRETCH,
+        CROP;
+
+        public static TextureSizingMode fromString(String value) {
+            if (value == null) {
+                return STRETCH;
+            }
+            return switch (value.toLowerCase(java.util.Locale.ROOT)) {
+                case "crop", "cut", "cover" -> CROP;
+                default -> STRETCH;
+            };
         }
     }
 }
