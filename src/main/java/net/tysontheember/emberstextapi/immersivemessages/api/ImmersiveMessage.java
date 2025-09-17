@@ -890,11 +890,15 @@ public class ImmersiveMessage {
         } else if (charShake) {
             renderCharShake(graphics, lines, draw, colour, textStartX, textStartY);
         } else if (lines != null) {
+            int drawStartX = Mth.floor(textStartX);
             for (int i = 0; i < lines.size(); i++) {
-                graphics.drawString(font, lines.get(i), textStartX, textStartY + i * font.lineHeight, colour, shadow);
+                int drawStartY = Mth.floor(textStartY + i * font.lineHeight);
+                graphics.drawString(font, lines.get(i), drawStartX, drawStartY, colour, shadow);
             }
         } else {
-            graphics.drawString(font, draw, textStartX, textStartY, colour, shadow);
+            int drawStartX = Mth.floor(textStartX);
+            int drawStartY = Mth.floor(textStartY);
+            graphics.drawString(font, draw, drawStartX, drawStartY, colour, shadow);
         }
         graphics.pose().popPose();
     }
