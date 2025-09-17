@@ -7,6 +7,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraftforge.fml.ModList;
@@ -40,6 +42,14 @@ public class ImmersiveMessage {
     private ImmersiveColor backgroundColor = new ImmersiveColor(0xAA000000);
     private ImmersiveColor borderStart = new ImmersiveColor(0xAAFFFFFF);
     private ImmersiveColor borderEnd = new ImmersiveColor(0xAA000000);
+    private boolean useTextureBackground = false;
+    private ResourceLocation backgroundTexture;
+    private int textureU = 0;
+    private int textureV = 0;
+    private int textureWidth = 256;
+    private int textureHeight = 256;
+    private int textureAtlasWidth = 256;
+    private int textureAtlasHeight = 256;
 
     // Text gradient (multi-stop)
     private TextColor[] gradientStops;
@@ -161,7 +171,14 @@ public class ImmersiveMessage {
         this.background = true;
         return this;
     }
-    public ImmersiveMessage background(boolean enabled) { this.background = enabled; return this; }
+    public ImmersiveMessage background(boolean enabled) {
+        this.background = enabled;
+        if (!enabled) {
+            this.useTextureBackground = false;
+            this.backgroundTexture = null;
+        }
+        return this;
+    }
     public ImmersiveMessage bgColor(ChatFormatting vanilla) {
         if (vanilla != null && vanilla.getColor() != null) {
             this.backgroundColor = new ImmersiveColor(0xFF000000 | vanilla.getColor());
@@ -206,6 +223,32 @@ public class ImmersiveMessage {
         }
         if (bg != null || borderStart != null || borderEnd != null) {
             this.background = true;
+        }
+        return this;
+    }
+
+    public ImmersiveMessage textureBackground(ResourceLocation texture) {
+        return textureBackground(texture, 0, 0, 256, 256, 256, 256);
+    }
+
+    public ImmersiveMessage textureBackground(ResourceLocation texture, int width, int height) {
+        return textureBackground(texture, 0, 0, width, height, width, height);
+    }
+
+    public ImmersiveMessage textureBackground(ResourceLocation texture, int u, int v, int regionWidth, int regionHeight, int atlasWidth, int atlasHeight) {
+        if (texture != null) {
+            this.backgroundTexture = texture;
+            this.textureU = u;
+            this.textureV = v;
+            this.textureWidth = Math.max(1, regionWidth);
+            this.textureHeight = Math.max(1, regionHeight);
+            this.textureAtlasWidth = Math.max(1, atlasWidth);
+            this.textureAtlasHeight = Math.max(1, atlasHeight);
+            this.useTextureBackground = true;
+            this.background = true;
+        } else {
+            this.backgroundTexture = null;
+            this.useTextureBackground = false;
         }
         return this;
     }
@@ -468,6 +511,17 @@ public class ImmersiveMessage {
         buf.writeEnum(obfuscateMode);
         buf.writeFloat(obfuscateSpeed);
 
+        buf.writeBoolean(useTextureBackground && backgroundTexture != null);
+        if (useTextureBackground && backgroundTexture != null) {
+            buf.writeResourceLocation(backgroundTexture);
+            buf.writeVarInt(textureU);
+            buf.writeVarInt(textureV);
+            buf.writeVarInt(textureWidth);
+            buf.writeVarInt(textureHeight);
+            buf.writeVarInt(textureAtlasWidth);
+            buf.writeVarInt(textureAtlasHeight);
+        }
+
         // Text gradient stops
         buf.writeBoolean(gradientStops != null);
         if (gradientStops != null) {
@@ -513,6 +567,18 @@ public class ImmersiveMessage {
         msg.typewriterCenter = buf.readBoolean();
         msg.obfuscateMode = buf.readEnum(ObfuscateMode.class);
         msg.obfuscateSpeed = buf.readFloat();
+
+        if (buf.readBoolean()) {
+            msg.backgroundTexture = buf.readResourceLocation();
+            msg.textureU = buf.readVarInt();
+            msg.textureV = buf.readVarInt();
+            msg.textureWidth = Math.max(1, buf.readVarInt());
+            msg.textureHeight = Math.max(1, buf.readVarInt());
+            msg.textureAtlasWidth = Math.max(1, buf.readVarInt());
+            msg.textureAtlasHeight = Math.max(1, buf.readVarInt());
+            msg.useTextureBackground = true;
+            msg.background = true;
+        }
 
         // Text gradient stops
         if (buf.readBoolean()) {
@@ -686,7 +752,13 @@ public class ImmersiveMessage {
             int end = (Math.min(255, (int)(borderEnd.getAlpha() * alpha)) << 24) | borderEnd.getRGB();
             int widthForBg = shake ? textWidth + 200 : textWidth;
 
-            if (backgroundGradientStops != null) {
+            if (useTextureBackground && backgroundTexture != null) {
+                RenderSystem.enableBlend();
+                RenderSystem.setShaderColor(1f, 1f, 1f, alpha);
+                graphics.blit(backgroundTexture, 0, 0, widthForBg, textHeight, textureU, textureV, textureWidth, textureHeight, textureAtlasWidth, textureAtlasHeight);
+                RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+                RenderSystem.disableBlend();
+            } else if (backgroundGradientStops != null) {
                 int[] cols = new int[backgroundGradientStops.length];
                 for (int i = 0; i < backgroundGradientStops.length; i++) {
                     ImmersiveColor c = backgroundGradientStops[i];

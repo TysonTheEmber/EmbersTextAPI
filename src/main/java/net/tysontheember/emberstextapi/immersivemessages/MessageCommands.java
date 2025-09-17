@@ -194,6 +194,26 @@ public class MessageCommands {
                     msg.bgColor(tag.getString("bgColor"));
                 }
 
+                if (tag.contains("textureBackground", Tag.TAG_STRING)) {
+                    ResourceLocation texture = ResourceLocation.tryParse(tag.getString("textureBackground"));
+                    if (texture != null) {
+                        msg.textureBackground(texture);
+                    }
+                } else if (tag.contains("textureBackground", Tag.TAG_COMPOUND)) {
+                    CompoundTag tex = tag.getCompound("textureBackground");
+                    String key = tex.contains("location") ? "location" : tex.contains("texture") ? "texture" : null;
+                    ResourceLocation texture = key != null ? ResourceLocation.tryParse(tex.getString(key)) : null;
+                    if (texture != null) {
+                        int u = tex.contains("u") ? tex.getInt("u") : 0;
+                        int v = tex.contains("v") ? tex.getInt("v") : 0;
+                        int regionWidth = tex.contains("width") ? tex.getInt("width") : 256;
+                        int regionHeight = tex.contains("height") ? tex.getInt("height") : 256;
+                        int atlasWidth = tex.contains("atlasWidth") ? tex.getInt("atlasWidth") : regionWidth;
+                        int atlasHeight = tex.contains("atlasHeight") ? tex.getInt("atlasHeight") : regionHeight;
+                        msg.textureBackground(texture, u, v, regionWidth, regionHeight, atlasWidth, atlasHeight);
+                    }
+                }
+
                 if (tag.contains("borderColor")) {
                     ImmersiveColor border = parseImmersiveColor(tag.getString("borderColor"));
                     if (border != null) {
