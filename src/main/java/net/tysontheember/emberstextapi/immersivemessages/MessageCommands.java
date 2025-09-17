@@ -26,6 +26,7 @@ import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
 import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
+import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage.TextureSizingMode;
 import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 
@@ -192,6 +193,73 @@ public class MessageCommands {
 
                 if (tag.contains("bgColor")) {
                     msg.bgColor(tag.getString("bgColor"));
+                }
+
+                if (tag.contains("textureBackground", Tag.TAG_STRING)) {
+                    ResourceLocation texture = ResourceLocation.tryParse(tag.getString("textureBackground"));
+                    if (texture != null) {
+                        msg.textureBackground(texture);
+                    }
+                } else if (tag.contains("textureBackground", Tag.TAG_COMPOUND)) {
+                    CompoundTag tex = tag.getCompound("textureBackground");
+                    String key = tex.contains("location") ? "location" : tex.contains("texture") ? "texture" : null;
+                    ResourceLocation texture = key != null ? ResourceLocation.tryParse(tex.getString(key)) : null;
+                    if (texture != null) {
+                        int u = tex.contains("u") ? tex.getInt("u") : 0;
+                        int v = tex.contains("v") ? tex.getInt("v") : 0;
+                        int regionWidth = tex.contains("width") ? tex.getInt("width") : 256;
+                        int regionHeight = tex.contains("height") ? tex.getInt("height") : 256;
+                        int atlasWidth = tex.contains("atlasWidth") ? tex.getInt("atlasWidth") : regionWidth;
+                        int atlasHeight = tex.contains("atlasHeight") ? tex.getInt("atlasHeight") : regionHeight;
+                        msg.textureBackground(texture, u, v, regionWidth, regionHeight, atlasWidth, atlasHeight);
+                        if (tex.contains("padding")) {
+                            msg.textureBackgroundPadding(tex.getFloat("padding"));
+                        }
+                        if (tex.contains("paddingX") || tex.contains("paddingY")) {
+                            float padX = tex.contains("paddingX") ? tex.getFloat("paddingX") : Float.NaN;
+                            float padY = tex.contains("paddingY") ? tex.getFloat("paddingY") : Float.NaN;
+                            msg.textureBackgroundPadding(padX, padY);
+                        }
+                        if (tex.contains("scale")) {
+                            msg.textureBackgroundScale(tex.getFloat("scale"));
+                        }
+                        if (tex.contains("scaleX") || tex.contains("scaleY")) {
+                            float scaleX = tex.contains("scaleX") ? tex.getFloat("scaleX") : Float.NaN;
+                            float scaleY = tex.contains("scaleY") ? tex.getFloat("scaleY") : Float.NaN;
+                            msg.textureBackgroundScale(scaleX, scaleY);
+                        }
+                        if (tex.contains("size")) {
+                            float size = tex.getFloat("size");
+                            msg.textureBackgroundSize(size, size);
+                        }
+                        if (tex.contains("sizeX")) {
+                            msg.textureBackgroundWidth(tex.getFloat("sizeX"));
+                        }
+                        if (tex.contains("sizeY")) {
+                            msg.textureBackgroundHeight(tex.getFloat("sizeY"));
+                        }
+                        if (tex.contains("drawWidth")) {
+                            msg.textureBackgroundWidth(tex.getFloat("drawWidth"));
+                        }
+                        if (tex.contains("drawHeight")) {
+                            msg.textureBackgroundHeight(tex.getFloat("drawHeight"));
+                        }
+                        if (tex.contains("x")) {
+                            msg.textureBackgroundWidth(tex.getFloat("x"));
+                        }
+                        if (tex.contains("y")) {
+                            msg.textureBackgroundHeight(tex.getFloat("y"));
+                        }
+                        if (tex.contains("resize")) {
+                            msg.textureBackgroundMode(tex.getBoolean("resize") ? TextureSizingMode.STRETCH : TextureSizingMode.CROP);
+                        }
+                        if (tex.contains("cut") && tex.getBoolean("cut")) {
+                            msg.textureBackgroundMode(TextureSizingMode.CROP);
+                        }
+                        if (tex.contains("mode")) {
+                            msg.textureBackgroundMode(TextureSizingMode.fromString(tex.getString("mode")));
+                        }
+                    }
                 }
 
                 if (tag.contains("borderColor")) {
