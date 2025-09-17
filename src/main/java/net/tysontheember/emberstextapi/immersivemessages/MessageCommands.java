@@ -5,6 +5,8 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
+import com.mojang.logging.LogUtils;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -14,7 +16,6 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.ChatFormatting;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -23,16 +24,16 @@ import net.minecraftforge.fml.common.Mod;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
-import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
 import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
-import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
+import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage.TextureSizingMode;
-import com.mojang.logging.LogUtils;
+import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import org.slf4j.Logger;
 
 @Mod.EventBusSubscriber(modid = EmbersTextAPI.MODID)
 public class MessageCommands {
     private static final Logger LOGGER = LogUtils.getLogger();
+
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(
@@ -120,7 +121,7 @@ public class MessageCommands {
                                         }
                                     }
                                 }
-                              
+
                                 ImmersiveMessage msg = new ImmersiveMessage(component, duration);
 
                                 // Text gradient (supports list of stops or {start,end})
@@ -146,205 +147,208 @@ public class MessageCommands {
                                 }
 
                                 // Background gradient (maps to background's top/bottom colors)
-                if (tag.contains("bgGradient", Tag.TAG_LIST)) {
-                    ListTag list = tag.getList("bgGradient", Tag.TAG_STRING);
-                    java.util.List<ImmersiveColor> cols = new java.util.ArrayList<>();
-                    for (int i = 0; i < list.size(); i++) {
-                        ImmersiveColor c = parseImmersiveColor(list.getString(i));
-                        if (c != null) cols.add(c);
-                    }
-                    if (cols.size() >= 2) {
-                        msg.background(true);
-                        // Use first as top, last as bottom
-                        msg.backgroundGradient(cols.get(0), cols.get(cols.size() - 1));
-                    }
-                } else if (tag.contains("bgGradient", Tag.TAG_COMPOUND)) {
-                    CompoundTag grad = tag.getCompound("bgGradient");
-                    ImmersiveColor start = parseImmersiveColor(grad.getString("start"));
-                    ImmersiveColor end = parseImmersiveColor(grad.getString("end"));
-                    if (start != null && end != null) {
-                        msg.background(true);
-                        msg.backgroundGradient(start, end);
-                    }
-                }
+                                if (tag.contains("bgGradient", Tag.TAG_LIST)) {
+                                    ListTag list = tag.getList("bgGradient", Tag.TAG_STRING);
+                                    java.util.List<ImmersiveColor> cols = new java.util.ArrayList<>();
+                                    for (int i = 0; i < list.size(); i++) {
+                                        ImmersiveColor c = parseImmersiveColor(list.getString(i));
+                                        if (c != null) cols.add(c);
+                                    }
+                                    if (cols.size() >= 2) {
+                                        msg.background(true);
+                                        // Use first as top, last as bottom
+                                        msg.backgroundGradient(cols.get(0), cols.get(cols.size() - 1));
+                                    }
+                                } else if (tag.contains("bgGradient", Tag.TAG_COMPOUND)) {
+                                    CompoundTag grad = tag.getCompound("bgGradient");
+                                    ImmersiveColor start = parseImmersiveColor(grad.getString("start"));
+                                    ImmersiveColor end = parseImmersiveColor(grad.getString("end"));
+                                    if (start != null && end != null) {
+                                        msg.background(true);
+                                        msg.backgroundGradient(start, end);
+                                    }
+                                }
 
-                // Border gradient (separate from background)
-                if (tag.contains("borderGradient", Tag.TAG_LIST)) {
-                    ListTag list = tag.getList("borderGradient", Tag.TAG_STRING);
-                    java.util.List<ImmersiveColor> cols = new java.util.ArrayList<>();
-                    for (int i = 0; i < list.size(); i++) {
-                        ImmersiveColor c = parseImmersiveColor(list.getString(i));
-                        if (c != null) cols.add(c);
-                    }
-                    if (cols.size() >= 2) {
-                        msg.background(true);
-                        // Use first as top, last as bottom
-                        msg.borderGradient(cols.get(0), cols.get(cols.size() - 1));
-                    }
-                } else if (tag.contains("borderGradient", Tag.TAG_COMPOUND)) {
-                    CompoundTag grad = tag.getCompound("borderGradient");
-                    ImmersiveColor start = parseImmersiveColor(grad.getString("start"));
-                    ImmersiveColor end = parseImmersiveColor(grad.getString("end"));
-                    if (start != null && end != null) {
-                        msg.background(true);
-                        msg.borderGradient(start, end);
-                    }
-                }
+                                // Border gradient (separate from background)
+                                if (tag.contains("borderGradient", Tag.TAG_LIST)) {
+                                    ListTag list = tag.getList("borderGradient", Tag.TAG_STRING);
+                                    java.util.List<ImmersiveColor> cols = new java.util.ArrayList<>();
+                                    for (int i = 0; i < list.size(); i++) {
+                                        ImmersiveColor c = parseImmersiveColor(list.getString(i));
+                                        if (c != null) cols.add(c);
+                                    }
+                                    if (cols.size() >= 2) {
+                                        msg.background(true);
+                                        // Use first as top, last as bottom
+                                        msg.borderGradient(cols.get(0), cols.get(cols.size() - 1));
+                                    }
+                                } else if (tag.contains("borderGradient", Tag.TAG_COMPOUND)) {
+                                    CompoundTag grad = tag.getCompound("borderGradient");
+                                    ImmersiveColor start = parseImmersiveColor(grad.getString("start"));
+                                    ImmersiveColor end = parseImmersiveColor(grad.getString("end"));
+                                    if (start != null && end != null) {
+                                        msg.background(true);
+                                        msg.borderGradient(start, end);
+                                    }
+                                }
 
-                if (tag.contains("bgColor")) {
-                    msg.bgColor(tag.getString("bgColor"));
-                }
+                                if (tag.contains("bgColor")) {
+                                    msg.bgColor(tag.getString("bgColor"));
+                                }
 
-                if (tag.contains("textureBackground", Tag.TAG_STRING)) {
-                    ResourceLocation texture = ResourceLocation.tryParse(tag.getString("textureBackground"));
-                    if (texture != null) {
-                        msg.textureBackground(texture);
-                    }
-                } else if (tag.contains("textureBackground", Tag.TAG_COMPOUND)) {
-                    CompoundTag tex = tag.getCompound("textureBackground");
-                    String key = tex.contains("location") ? "location" : tex.contains("texture") ? "texture" : null;
-                    ResourceLocation texture = key != null ? ResourceLocation.tryParse(tex.getString(key)) : null;
-                    if (texture != null) {
-                        int u = tex.contains("u") ? tex.getInt("u") : 0;
-                        int v = tex.contains("v") ? tex.getInt("v") : 0;
-                        int regionWidth = tex.contains("width") ? tex.getInt("width") : 256;
-                        int regionHeight = tex.contains("height") ? tex.getInt("height") : 256;
-                        int atlasWidth = tex.contains("atlasWidth") ? tex.getInt("atlasWidth") : regionWidth;
-                        int atlasHeight = tex.contains("atlasHeight") ? tex.getInt("atlasHeight") : regionHeight;
-                        msg.textureBackground(texture, u, v, regionWidth, regionHeight, atlasWidth, atlasHeight);
-                        if (tex.contains("padding")) {
-                            msg.textureBackgroundPadding(tex.getFloat("padding"));
-                        }
-                        if (tex.contains("paddingX") || tex.contains("paddingY")) {
-                            float padX = tex.contains("paddingX") ? tex.getFloat("paddingX") : Float.NaN;
-                            float padY = tex.contains("paddingY") ? tex.getFloat("paddingY") : Float.NaN;
-                            msg.textureBackgroundPadding(padX, padY);
-                        }
-                        if (tex.contains("scale")) {
-                            msg.textureBackgroundScale(tex.getFloat("scale"));
-                        }
-                        if (tex.contains("scaleX") || tex.contains("scaleY")) {
-                            float scaleX = tex.contains("scaleX") ? tex.getFloat("scaleX") : Float.NaN;
-                            float scaleY = tex.contains("scaleY") ? tex.getFloat("scaleY") : Float.NaN;
-                            msg.textureBackgroundScale(scaleX, scaleY);
-                        }
-                        if (tex.contains("size")) {
-                            float size = tex.getFloat("size");
-                            msg.textureBackgroundSize(size, size);
-                        }
-                        if (tex.contains("sizeX")) {
-                            msg.textureBackgroundWidth(tex.getFloat("sizeX"));
-                        }
-                        if (tex.contains("sizeY")) {
-                            msg.textureBackgroundHeight(tex.getFloat("sizeY"));
-                        }
-                        if (tex.contains("drawWidth")) {
-                            msg.textureBackgroundWidth(tex.getFloat("drawWidth"));
-                        }
-                        if (tex.contains("drawHeight")) {
-                            msg.textureBackgroundHeight(tex.getFloat("drawHeight"));
-                        }
-                        if (tex.contains("x")) {
-                            msg.textureBackgroundWidth(tex.getFloat("x"));
-                        }
-                        if (tex.contains("y")) {
-                            msg.textureBackgroundHeight(tex.getFloat("y"));
-                        }
-                        if (tex.contains("resize")) {
-                            msg.textureBackgroundMode(tex.getBoolean("resize") ? TextureSizingMode.STRETCH : TextureSizingMode.CROP);
-                        }
-                        if (tex.contains("cut") && tex.getBoolean("cut")) {
-                            msg.textureBackgroundMode(TextureSizingMode.CROP);
-                        }
-                        if (tex.contains("mode")) {
-                            msg.textureBackgroundMode(TextureSizingMode.fromString(tex.getString("mode")));
-                        }
-                    }
-                }
+                                if (tag.contains("textureBackground", Tag.TAG_STRING)) {
+                                    ResourceLocation texture = ResourceLocation.tryParse(tag.getString("textureBackground"));
+                                    if (texture != null) {
+                                        msg.textureBackground(texture);
+                                    }
+                                } else if (tag.contains("textureBackground", Tag.TAG_COMPOUND)) {
+                                    CompoundTag tex = tag.getCompound("textureBackground");
+                                    String key = tex.contains("location") ? "location" : tex.contains("texture") ? "texture" : null;
+                                    ResourceLocation texture = key != null ? ResourceLocation.tryParse(tex.getString(key)) : null;
+                                    if (texture != null) {
+                                        int u = tex.contains("u") ? tex.getInt("u") : 0;
+                                        int v = tex.contains("v") ? tex.getInt("v") : 0;
+                                        int regionWidth = tex.contains("width") ? tex.getInt("width") : 256;
+                                        int regionHeight = tex.contains("height") ? tex.getInt("height") : 256;
+                                        int atlasWidth = tex.contains("atlasWidth") ? tex.getInt("atlasWidth") : regionWidth;
+                                        int atlasHeight = tex.contains("atlasHeight") ? tex.getInt("atlasHeight") : regionHeight;
+                                        msg.textureBackground(texture, u, v, regionWidth, regionHeight, atlasWidth, atlasHeight);
 
-                if (tag.contains("borderColor")) {
-                    ImmersiveColor border = parseImmersiveColor(tag.getString("borderColor"));
-                    if (border != null) {
-                        msg.background(true);
-                        msg.borderGradient(border, border);
-                    }
-                }
+                                        // --- NEWER extended options block (kept) ---
+                                        if (tex.contains("padding")) {
+                                            msg.textureBackgroundPadding(tex.getFloat("padding"));
+                                        }
+                                        if (tex.contains("paddingX") || tex.contains("paddingY")) {
+                                            float padX = tex.contains("paddingX") ? tex.getFloat("paddingX") : Float.NaN;
+                                            float padY = tex.contains("paddingY") ? tex.getFloat("paddingY") : Float.NaN;
+                                            msg.textureBackgroundPadding(padX, padY);
+                                        }
+                                        if (tex.contains("scale")) {
+                                            msg.textureBackgroundScale(tex.getFloat("scale"));
+                                        }
+                                        if (tex.contains("scaleX") || tex.contains("scaleY")) {
+                                            float scaleX = tex.contains("scaleX") ? tex.getFloat("scaleX") : Float.NaN;
+                                            float scaleY = tex.contains("scaleY") ? tex.getFloat("scaleY") : Float.NaN;
+                                            msg.textureBackgroundScale(scaleX, scaleY);
+                                        }
+                                        if (tex.contains("size")) {
+                                            float size = tex.getFloat("size");
+                                            msg.textureBackgroundSize(size, size);
+                                        }
+                                        if (tex.contains("sizeX")) {
+                                            msg.textureBackgroundWidth(tex.getFloat("sizeX"));
+                                        }
+                                        if (tex.contains("sizeY")) {
+                                            msg.textureBackgroundHeight(tex.getFloat("sizeY"));
+                                        }
+                                        if (tex.contains("drawWidth")) {
+                                            msg.textureBackgroundWidth(tex.getFloat("drawWidth"));
+                                        }
+                                        if (tex.contains("drawHeight")) {
+                                            msg.textureBackgroundHeight(tex.getFloat("drawHeight"));
+                                        }
+                                        if (tex.contains("x")) {
+                                            msg.textureBackgroundWidth(tex.getFloat("x"));
+                                        }
+                                        if (tex.contains("y")) {
+                                            msg.textureBackgroundHeight(tex.getFloat("y"));
+                                        }
+                                        if (tex.contains("resize")) {
+                                            msg.textureBackgroundMode(tex.getBoolean("resize") ? TextureSizingMode.STRETCH : TextureSizingMode.CROP);
+                                        }
+                                        if (tex.contains("cut") && tex.getBoolean("cut")) {
+                                            msg.textureBackgroundMode(TextureSizingMode.CROP);
+                                        }
+                                        if (tex.contains("mode")) {
+                                            msg.textureBackgroundMode(TextureSizingMode.fromString(tex.getString("mode")));
+                                        }
+                                        // --- end newer block ---
+                                    }
+                                }
 
-                if (tag.contains("size")) {
-                    msg.scale(tag.getFloat("size"));
-                }
+                                if (tag.contains("borderColor")) {
+                                    ImmersiveColor border = parseImmersiveColor(tag.getString("borderColor"));
+                                    if (border != null) {
+                                        msg.background(true);
+                                        msg.borderGradient(border, border);
+                                    }
+                                }
 
-                if (tag.contains("typewriter")) {
-                    float speed = tag.getFloat("typewriter");
-                    boolean center = tag.getBoolean("center");
-                    msg.typewriter(speed, center);
-                }
-                if (tag.contains("background") && tag.getBoolean("background")) {
-                    msg.background(true);
-                }
-                if (tag.contains("bgAlpha")) {
-                    msg.bgAlpha(tag.getFloat("bgAlpha"));
-                }
-                if (tag.contains("wrap")) {
-                    msg.wrap(tag.getInt("wrap"));
-                }
-                if (tag.contains("obfuscate")) {
-                    ObfuscateMode mode = ObfuscateMode.valueOf(tag.getString("obfuscate").toUpperCase());
-                    float speed = tag.contains("obfuscateSpeed") ? tag.getFloat("obfuscateSpeed") : 1f;
-                    msg.obfuscate(mode, speed);
-                }
-                if (tag.contains("anchor")) {
-                    msg.anchor(TextAnchor.valueOf(tag.getString("anchor").toUpperCase()));
-                }
-                if (tag.contains("align")) {
-                    msg.align(TextAnchor.valueOf(tag.getString("align").toUpperCase()));
-                }
-                if (tag.contains("offsetX") || tag.contains("offsetY")) {
-                    float x = tag.contains("offsetX") ? tag.getFloat("offsetX") : 0f;
-                    float y = tag.contains("offsetY") ? tag.getFloat("offsetY") : 0f;
-                    msg.offset(x, y);
-                }
-                if (tag.contains("shadow")) {
-                    msg.shadow(tag.getBoolean("shadow"));
-                }
+                                if (tag.contains("size")) {
+                                    msg.scale(tag.getFloat("size"));
+                                }
 
-                if (keys.containsKey("shakewave")) {
-                    msg.shake(ShakeType.WAVE, tag.getFloat(keys.get("shakewave")));
-                } else if (keys.containsKey("wave")) {
-                    LOGGER.warn("Tag 'wave' is deprecated, use 'shakeWave' instead");
-                    msg.shake(ShakeType.WAVE, tag.getFloat(keys.get("wave")));
-                } else if (keys.containsKey("shakecircle")) {
-                    msg.shake(ShakeType.CIRCLE, tag.getFloat(keys.get("shakecircle")));
-                } else if (keys.containsKey("circle")) {
-                    LOGGER.warn("Tag 'circle' is deprecated, use 'shakeCircle' instead");
-                    msg.shake(ShakeType.CIRCLE, tag.getFloat(keys.get("circle")));
-                } else if (keys.containsKey("shakerandom")) {
-                    msg.shake(ShakeType.RANDOM, tag.getFloat(keys.get("shakerandom")));
-                } else if (keys.containsKey("random")) {
-                    LOGGER.warn("Tag 'random' is deprecated, use 'shakeRandom' instead");
-                    msg.shake(ShakeType.RANDOM, tag.getFloat(keys.get("random")));
-                }
+                                if (tag.contains("typewriter")) {
+                                    float speed = tag.getFloat("typewriter");
+                                    boolean center = tag.getBoolean("center");
+                                    msg.typewriter(speed, center);
+                                }
+                                if (tag.contains("background") && tag.getBoolean("background")) {
+                                    msg.background(true);
+                                }
+                                if (tag.contains("bgAlpha")) {
+                                    msg.bgAlpha(tag.getFloat("bgAlpha"));
+                                }
+                                if (tag.contains("wrap")) {
+                                    msg.wrap(tag.getInt("wrap"));
+                                }
+                                if (tag.contains("obfuscate")) {
+                                    ObfuscateMode mode = ObfuscateMode.valueOf(tag.getString("obfuscate").toUpperCase());
+                                    float speed = tag.contains("obfuscateSpeed") ? tag.getFloat("obfuscateSpeed") : 1f;
+                                    msg.obfuscate(mode, speed);
+                                }
+                                if (tag.contains("anchor")) {
+                                    msg.anchor(TextAnchor.valueOf(tag.getString("anchor").toUpperCase()));
+                                }
+                                if (tag.contains("align")) {
+                                    msg.align(TextAnchor.valueOf(tag.getString("align").toUpperCase()));
+                                }
+                                if (tag.contains("offsetX") || tag.contains("offsetY")) {
+                                    float x = tag.contains("offsetX") ? tag.getFloat("offsetX") : 0f;
+                                    float y = tag.contains("offsetY") ? tag.getFloat("offsetY") : 0f;
+                                    msg.offset(x, y);
+                                }
+                                if (tag.contains("shadow")) {
+                                    msg.shadow(tag.getBoolean("shadow"));
+                                }
 
-                if (keys.containsKey("charshakewave")) {
-                    msg.charShake(ShakeType.WAVE, tag.getFloat(keys.get("charshakewave")));
-                } else if (keys.containsKey("wavechar")) {
-                    LOGGER.warn("Tag 'waveChar' is deprecated, use 'charShakeWave' instead");
-                    msg.charShake(ShakeType.WAVE, tag.getFloat(keys.get("wavechar")));
-                } else if (keys.containsKey("charshakecircle")) {
-                    msg.charShake(ShakeType.CIRCLE, tag.getFloat(keys.get("charshakecircle")));
-                } else if (keys.containsKey("circlechar")) {
-                    LOGGER.warn("Tag 'circleChar' is deprecated, use 'charShakeCircle' instead");
-                    msg.charShake(ShakeType.CIRCLE, tag.getFloat(keys.get("circlechar")));
-                } else if (keys.containsKey("charshakerandom")) {
-                    msg.charShake(ShakeType.RANDOM, tag.getFloat(keys.get("charshakerandom")));
-                } else if (keys.containsKey("randomchar")) {
-                    LOGGER.warn("Tag 'randomChar' is deprecated, use 'charShakeRandom' instead");
-                    msg.charShake(ShakeType.RANDOM, tag.getFloat(keys.get("randomchar")));
-                }
+                                if (keys.containsKey("shakewave")) {
+                                    msg.shake(ShakeType.WAVE, tag.getFloat(keys.get("shakewave")));
+                                } else if (keys.containsKey("wave")) {
+                                    LOGGER.warn("Tag 'wave' is deprecated, use 'shakeWave' instead");
+                                    msg.shake(ShakeType.WAVE, tag.getFloat(keys.get("wave")));
+                                } else if (keys.containsKey("shakecircle")) {
+                                    msg.shake(ShakeType.CIRCLE, tag.getFloat(keys.get("shakecircle")));
+                                } else if (keys.containsKey("circle")) {
+                                    LOGGER.warn("Tag 'circle' is deprecated, use 'shakeCircle' instead");
+                                    msg.shake(ShakeType.CIRCLE, tag.getFloat(keys.get("circle")));
+                                } else if (keys.containsKey("shakerandom")) {
+                                    msg.shake(ShakeType.RANDOM, tag.getFloat(keys.get("shakerandom")));
+                                } else if (keys.containsKey("random")) {
+                                    LOGGER.warn("Tag 'random' is deprecated, use 'shakeRandom' instead");
+                                    msg.shake(ShakeType.RANDOM, tag.getFloat(keys.get("random")));
+                                }
 
-                EmbersTextAPI.sendMessage(target, msg);
-                return Command.SINGLE_SUCCESS;
-            })))));
+                                if (keys.containsKey("charshakewave")) {
+                                    msg.charShake(ShakeType.WAVE, tag.getFloat(keys.get("charshakewave")));
+                                } else if (keys.containsKey("wavechar")) {
+                                    LOGGER.warn("Tag 'waveChar' is deprecated, use 'charShakeWave' instead");
+                                    msg.charShake(ShakeType.WAVE, tag.getFloat(keys.get("wavechar")));
+                                } else if (keys.containsKey("charshakecircle")) {
+                                    msg.charShake(ShakeType.CIRCLE, tag.getFloat(keys.get("charshakecircle")));
+                                } else if (keys.containsKey("circlechar")) {
+                                    LOGGER.warn("Tag 'circleChar' is deprecated, use 'charShakeCircle' instead");
+                                    msg.charShake(ShakeType.CIRCLE, tag.getFloat(keys.get("circlechar")));
+                                } else if (keys.containsKey("charshakerandom")) {
+                                    msg.charShake(ShakeType.RANDOM, tag.getFloat(keys.get("charshakerandom")));
+                                } else if (keys.containsKey("randomchar")) {
+                                    LOGGER.warn("Tag 'randomChar' is deprecated, use 'charShakeRandom' instead");
+                                    msg.charShake(ShakeType.RANDOM, tag.getFloat(keys.get("randomchar")));
+                                }
+
+                                EmbersTextAPI.sendMessage(target, msg);
+                                return Command.SINGLE_SUCCESS;
+                            })))));
     }
 
     private static void runTest(ServerPlayer player, int id) {
