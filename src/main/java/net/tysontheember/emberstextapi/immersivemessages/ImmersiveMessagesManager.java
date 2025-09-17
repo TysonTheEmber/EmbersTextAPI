@@ -14,36 +14,49 @@ import java.util.Queue;
  */
 public class ImmersiveMessagesManager {
     private static final Queue<ImmersiveMessage> QUEUE = new LinkedList<>();
+    private static final float MESSAGE_GAP_TICKS = 20f; // 1 second between messages
+
     private static ImmersiveMessage current;
     private static float nextDelay;
     private static float currentDelay;
 
-    /** Called from a GUI render event on the client. */
-    public static void render(GuiGraphics graphics, float partialTick) {
+    /** Advances message timing once per client tick. */
+    public static void tick() {
         if (current == null) {
-            if (nextDelay > 0) {
-                nextDelay -= partialTick;
-                return;
+            if (nextDelay > 0f) {
+                nextDelay = Math.max(0f, nextDelay - 1f);
+                if (nextDelay > 0f) return;
             }
             current = QUEUE.poll();
-            if (current != null) currentDelay = current.getDelay();
+            if (current != null) {
+                currentDelay = current.getDelay();
+            }
         }
+
         if (current == null) return;
-        if (currentDelay > 0) {
-            currentDelay -= partialTick;
-            return;
+
+        if (currentDelay > 0f) {
+            currentDelay = Math.max(0f, currentDelay - 1f);
+            if (currentDelay > 0f) return;
         }
-        current.tick(partialTick);
+
+        current.tick(1f);
+
         if (current.isFinished()) {
-            current = null;
-            nextDelay = 20f; // 1 second between messages
-            return;
+            finishCurrent();
         }
-        current.render(graphics);
-        if (current.isFinished()) {
-            current = null;
-            nextDelay = 20f; // 1 second between messages
+    }
+
+    /** Called from a GUI render event on the client. */
+    public static void render(GuiGraphics graphics) {
+        if (current != null && currentDelay <= 0f) {
+            current.render(graphics);
         }
+    }
+
+    private static void finishCurrent() {
+        current = null;
+        nextDelay = MESSAGE_GAP_TICKS;
     }
 
     public static void showToPlayer(LocalPlayer player, ImmersiveMessage message) {
