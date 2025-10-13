@@ -71,3 +71,19 @@ Ember’s Text API lets your mod display polished, animated text overlays withou
 
   
 \*Deprecated tags still work, but with log warnings.
+
+### Multiple Concurrent Messages
+
+```java
+UUID id = EmbersMessages.open(player,
+    ImmersiveMessage.builder(100f, "⚔ Boss Appears")
+        .anchor(TextAnchor.TOP_CENTER)
+        .build());
+EmbersMessages.update(player, id,
+    ImmersiveMessage.builder(100f, "🔥 Phase 2: Enrage")
+        .shake(ShakeType.RANDOM, 1.2f)
+        .build());
+EmbersMessages.close(player, id);
+// Or clear everything:
+EmbersMessages.closeAll(player);
+```
