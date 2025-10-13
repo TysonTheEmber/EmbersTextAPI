@@ -5,16 +5,23 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.IntTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraftforge.fml.ModList;
 import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
+import net.tysontheember.emberstextapi.client.TextLayoutCache;
 import xyz.flirora.caxton.render.CaxtonTextRenderer;
 
 import java.util.ArrayList;
@@ -554,6 +561,186 @@ public class ImmersiveMessage {
     }
 
     // ----- Network codec -----
+    public CompoundTag toNbt() {
+        CompoundTag tag = new CompoundTag();
+        ComponentSerialization.CODEC.encodeStart(NbtOps.INSTANCE, text).result().ifPresent(value -> tag.put("Text", value));
+        tag.putFloat("Duration", duration);
+        tag.putFloat("XOffset", xOffset);
+        tag.putFloat("YOffset", yOffset);
+        tag.putBoolean("Shadow", shadow);
+        tag.putString("Anchor", anchor.name());
+        tag.putString("Align", align.name());
+        tag.putFloat("Scale", textScale);
+        tag.putBoolean("Background", background);
+        tag.putInt("BackgroundColor", backgroundColor.getARGB());
+        tag.putInt("BorderStart", borderStart.getARGB());
+        tag.putInt("BorderEnd", borderEnd.getARGB());
+        tag.putBoolean("Typewriter", typewriter);
+        tag.putFloat("TypewriterSpeed", typewriterSpeed);
+        tag.putBoolean("TypewriterCenter", typewriterCenter);
+        tag.putString("ObfuscateMode", obfuscateMode.name());
+        tag.putFloat("ObfuscateSpeed", obfuscateSpeed);
+        tag.putBoolean("UseTextureBackground", useTextureBackground && backgroundTexture != null);
+        if (useTextureBackground && backgroundTexture != null) {
+            CompoundTag texture = new CompoundTag();
+            texture.putString("Location", backgroundTexture.toString());
+            texture.putInt("U", textureU);
+            texture.putInt("V", textureV);
+            texture.putInt("Width", textureWidth);
+            texture.putInt("Height", textureHeight);
+            texture.putInt("AtlasWidth", textureAtlasWidth);
+            texture.putInt("AtlasHeight", textureAtlasHeight);
+            texture.putFloat("PaddingX", texturePaddingX);
+            texture.putFloat("PaddingY", texturePaddingY);
+            texture.putFloat("ScaleX", textureScaleX);
+            texture.putFloat("ScaleY", textureScaleY);
+            if (textureOverrideWidth >= 0f) {
+                texture.putFloat("OverrideWidth", textureOverrideWidth);
+            }
+            if (textureOverrideHeight >= 0f) {
+                texture.putFloat("OverrideHeight", textureOverrideHeight);
+            }
+            texture.putString("SizingMode", textureSizingMode.name());
+            tag.put("Texture", texture);
+        }
+        if (gradientStops != null) {
+            ListTag list = new ListTag();
+            for (TextColor color : gradientStops) {
+                if (color != null) {
+                    list.add(IntTag.valueOf(color.getValue()));
+                }
+            }
+            if (!list.isEmpty()) {
+                tag.put("Gradient", list);
+            }
+        }
+        if (backgroundGradientStops != null) {
+            ListTag list = new ListTag();
+            for (ImmersiveColor color : backgroundGradientStops) {
+                if (color != null) {
+                    list.add(IntTag.valueOf(color.getARGB()));
+                }
+            }
+            if (!list.isEmpty()) {
+                tag.put("BackgroundGradient", list);
+            }
+        }
+        tag.putBoolean("Shake", shake);
+        tag.putString("ShakeType", shakeType.name());
+        tag.putFloat("ShakeStrength", shakeStrength);
+        tag.putBoolean("CharShake", charShake);
+        tag.putString("CharShakeType", charShakeType.name());
+        tag.putFloat("CharShakeStrength", charShakeStrength);
+        tag.putInt("WrapWidth", wrapMaxWidth);
+        tag.putFloat("Delay", delay);
+        return tag;
+    }
+
+    public static ImmersiveMessage fromNbt(CompoundTag tag) {
+        Component text = Component.literal("");
+        if (tag.contains("Text")) {
+            Tag textTag = tag.get("Text");
+            text = ComponentSerialization.CODEC.parse(NbtOps.INSTANCE, textTag).result().orElse(text);
+        }
+        float duration = tag.contains("Duration") ? tag.getFloat("Duration") : 0f;
+        ImmersiveMessage msg = new ImmersiveMessage(text, duration);
+        if (tag.contains("XOffset")) msg.xOffset = tag.getFloat("XOffset");
+        if (tag.contains("YOffset")) msg.yOffset = tag.getFloat("YOffset");
+        if (tag.contains("Shadow")) msg.shadow = tag.getBoolean("Shadow");
+        if (tag.contains("Anchor")) {
+            try {
+                msg.anchor = TextAnchor.valueOf(tag.getString("Anchor"));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (tag.contains("Align")) {
+            try {
+                msg.align = TextAnchor.valueOf(tag.getString("Align"));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (tag.contains("Scale")) msg.textScale = tag.getFloat("Scale");
+        if (tag.contains("Background")) msg.background = tag.getBoolean("Background");
+        if (tag.contains("BackgroundColor")) msg.backgroundColor = new ImmersiveColor(tag.getInt("BackgroundColor"));
+        if (tag.contains("BorderStart")) msg.borderStart = new ImmersiveColor(tag.getInt("BorderStart"));
+        if (tag.contains("BorderEnd")) msg.borderEnd = new ImmersiveColor(tag.getInt("BorderEnd"));
+        if (tag.contains("Typewriter")) msg.typewriter = tag.getBoolean("Typewriter");
+        if (tag.contains("TypewriterSpeed")) msg.typewriterSpeed = tag.getFloat("TypewriterSpeed");
+        if (tag.contains("TypewriterCenter")) msg.typewriterCenter = tag.getBoolean("TypewriterCenter");
+        if (tag.contains("ObfuscateMode")) {
+            try {
+                msg.obfuscateMode = ObfuscateMode.valueOf(tag.getString("ObfuscateMode"));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (tag.contains("ObfuscateSpeed")) msg.obfuscateSpeed = tag.getFloat("ObfuscateSpeed");
+        if (tag.contains("Texture")) {
+            CompoundTag texture = tag.getCompound("Texture");
+            if (texture.contains("Location")) {
+                msg.backgroundTexture = new ResourceLocation(texture.getString("Location"));
+                msg.useTextureBackground = true;
+                msg.background = true;
+            }
+            if (texture.contains("U")) msg.textureU = texture.getInt("U");
+            if (texture.contains("V")) msg.textureV = texture.getInt("V");
+            if (texture.contains("Width")) msg.textureWidth = Math.max(1, texture.getInt("Width"));
+            if (texture.contains("Height")) msg.textureHeight = Math.max(1, texture.getInt("Height"));
+            if (texture.contains("AtlasWidth")) msg.textureAtlasWidth = Math.max(1, texture.getInt("AtlasWidth"));
+            if (texture.contains("AtlasHeight")) msg.textureAtlasHeight = Math.max(1, texture.getInt("AtlasHeight"));
+            if (texture.contains("PaddingX")) msg.texturePaddingX = texture.getFloat("PaddingX");
+            if (texture.contains("PaddingY")) msg.texturePaddingY = texture.getFloat("PaddingY");
+            if (texture.contains("ScaleX")) msg.textureScaleX = texture.getFloat("ScaleX");
+            if (texture.contains("ScaleY")) msg.textureScaleY = texture.getFloat("ScaleY");
+            msg.textureOverrideWidth = texture.contains("OverrideWidth") ? texture.getFloat("OverrideWidth") : -1f;
+            msg.textureOverrideHeight = texture.contains("OverrideHeight") ? texture.getFloat("OverrideHeight") : -1f;
+            if (texture.contains("SizingMode")) {
+                try {
+                    msg.textureSizingMode = TextureSizingMode.valueOf(texture.getString("SizingMode"));
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        } else if (tag.getBoolean("UseTextureBackground")) {
+            msg.useTextureBackground = true;
+            msg.background = true;
+        }
+        if (tag.contains("Gradient")) {
+            ListTag list = tag.getList("Gradient", Tag.TAG_INT);
+            TextColor[] cols = new TextColor[list.size()];
+            for (int i = 0; i < list.size(); i++) {
+                cols[i] = TextColor.fromRgb(((IntTag) list.get(i)).getAsInt());
+            }
+            msg.gradient(cols);
+        }
+        if (tag.contains("BackgroundGradient")) {
+            ListTag list = tag.getList("BackgroundGradient", Tag.TAG_INT);
+            ImmersiveColor[] cols = new ImmersiveColor[list.size()];
+            for (int i = 0; i < list.size(); i++) {
+                cols[i] = new ImmersiveColor(((IntTag) list.get(i)).getAsInt());
+            }
+            msg.backgroundGradient(cols);
+        }
+        if (tag.contains("Shake")) msg.shake = tag.getBoolean("Shake");
+        if (tag.contains("ShakeType")) {
+            try {
+                msg.shakeType = ShakeType.valueOf(tag.getString("ShakeType"));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (tag.contains("ShakeStrength")) msg.shakeStrength = tag.getFloat("ShakeStrength");
+        if (tag.contains("CharShake")) msg.charShake = tag.getBoolean("CharShake");
+        if (tag.contains("CharShakeType")) {
+            try {
+                msg.charShakeType = ShakeType.valueOf(tag.getString("CharShakeType"));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (tag.contains("CharShakeStrength")) msg.charShakeStrength = tag.getFloat("CharShakeStrength");
+        if (tag.contains("WrapWidth")) msg.wrapMaxWidth = tag.getInt("WrapWidth");
+        if (tag.contains("Delay")) msg.delay = tag.getFloat("Delay");
+        if (msg.obfuscateMode != ObfuscateMode.NONE) msg.initObfuscation();
+        return msg;
+    }
+
     public void encode(FriendlyByteBuf buf) {
         buf.writeComponent(text);
         buf.writeFloat(duration);
@@ -693,55 +880,61 @@ public class ImmersiveMessage {
     }
 
     // ----- Runtime behaviour -----
-    public void tick(float delta) {
-        age += delta;
+    public void tickEffects() {
+        tick(1f);
+    }
 
-        // Typewriter progression
+    public boolean hasDuration() {
+        return duration > 0f;
+    }
+
+    public int durationTicks() {
+        return Mth.ceil(duration);
+    }
+
+    public Component component() {
+        return getDrawComponent();
+    }
+
+    public int renderColour() {
+        int base = text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF;
+        int alpha = Mth.clamp((int)(computeAlpha() * 255f), 0, 255);
+        return (alpha << 24) | base;
+    }
+
+    public float getTextScale() {
+        return textScale;
+    }
+
+    public int getWrapWidth() {
+        return wrapMaxWidth;
+    }
+
+    public String fontKey() {
+        return text.getStyle().getFont().map(ResourceLocation::toString).orElse("minecraft:default");
+    }
+
+    private Component getDrawComponent() {
         if (typewriter) {
-            int next = (int)(age * typewriterSpeed);
-            if (next > typewriterIndex) {
-                typewriterIndex = Math.min(next, text.getString().length());
-                if (obfuscateMode != ObfuscateMode.NONE) {
-                    rebuildObfuscation();
-                } else if (gradientColors != null) {
-                    current = buildGradientComponent(typewriterIndex);
-                } else {
-                    current = Component.literal(text.getString().substring(0, typewriterIndex))
-                            .withStyle(text.getStyle());
-                }
+            return current;
+        }
+        return current.getString().isEmpty() ? text : current;
+    }
+
+    private float computeAlpha() {
+        float fadeTime = Math.min(10f, duration * 0.25f);
+        float alpha = 1f;
+        if (duration > 0f) {
+            if (age < fadeTime) {
+                alpha = age / Math.max(0.0001f, fadeTime);
+            } else if (age > duration - fadeTime) {
+                alpha = (duration - age) / Math.max(0.0001f, fadeTime);
             }
         }
-
-        // Obfuscation progression
-        if (obfuscateMode != ObfuscateMode.NONE) tickObfuscation(delta);
+        return Mth.clamp(alpha, 0f, 1f);
     }
 
-    private void tickObfuscation(float delta) {
-        if (baseText == null || revealIndex >= revealOrder.size()) return;
-
-        obfuscateProgress += obfuscateSpeed * delta;
-        int revealCount = Math.min((int) obfuscateProgress, revealOrder.size() - revealIndex);
-        if (revealCount <= 0) return;
-
-        int revealed = 0;
-        for (int i = 0; i < revealCount; i++) {
-            int idx = revealOrder.get(revealIndex);
-            if (typewriter && idx >= typewriterIndex) break;
-            revealMask[idx] = true;
-            revealIndex++;
-            revealed++;
-        }
-        if (revealed <= 0) return;
-        obfuscateProgress -= revealed;
-        rebuildObfuscation();
-    }
-
-    public boolean isFinished() { return age >= duration; }
-
-    public float getDelay() { return delay; }
-
-    public void render(GuiGraphics graphics) {
-        Component draw = typewriter ? current : (current.getString().isEmpty() ? text : current);
+    public TextLayoutCache.Layout buildLayout(Component draw) {
         var font = Minecraft.getInstance().font;
         var caxtonHandler = CaxtonCompat.getHandler();
         List<FormattedCharSequence> lines = null;
@@ -763,10 +956,10 @@ public class ImmersiveMessage {
             baseWidth = Mth.ceil(maxWidth);
             baseHeight = lines.size() * font.lineHeight;
         } else {
-//            float width = caxtonHandler != null ? caxtonHandler.getWidth(draw.getVisualOrderText()) : font.getSplitter().stringWidth(draw.getVisualOrderText());
-            float width = font.getSplitter().stringWidth(draw.getVisualOrderText());
+            FormattedCharSequence sequence = draw.getVisualOrderText();
+            float width = font.getSplitter().stringWidth(sequence);
             if (caxtonHandler != null) {
-                float caxtonWidth = caxtonHandler.getWidth(draw.getVisualOrderText());
+                float caxtonWidth = caxtonHandler.getWidth(sequence);
                 if (!Float.isNaN(caxtonWidth)) {
                     width = caxtonWidth;
                 }
@@ -774,6 +967,15 @@ public class ImmersiveMessage {
             baseWidth = Mth.ceil(width);
             baseHeight = font.lineHeight;
         }
+        return new TextLayoutCache.Layout(lines, draw.getVisualOrderText(), baseWidth, baseHeight);
+    }
+
+    public void renderWithLayout(GuiGraphics graphics, Component draw, TextLayoutCache.Layout layout, int screenW, int screenH, float partialTick) {
+        var font = Minecraft.getInstance().font;
+        var caxtonHandler = CaxtonCompat.getHandler();
+        List<FormattedCharSequence> lines = layout.lines();
+        int baseWidth = layout.width();
+        int baseHeight = layout.height();
 
         float charPadding = charShake ? charShakeStrength : 0f;
         float textAreaWidth = baseWidth + charPadding * 2f;
@@ -795,8 +997,6 @@ public class ImmersiveMessage {
         int backgroundWidthInt = Mth.ceil(backgroundWidth);
         int backgroundHeightInt = Mth.ceil(backgroundHeight);
 
-        int screenW = Minecraft.getInstance().getWindow().getGuiScaledWidth();
-        int screenH = Minecraft.getInstance().getWindow().getGuiScaledHeight();
         float x = screenW * anchor.xFactor - baseWidth * textScale * align.xFactor + xOffset;
         float y = screenH * anchor.yFactor - baseHeight * textScale * align.yFactor + yOffset;
 
@@ -817,11 +1017,7 @@ public class ImmersiveMessage {
             y += sy;
         }
 
-        float fadeTime = Math.min(10f, duration * 0.25f);
-        float alpha = 1f;
-        if (age < fadeTime) alpha = age / fadeTime;
-        else if (age > duration - fadeTime) alpha = (duration - age) / fadeTime;
-        alpha = Mth.clamp(alpha, 0f, 1f);
+        float alpha = computeAlpha();
         int colour = ((int)(alpha * 255) << 24) | (text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF);
 
         if (typewriter && typewriterCenter && wrapMaxWidth <= 0) {
@@ -901,6 +1097,61 @@ public class ImmersiveMessage {
             graphics.drawString(font, draw, drawStartX, drawStartY, colour, shadow);
         }
         graphics.pose().popPose();
+    }
+
+    public void tick(float delta) {
+        age += delta;
+
+        // Typewriter progression
+        if (typewriter) {
+            int next = (int)(age * typewriterSpeed);
+            if (next > typewriterIndex) {
+                typewriterIndex = Math.min(next, text.getString().length());
+                if (obfuscateMode != ObfuscateMode.NONE) {
+                    rebuildObfuscation();
+                } else if (gradientColors != null) {
+                    current = buildGradientComponent(typewriterIndex);
+                } else {
+                    current = Component.literal(text.getString().substring(0, typewriterIndex))
+                            .withStyle(text.getStyle());
+                }
+            }
+        }
+
+        // Obfuscation progression
+        if (obfuscateMode != ObfuscateMode.NONE) tickObfuscation(delta);
+    }
+
+    private void tickObfuscation(float delta) {
+        if (baseText == null || revealIndex >= revealOrder.size()) return;
+
+        obfuscateProgress += obfuscateSpeed * delta;
+        int revealCount = Math.min((int) obfuscateProgress, revealOrder.size() - revealIndex);
+        if (revealCount <= 0) return;
+
+        int revealed = 0;
+        for (int i = 0; i < revealCount; i++) {
+            int idx = revealOrder.get(revealIndex);
+            if (typewriter && idx >= typewriterIndex) break;
+            revealMask[idx] = true;
+            revealIndex++;
+            revealed++;
+        }
+        if (revealed <= 0) return;
+        obfuscateProgress -= revealed;
+        rebuildObfuscation();
+    }
+
+    public boolean isFinished() { return age >= duration; }
+
+    public float getDelay() { return delay; }
+
+    public void render(GuiGraphics graphics) {
+        Component draw = component();
+        TextLayoutCache.Layout layout = buildLayout(draw);
+        int screenW = Minecraft.getInstance().getWindow().getGuiScaledWidth();
+        int screenH = Minecraft.getInstance().getWindow().getGuiScaledHeight();
+        renderWithLayout(graphics, draw, layout, screenW, screenH, 0f);
     }
 
     private void renderCharShake(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int colour, float baseX, float baseY) {
