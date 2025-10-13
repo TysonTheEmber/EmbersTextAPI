@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import net.minecraftforge.network.PacketDistributor;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.network.TooltipPacket;
+import net.tysontheember.emberstextapi.network.Network;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(EmbersTextAPI.MODID)
@@ -55,7 +56,7 @@ public class EmbersTextAPI
 
     private void commonSetup(final FMLCommonSetupEvent event)
     {
-        TooltipPacket.register();
+        Network.register();
     }
 
     // Add the example block item to the building blocks tab
