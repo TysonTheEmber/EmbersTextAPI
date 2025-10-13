@@ -5,14 +5,23 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.IntTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraftforge.fml.ModList;
 import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
+import net.tysontheember.emberstextapi.client.TextLayoutCache;
 import xyz.flirora.caxton.render.CaxtonTextRenderer;
 
 import java.util.ArrayList;
@@ -40,6 +49,21 @@ public class ImmersiveMessage {
     private ImmersiveColor backgroundColor = new ImmersiveColor(0xAA000000);
     private ImmersiveColor borderStart = new ImmersiveColor(0xAAFFFFFF);
     private ImmersiveColor borderEnd = new ImmersiveColor(0xAA000000);
+    private boolean useTextureBackground = false;
+    private ResourceLocation backgroundTexture;
+    private int textureU = 0;
+    private int textureV = 0;
+    private int textureWidth = 256;
+    private int textureHeight = 256;
+    private int textureAtlasWidth = 256;
+    private int textureAtlasHeight = 256;
+    private float texturePaddingX = 0f;
+    private float texturePaddingY = 0f;
+    private float textureScaleX = 1f;
+    private float textureScaleY = 1f;
+    private float textureOverrideWidth = -1f;
+    private float textureOverrideHeight = -1f;
+    private TextureSizingMode textureSizingMode = TextureSizingMode.STRETCH;
 
     // Text gradient (multi-stop)
     private TextColor[] gradientStops;
@@ -161,7 +185,14 @@ public class ImmersiveMessage {
         this.background = true;
         return this;
     }
-    public ImmersiveMessage background(boolean enabled) { this.background = enabled; return this; }
+    public ImmersiveMessage background(boolean enabled) {
+        this.background = enabled;
+        if (!enabled) {
+            this.useTextureBackground = false;
+            this.backgroundTexture = null;
+        }
+        return this;
+    }
     public ImmersiveMessage bgColor(ChatFormatting vanilla) {
         if (vanilla != null && vanilla.getColor() != null) {
             this.backgroundColor = new ImmersiveColor(0xFF000000 | vanilla.getColor());
@@ -206,6 +237,87 @@ public class ImmersiveMessage {
         }
         if (bg != null || borderStart != null || borderEnd != null) {
             this.background = true;
+        }
+        return this;
+    }
+
+    public ImmersiveMessage textureBackground(ResourceLocation texture) {
+        return textureBackground(texture, 0, 0, 256, 256, 256, 256);
+    }
+
+    public ImmersiveMessage textureBackground(ResourceLocation texture, int width, int height) {
+        return textureBackground(texture, 0, 0, width, height, width, height);
+    }
+
+    public ImmersiveMessage textureBackground(ResourceLocation texture, int u, int v, int regionWidth, int regionHeight, int atlasWidth, int atlasHeight) {
+        if (texture != null) {
+            this.backgroundTexture = texture;
+            this.textureU = u;
+            this.textureV = v;
+            this.textureWidth = Math.max(1, regionWidth);
+            this.textureHeight = Math.max(1, regionHeight);
+            this.textureAtlasWidth = Math.max(1, atlasWidth);
+            this.textureAtlasHeight = Math.max(1, atlasHeight);
+            this.useTextureBackground = true;
+            this.background = true;
+        } else {
+            this.backgroundTexture = null;
+            this.useTextureBackground = false;
+        }
+        return this;
+    }
+
+    public ImmersiveMessage textureBackgroundScale(float scale) {
+        return textureBackgroundScale(scale, scale);
+    }
+
+    public ImmersiveMessage textureBackgroundScale(float scaleX, float scaleY) {
+        this.textureScaleX = Float.isFinite(scaleX) ? Math.max(0f, scaleX) : this.textureScaleX;
+        this.textureScaleY = Float.isFinite(scaleY) ? Math.max(0f, scaleY) : this.textureScaleY;
+        return this;
+    }
+
+    public ImmersiveMessage textureBackgroundPadding(float padding) {
+        return textureBackgroundPadding(padding, padding);
+    }
+
+    public ImmersiveMessage textureBackgroundPadding(float paddingX, float paddingY) {
+        if (Float.isFinite(paddingX)) {
+            this.texturePaddingX = Math.max(0f, paddingX);
+        }
+        if (Float.isFinite(paddingY)) {
+            this.texturePaddingY = Math.max(0f, paddingY);
+        }
+        return this;
+    }
+
+    public ImmersiveMessage textureBackgroundSize(float width, float height) {
+        textureBackgroundWidth(width);
+        textureBackgroundHeight(height);
+        return this;
+    }
+
+    public ImmersiveMessage textureBackgroundWidth(float width) {
+        if (Float.isFinite(width) && width > 0f) {
+            this.textureOverrideWidth = width;
+        } else {
+            this.textureOverrideWidth = -1f;
+        }
+        return this;
+    }
+
+    public ImmersiveMessage textureBackgroundHeight(float height) {
+        if (Float.isFinite(height) && height > 0f) {
+            this.textureOverrideHeight = height;
+        } else {
+            this.textureOverrideHeight = -1f;
+        }
+        return this;
+    }
+
+    public ImmersiveMessage textureBackgroundMode(TextureSizingMode mode) {
+        if (mode != null) {
+            this.textureSizingMode = mode;
         }
         return this;
     }
@@ -449,6 +561,186 @@ public class ImmersiveMessage {
     }
 
     // ----- Network codec -----
+    public CompoundTag toNbt() {
+        CompoundTag tag = new CompoundTag();
+        ComponentSerialization.CODEC.encodeStart(NbtOps.INSTANCE, text).result().ifPresent(value -> tag.put("Text", value));
+        tag.putFloat("Duration", duration);
+        tag.putFloat("XOffset", xOffset);
+        tag.putFloat("YOffset", yOffset);
+        tag.putBoolean("Shadow", shadow);
+        tag.putString("Anchor", anchor.name());
+        tag.putString("Align", align.name());
+        tag.putFloat("Scale", textScale);
+        tag.putBoolean("Background", background);
+        tag.putInt("BackgroundColor", backgroundColor.getARGB());
+        tag.putInt("BorderStart", borderStart.getARGB());
+        tag.putInt("BorderEnd", borderEnd.getARGB());
+        tag.putBoolean("Typewriter", typewriter);
+        tag.putFloat("TypewriterSpeed", typewriterSpeed);
+        tag.putBoolean("TypewriterCenter", typewriterCenter);
+        tag.putString("ObfuscateMode", obfuscateMode.name());
+        tag.putFloat("ObfuscateSpeed", obfuscateSpeed);
+        tag.putBoolean("UseTextureBackground", useTextureBackground && backgroundTexture != null);
+        if (useTextureBackground && backgroundTexture != null) {
+            CompoundTag texture = new CompoundTag();
+            texture.putString("Location", backgroundTexture.toString());
+            texture.putInt("U", textureU);
+            texture.putInt("V", textureV);
+            texture.putInt("Width", textureWidth);
+            texture.putInt("Height", textureHeight);
+            texture.putInt("AtlasWidth", textureAtlasWidth);
+            texture.putInt("AtlasHeight", textureAtlasHeight);
+            texture.putFloat("PaddingX", texturePaddingX);
+            texture.putFloat("PaddingY", texturePaddingY);
+            texture.putFloat("ScaleX", textureScaleX);
+            texture.putFloat("ScaleY", textureScaleY);
+            if (textureOverrideWidth >= 0f) {
+                texture.putFloat("OverrideWidth", textureOverrideWidth);
+            }
+            if (textureOverrideHeight >= 0f) {
+                texture.putFloat("OverrideHeight", textureOverrideHeight);
+            }
+            texture.putString("SizingMode", textureSizingMode.name());
+            tag.put("Texture", texture);
+        }
+        if (gradientStops != null) {
+            ListTag list = new ListTag();
+            for (TextColor color : gradientStops) {
+                if (color != null) {
+                    list.add(IntTag.valueOf(color.getValue()));
+                }
+            }
+            if (!list.isEmpty()) {
+                tag.put("Gradient", list);
+            }
+        }
+        if (backgroundGradientStops != null) {
+            ListTag list = new ListTag();
+            for (ImmersiveColor color : backgroundGradientStops) {
+                if (color != null) {
+                    list.add(IntTag.valueOf(color.getARGB()));
+                }
+            }
+            if (!list.isEmpty()) {
+                tag.put("BackgroundGradient", list);
+            }
+        }
+        tag.putBoolean("Shake", shake);
+        tag.putString("ShakeType", shakeType.name());
+        tag.putFloat("ShakeStrength", shakeStrength);
+        tag.putBoolean("CharShake", charShake);
+        tag.putString("CharShakeType", charShakeType.name());
+        tag.putFloat("CharShakeStrength", charShakeStrength);
+        tag.putInt("WrapWidth", wrapMaxWidth);
+        tag.putFloat("Delay", delay);
+        return tag;
+    }
+
+    public static ImmersiveMessage fromNbt(CompoundTag tag) {
+        Component text = Component.literal("");
+        if (tag.contains("Text")) {
+            Tag textTag = tag.get("Text");
+            text = ComponentSerialization.CODEC.parse(NbtOps.INSTANCE, textTag).result().orElse(text);
+        }
+        float duration = tag.contains("Duration") ? tag.getFloat("Duration") : 0f;
+        ImmersiveMessage msg = new ImmersiveMessage(text, duration);
+        if (tag.contains("XOffset")) msg.xOffset = tag.getFloat("XOffset");
+        if (tag.contains("YOffset")) msg.yOffset = tag.getFloat("YOffset");
+        if (tag.contains("Shadow")) msg.shadow = tag.getBoolean("Shadow");
+        if (tag.contains("Anchor")) {
+            try {
+                msg.anchor = TextAnchor.valueOf(tag.getString("Anchor"));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (tag.contains("Align")) {
+            try {
+                msg.align = TextAnchor.valueOf(tag.getString("Align"));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (tag.contains("Scale")) msg.textScale = tag.getFloat("Scale");
+        if (tag.contains("Background")) msg.background = tag.getBoolean("Background");
+        if (tag.contains("BackgroundColor")) msg.backgroundColor = new ImmersiveColor(tag.getInt("BackgroundColor"));
+        if (tag.contains("BorderStart")) msg.borderStart = new ImmersiveColor(tag.getInt("BorderStart"));
+        if (tag.contains("BorderEnd")) msg.borderEnd = new ImmersiveColor(tag.getInt("BorderEnd"));
+        if (tag.contains("Typewriter")) msg.typewriter = tag.getBoolean("Typewriter");
+        if (tag.contains("TypewriterSpeed")) msg.typewriterSpeed = tag.getFloat("TypewriterSpeed");
+        if (tag.contains("TypewriterCenter")) msg.typewriterCenter = tag.getBoolean("TypewriterCenter");
+        if (tag.contains("ObfuscateMode")) {
+            try {
+                msg.obfuscateMode = ObfuscateMode.valueOf(tag.getString("ObfuscateMode"));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (tag.contains("ObfuscateSpeed")) msg.obfuscateSpeed = tag.getFloat("ObfuscateSpeed");
+        if (tag.contains("Texture")) {
+            CompoundTag texture = tag.getCompound("Texture");
+            if (texture.contains("Location")) {
+                msg.backgroundTexture = new ResourceLocation(texture.getString("Location"));
+                msg.useTextureBackground = true;
+                msg.background = true;
+            }
+            if (texture.contains("U")) msg.textureU = texture.getInt("U");
+            if (texture.contains("V")) msg.textureV = texture.getInt("V");
+            if (texture.contains("Width")) msg.textureWidth = Math.max(1, texture.getInt("Width"));
+            if (texture.contains("Height")) msg.textureHeight = Math.max(1, texture.getInt("Height"));
+            if (texture.contains("AtlasWidth")) msg.textureAtlasWidth = Math.max(1, texture.getInt("AtlasWidth"));
+            if (texture.contains("AtlasHeight")) msg.textureAtlasHeight = Math.max(1, texture.getInt("AtlasHeight"));
+            if (texture.contains("PaddingX")) msg.texturePaddingX = texture.getFloat("PaddingX");
+            if (texture.contains("PaddingY")) msg.texturePaddingY = texture.getFloat("PaddingY");
+            if (texture.contains("ScaleX")) msg.textureScaleX = texture.getFloat("ScaleX");
+            if (texture.contains("ScaleY")) msg.textureScaleY = texture.getFloat("ScaleY");
+            msg.textureOverrideWidth = texture.contains("OverrideWidth") ? texture.getFloat("OverrideWidth") : -1f;
+            msg.textureOverrideHeight = texture.contains("OverrideHeight") ? texture.getFloat("OverrideHeight") : -1f;
+            if (texture.contains("SizingMode")) {
+                try {
+                    msg.textureSizingMode = TextureSizingMode.valueOf(texture.getString("SizingMode"));
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        } else if (tag.getBoolean("UseTextureBackground")) {
+            msg.useTextureBackground = true;
+            msg.background = true;
+        }
+        if (tag.contains("Gradient")) {
+            ListTag list = tag.getList("Gradient", Tag.TAG_INT);
+            TextColor[] cols = new TextColor[list.size()];
+            for (int i = 0; i < list.size(); i++) {
+                cols[i] = TextColor.fromRgb(((IntTag) list.get(i)).getAsInt());
+            }
+            msg.gradient(cols);
+        }
+        if (tag.contains("BackgroundGradient")) {
+            ListTag list = tag.getList("BackgroundGradient", Tag.TAG_INT);
+            ImmersiveColor[] cols = new ImmersiveColor[list.size()];
+            for (int i = 0; i < list.size(); i++) {
+                cols[i] = new ImmersiveColor(((IntTag) list.get(i)).getAsInt());
+            }
+            msg.backgroundGradient(cols);
+        }
+        if (tag.contains("Shake")) msg.shake = tag.getBoolean("Shake");
+        if (tag.contains("ShakeType")) {
+            try {
+                msg.shakeType = ShakeType.valueOf(tag.getString("ShakeType"));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (tag.contains("ShakeStrength")) msg.shakeStrength = tag.getFloat("ShakeStrength");
+        if (tag.contains("CharShake")) msg.charShake = tag.getBoolean("CharShake");
+        if (tag.contains("CharShakeType")) {
+            try {
+                msg.charShakeType = ShakeType.valueOf(tag.getString("CharShakeType"));
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (tag.contains("CharShakeStrength")) msg.charShakeStrength = tag.getFloat("CharShakeStrength");
+        if (tag.contains("WrapWidth")) msg.wrapMaxWidth = tag.getInt("WrapWidth");
+        if (tag.contains("Delay")) msg.delay = tag.getFloat("Delay");
+        if (msg.obfuscateMode != ObfuscateMode.NONE) msg.initObfuscation();
+        return msg;
+    }
+
     public void encode(FriendlyByteBuf buf) {
         buf.writeComponent(text);
         buf.writeFloat(duration);
@@ -467,6 +759,30 @@ public class ImmersiveMessage {
         buf.writeBoolean(typewriterCenter);
         buf.writeEnum(obfuscateMode);
         buf.writeFloat(obfuscateSpeed);
+
+        buf.writeBoolean(useTextureBackground && backgroundTexture != null);
+        if (useTextureBackground && backgroundTexture != null) {
+            buf.writeResourceLocation(backgroundTexture);
+            buf.writeVarInt(textureU);
+            buf.writeVarInt(textureV);
+            buf.writeVarInt(textureWidth);
+            buf.writeVarInt(textureHeight);
+            buf.writeVarInt(textureAtlasWidth);
+            buf.writeVarInt(textureAtlasHeight);
+            buf.writeFloat(texturePaddingX);
+            buf.writeFloat(texturePaddingY);
+            buf.writeFloat(textureScaleX);
+            buf.writeFloat(textureScaleY);
+            buf.writeBoolean(textureOverrideWidth >= 0f);
+            if (textureOverrideWidth >= 0f) {
+                buf.writeFloat(textureOverrideWidth);
+            }
+            buf.writeBoolean(textureOverrideHeight >= 0f);
+            if (textureOverrideHeight >= 0f) {
+                buf.writeFloat(textureOverrideHeight);
+            }
+            buf.writeEnum(textureSizingMode);
+        }
 
         // Text gradient stops
         buf.writeBoolean(gradientStops != null);
@@ -514,6 +830,25 @@ public class ImmersiveMessage {
         msg.obfuscateMode = buf.readEnum(ObfuscateMode.class);
         msg.obfuscateSpeed = buf.readFloat();
 
+        if (buf.readBoolean()) {
+            msg.backgroundTexture = buf.readResourceLocation();
+            msg.textureU = buf.readVarInt();
+            msg.textureV = buf.readVarInt();
+            msg.textureWidth = Math.max(1, buf.readVarInt());
+            msg.textureHeight = Math.max(1, buf.readVarInt());
+            msg.textureAtlasWidth = Math.max(1, buf.readVarInt());
+            msg.textureAtlasHeight = Math.max(1, buf.readVarInt());
+            msg.texturePaddingX = buf.readFloat();
+            msg.texturePaddingY = buf.readFloat();
+            msg.textureScaleX = buf.readFloat();
+            msg.textureScaleY = buf.readFloat();
+            msg.textureOverrideWidth = buf.readBoolean() ? buf.readFloat() : -1f;
+            msg.textureOverrideHeight = buf.readBoolean() ? buf.readFloat() : -1f;
+            msg.textureSizingMode = buf.readEnum(TextureSizingMode.class);
+            msg.useTextureBackground = true;
+            msg.background = true;
+        }
+
         // Text gradient stops
         if (buf.readBoolean()) {
             int count = buf.readVarInt();
@@ -545,6 +880,225 @@ public class ImmersiveMessage {
     }
 
     // ----- Runtime behaviour -----
+    public void tickEffects() {
+        tick(1f);
+    }
+
+    public boolean hasDuration() {
+        return duration > 0f;
+    }
+
+    public int durationTicks() {
+        return Mth.ceil(duration);
+    }
+
+    public Component component() {
+        return getDrawComponent();
+    }
+
+    public int renderColour() {
+        int base = text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF;
+        int alpha = Mth.clamp((int)(computeAlpha() * 255f), 0, 255);
+        return (alpha << 24) | base;
+    }
+
+    public float getTextScale() {
+        return textScale;
+    }
+
+    public int getWrapWidth() {
+        return wrapMaxWidth;
+    }
+
+    public String fontKey() {
+        return text.getStyle().getFont().map(ResourceLocation::toString).orElse("minecraft:default");
+    }
+
+    private Component getDrawComponent() {
+        if (typewriter) {
+            return current;
+        }
+        return current.getString().isEmpty() ? text : current;
+    }
+
+    private float computeAlpha() {
+        float fadeTime = Math.min(10f, duration * 0.25f);
+        float alpha = 1f;
+        if (duration > 0f) {
+            if (age < fadeTime) {
+                alpha = age / Math.max(0.0001f, fadeTime);
+            } else if (age > duration - fadeTime) {
+                alpha = (duration - age) / Math.max(0.0001f, fadeTime);
+            }
+        }
+        return Mth.clamp(alpha, 0f, 1f);
+    }
+
+    public TextLayoutCache.Layout buildLayout(Component draw) {
+        var font = Minecraft.getInstance().font;
+        var caxtonHandler = CaxtonCompat.getHandler();
+        List<FormattedCharSequence> lines = null;
+        int baseWidth;
+        int baseHeight;
+        if (wrapMaxWidth > 0) {
+            lines = font.split(draw, wrapMaxWidth);
+            float maxWidth = 0f;
+            for (FormattedCharSequence line : lines) {
+                float width = font.getSplitter().stringWidth(line);
+                if (caxtonHandler != null) {
+                    float caxtonWidth = caxtonHandler.getWidth(line);
+                    if (!Float.isNaN(caxtonWidth)) {
+                        width = caxtonWidth;
+                    }
+                }
+                maxWidth = Math.max(maxWidth, width);
+            }
+            baseWidth = Mth.ceil(maxWidth);
+            baseHeight = lines.size() * font.lineHeight;
+        } else {
+            FormattedCharSequence sequence = draw.getVisualOrderText();
+            float width = font.getSplitter().stringWidth(sequence);
+            if (caxtonHandler != null) {
+                float caxtonWidth = caxtonHandler.getWidth(sequence);
+                if (!Float.isNaN(caxtonWidth)) {
+                    width = caxtonWidth;
+                }
+            }
+            baseWidth = Mth.ceil(width);
+            baseHeight = font.lineHeight;
+        }
+        return new TextLayoutCache.Layout(lines, draw.getVisualOrderText(), baseWidth, baseHeight);
+    }
+
+    public void renderWithLayout(GuiGraphics graphics, Component draw, TextLayoutCache.Layout layout, int screenW, int screenH, float partialTick) {
+        var font = Minecraft.getInstance().font;
+        var caxtonHandler = CaxtonCompat.getHandler();
+        List<FormattedCharSequence> lines = layout.lines();
+        int baseWidth = layout.width();
+        int baseHeight = layout.height();
+
+        float charPadding = charShake ? charShakeStrength : 0f;
+        float textAreaWidth = baseWidth + charPadding * 2f;
+        float textAreaHeight = baseHeight + charPadding * 2f;
+
+        float scaledWidth = textureOverrideWidth >= 0f ? textureOverrideWidth : textAreaWidth * Math.max(textureScaleX, 0f);
+        float scaledHeight = textureOverrideHeight >= 0f ? textureOverrideHeight : textAreaHeight * Math.max(textureScaleY, 0f);
+        scaledWidth = Math.max(scaledWidth, textAreaWidth);
+        scaledHeight = Math.max(scaledHeight, textAreaHeight);
+
+        float backgroundWidth = scaledWidth + texturePaddingX * 2f;
+        float backgroundHeight = scaledHeight + texturePaddingY * 2f;
+
+        float extraX = (backgroundWidth - textAreaWidth) / 2f;
+        float extraY = (backgroundHeight - textAreaHeight) / 2f;
+        float textStartX = extraX + charPadding;
+        float textStartY = extraY + charPadding;
+
+        int backgroundWidthInt = Mth.ceil(backgroundWidth);
+        int backgroundHeightInt = Mth.ceil(backgroundHeight);
+
+        float x = screenW * anchor.xFactor - baseWidth * textScale * align.xFactor + xOffset;
+        float y = screenH * anchor.yFactor - baseHeight * textScale * align.yFactor + yOffset;
+
+        if (shake) {
+            float sx = 0f, sy = 0f;
+            switch (shakeType) {
+                case WAVE -> sy = (float) Math.sin(age * 10f) * shakeStrength;
+                case CIRCLE -> {
+                    sx = (float) Math.cos(age * 10f) * shakeStrength;
+                    sy = (float) Math.sin(age * 10f) * shakeStrength;
+                }
+                case RANDOM -> {
+                    sx = (random.nextFloat() - 0.5f) * 2f * shakeStrength;
+                    sy = (random.nextFloat() - 0.5f) * 2f * shakeStrength;
+                }
+            }
+            x += sx;
+            y += sy;
+        }
+
+        float alpha = computeAlpha();
+        int colour = ((int)(alpha * 255) << 24) | (text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF);
+
+        if (typewriter && typewriterCenter && wrapMaxWidth <= 0) {
+            float fullWidth = font.width(text);
+            if (caxtonHandler != null) {
+                float caxtonWidth = caxtonHandler.getWidth(text.getVisualOrderText());
+                if (!Float.isNaN(caxtonWidth)) {
+                    fullWidth = caxtonWidth;
+                }
+            }
+            float currentWidth = font.width(draw);
+            if (caxtonHandler != null) {
+                float caxtonWidth = caxtonHandler.getWidth(draw.getVisualOrderText());
+                if (!Float.isNaN(caxtonWidth)) {
+                    currentWidth = caxtonWidth;
+                }
+            }
+            x += (fullWidth - currentWidth) / 2f * textScale;
+        }
+
+        graphics.pose().pushPose();
+        graphics.pose().translate(x - textStartX * textScale, y - textStartY * textScale, 0);
+        graphics.pose().scale(textScale, textScale, 1f);
+        if (background) {
+            int start = (Math.min(255, (int)(borderStart.getAlpha() * alpha)) << 24) | borderStart.getRGB();
+            int end = (Math.min(255, (int)(borderEnd.getAlpha() * alpha)) << 24) | borderEnd.getRGB();
+            int widthForBg = shake ? backgroundWidthInt + 200 : backgroundWidthInt;
+
+            if (useTextureBackground && backgroundTexture != null) {
+                RenderSystem.enableBlend();
+                RenderSystem.setShaderColor(1f, 1f, 1f, alpha);
+                if (textureSizingMode == TextureSizingMode.STRETCH) {
+                    graphics.blit(backgroundTexture, 0, 0, widthForBg, backgroundHeightInt, textureU, textureV, textureWidth, textureHeight, textureAtlasWidth, textureAtlasHeight);
+                } else {
+                    int drawWidth = Math.min(widthForBg, textureWidth);
+                    int drawHeight = Math.min(backgroundHeightInt, textureHeight);
+                    int destX = Math.max(0, (widthForBg - drawWidth) / 2);
+                    int destY = Math.max(0, (backgroundHeightInt - drawHeight) / 2);
+                    int uOffset = textureU;
+                    int vOffset = textureV;
+                    if (drawWidth < textureWidth) {
+                        uOffset += (textureWidth - drawWidth) / 2;
+                    }
+                    if (drawHeight < textureHeight) {
+                        vOffset += (textureHeight - drawHeight) / 2;
+                    }
+                    graphics.blit(backgroundTexture, destX, destY, drawWidth, drawHeight, uOffset, vOffset, drawWidth, drawHeight, textureAtlasWidth, textureAtlasHeight);
+                }
+                RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+                RenderSystem.disableBlend();
+            } else if (backgroundGradientStops != null) {
+                int[] cols = new int[backgroundGradientStops.length];
+                for (int i = 0; i < backgroundGradientStops.length; i++) {
+                    ImmersiveColor c = backgroundGradientStops[i];
+                    int a = Math.min(255, (int)(c.getAlpha() * alpha));
+                    cols[i] = (a << 24) | c.getRGB();
+                }
+                RenderUtil.drawBackgroundGradient(graphics, 0, 0, widthForBg, backgroundHeightInt, cols, start, end);
+            } else {
+                int bg = (Math.min(255, (int)(backgroundColor.getAlpha() * alpha)) << 24) | backgroundColor.getRGB();
+                RenderUtil.drawBackground(graphics, 0, 0, widthForBg, backgroundHeightInt, bg, start, end);
+            }
+        }
+        if (onRender != null) {
+            onRender.render(graphics, this, 0, 0, alpha);
+        } else if (charShake) {
+            renderCharShake(graphics, lines, draw, colour, textStartX, textStartY);
+        } else if (lines != null) {
+            int drawStartX = Mth.floor(textStartX);
+            for (int i = 0; i < lines.size(); i++) {
+                int drawStartY = Mth.floor(textStartY + i * font.lineHeight);
+                graphics.drawString(font, lines.get(i), drawStartX, drawStartY, colour, shadow);
+            }
+        } else {
+            int drawStartX = Mth.floor(textStartX);
+            int drawStartY = Mth.floor(textStartY);
+            graphics.drawString(font, draw, drawStartX, drawStartY, colour, shadow);
+        }
+        graphics.pose().popPose();
+    }
+
     public void tick(float delta) {
         age += delta;
 
@@ -593,135 +1147,22 @@ public class ImmersiveMessage {
     public float getDelay() { return delay; }
 
     public void render(GuiGraphics graphics) {
-        Component draw = typewriter ? current : (current.getString().isEmpty() ? text : current);
-        var font = Minecraft.getInstance().font;
-        var caxtonHandler = CaxtonCompat.getHandler();
-        List<FormattedCharSequence> lines = null;
-        int baseWidth;
-        int baseHeight;
-        if (wrapMaxWidth > 0) {
-            lines = font.split(draw, wrapMaxWidth);
-            float maxWidth = 0f;
-            for (FormattedCharSequence line : lines) {
-                float width = font.getSplitter().stringWidth(line);
-                if (caxtonHandler != null) {
-                    float caxtonWidth = caxtonHandler.getWidth(line);
-                    if (!Float.isNaN(caxtonWidth)) {
-                        width = caxtonWidth;
-                    }
-                }
-                maxWidth = Math.max(maxWidth, width);
-            }
-            baseWidth = Mth.ceil(maxWidth);
-            baseHeight = lines.size() * font.lineHeight;
-        } else {
-//            float width = caxtonHandler != null ? caxtonHandler.getWidth(draw.getVisualOrderText()) : font.getSplitter().stringWidth(draw.getVisualOrderText());
-            float width = font.getSplitter().stringWidth(draw.getVisualOrderText());
-            if (caxtonHandler != null) {
-                float caxtonWidth = caxtonHandler.getWidth(draw.getVisualOrderText());
-                if (!Float.isNaN(caxtonWidth)) {
-                    width = caxtonWidth;
-                }
-            }
-            baseWidth = Mth.ceil(width);
-            baseHeight = font.lineHeight;
-        }
-
-        float padding = charShake ? charShakeStrength : 0f;
-        int textWidth = baseWidth + (int) Math.ceil(padding * 2f);
-        int textHeight = baseHeight + (int) Math.ceil(padding * 2f);
-
+        Component draw = component();
+        TextLayoutCache.Layout layout = buildLayout(draw);
         int screenW = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         int screenH = Minecraft.getInstance().getWindow().getGuiScaledHeight();
-        float x = screenW * anchor.xFactor - baseWidth * textScale * align.xFactor + xOffset;
-        float y = screenH * anchor.yFactor - baseHeight * textScale * align.yFactor + yOffset;
-
-        if (shake) {
-            float sx = 0f, sy = 0f;
-            switch (shakeType) {
-                case WAVE -> sy = (float) Math.sin(age * 10f) * shakeStrength;
-                case CIRCLE -> {
-                    sx = (float) Math.cos(age * 10f) * shakeStrength;
-                    sy = (float) Math.sin(age * 10f) * shakeStrength;
-                }
-                case RANDOM -> {
-                    sx = (random.nextFloat() - 0.5f) * 2f * shakeStrength;
-                    sy = (random.nextFloat() - 0.5f) * 2f * shakeStrength;
-                }
-            }
-            x += sx;
-            y += sy;
-        }
-
-        float fadeTime = Math.min(10f, duration * 0.25f);
-        float alpha = 1f;
-        if (age < fadeTime) alpha = age / fadeTime;
-        else if (age > duration - fadeTime) alpha = (duration - age) / fadeTime;
-        alpha = Mth.clamp(alpha, 0f, 1f);
-        int colour = ((int)(alpha * 255) << 24) | (text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF);
-
-        if (typewriter && typewriterCenter && wrapMaxWidth <= 0) {
-            float fullWidth = font.width(text);
-            if (caxtonHandler != null) {
-                float caxtonWidth = caxtonHandler.getWidth(text.getVisualOrderText());
-                if (!Float.isNaN(caxtonWidth)) {
-                    fullWidth = caxtonWidth;
-                }
-            }
-            float currentWidth = font.width(draw);
-            if (caxtonHandler != null) {
-                float caxtonWidth = caxtonHandler.getWidth(draw.getVisualOrderText());
-                if (!Float.isNaN(caxtonWidth)) {
-                    currentWidth = caxtonWidth;
-                }
-            }
-            x += (fullWidth - currentWidth) / 2f * textScale;
-        }
-
-        graphics.pose().pushPose();
-        graphics.pose().translate(x - padding * textScale, y - padding * textScale, 0);
-        graphics.pose().scale(textScale, textScale, 1f);
-        if (background) {
-            int start = (Math.min(255, (int)(borderStart.getAlpha() * alpha)) << 24) | borderStart.getRGB();
-            int end = (Math.min(255, (int)(borderEnd.getAlpha() * alpha)) << 24) | borderEnd.getRGB();
-            int widthForBg = shake ? textWidth + 200 : textWidth;
-
-            if (backgroundGradientStops != null) {
-                int[] cols = new int[backgroundGradientStops.length];
-                for (int i = 0; i < backgroundGradientStops.length; i++) {
-                    ImmersiveColor c = backgroundGradientStops[i];
-                    int a = Math.min(255, (int)(c.getAlpha() * alpha));
-                    cols[i] = (a << 24) | c.getRGB();
-                }
-                RenderUtil.drawBackgroundGradient(graphics, 0, 0, widthForBg, textHeight, cols, start, end);
-            } else {
-                int bg = (Math.min(255, (int)(backgroundColor.getAlpha() * alpha)) << 24) | backgroundColor.getRGB();
-                RenderUtil.drawBackground(graphics, 0, 0, widthForBg, textHeight, bg, start, end);
-            }
-        }
-        if (onRender != null) {
-            onRender.render(graphics, this, 0, 0, alpha);
-        } else if (charShake) {
-            renderCharShake(graphics, lines, draw, colour, padding);
-        } else if (lines != null) {
-            for (int i = 0; i < lines.size(); i++) {
-                graphics.drawString(font, lines.get(i), 0, i * font.lineHeight, colour, shadow);
-            }
-        } else {
-            graphics.drawString(font, draw, 0, 0, colour, shadow);
-        }
-        graphics.pose().popPose();
+        renderWithLayout(graphics, draw, layout, screenW, screenH, 0f);
     }
 
-    private void renderCharShake(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int colour, float padding) {
+    private void renderCharShake(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int colour, float baseX, float baseY) {
         var font = Minecraft.getInstance().font;
         var handler = CaxtonCompat.getHandler();
         int[] index = {0};
 
         if (lines != null) {
             for (int i = 0; i < lines.size(); i++) {
-                final float baseY = padding + i * font.lineHeight;
-                final float[] xAdvance = {padding};
+                final float lineBaseY = baseY + i * font.lineHeight;
+                final float[] xAdvance = {baseX};
                 FormattedCharSequence lineSeq = lines.get(i);
                 lineSeq.accept((pos, style, codePoint) -> {
                     String ch = new String(Character.toChars(codePoint));
@@ -747,7 +1188,7 @@ public class ImmersiveMessage {
                         }
                     }
                     graphics.pose().pushPose();
-                    graphics.pose().translate(xAdvance[0] + sx, baseY + sy, 0);
+                    graphics.pose().translate(xAdvance[0] + sx, lineBaseY + sy, 0);
                     graphics.drawString(font, charSeq, 0, 0, colour, shadow);
                     graphics.pose().popPose();
                     xAdvance[0] += cw;
@@ -756,7 +1197,7 @@ public class ImmersiveMessage {
                 });
             }
         } else {
-            final float[] xAdvance = {padding};
+            final float[] xAdvance = {baseX};
             draw.getVisualOrderText().accept((pos, style, codePoint) -> {
                 String ch = new String(Character.toChars(codePoint));
                 float sx = 0f, sy = 0f;
@@ -775,13 +1216,28 @@ public class ImmersiveMessage {
                 FormattedCharSequence charSeq = comp.getVisualOrderText();
                 float cw = handler != null ? handler.getWidth(charSeq) : font.width(charSeq);
                 graphics.pose().pushPose();
-                graphics.pose().translate(xAdvance[0] + sx, padding + sy, 0);
+                graphics.pose().translate(xAdvance[0] + sx, baseY + sy, 0);
                 graphics.drawString(font, charSeq, 0, 0, colour, shadow);
                 graphics.pose().popPose();
                 xAdvance[0] += cw;
                 index[0]++;
                 return true;
             });
+        }
+    }
+
+    public enum TextureSizingMode {
+        STRETCH,
+        CROP;
+
+        public static TextureSizingMode fromString(String value) {
+            if (value == null) {
+                return STRETCH;
+            }
+            return switch (value.toLowerCase(java.util.Locale.ROOT)) {
+                case "crop", "cut", "cover" -> CROP;
+                default -> STRETCH;
+            };
         }
     }
 }

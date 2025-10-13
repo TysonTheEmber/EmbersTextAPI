@@ -5,9 +5,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.simple.SimpleChannel;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
+import net.tysontheember.emberstextapi.network.Network;
 import net.tysontheember.emberstextapi.immersivemessages.ImmersiveMessagesManager;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 
@@ -20,9 +19,8 @@ import java.util.function.Supplier;
  * simplicity.
  */
 public class TooltipPacket {
-    private static final String PROTOCOL = "2";
     private static final ResourceLocation ID = new ResourceLocation(EmbersTextAPI.MODID, "tooltip");
-    public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(ID, () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
+    public static final net.minecraftforge.network.simple.SimpleChannel CHANNEL = Network.CHANNEL;
 
     private final ImmersiveMessage message;
 
@@ -30,8 +28,9 @@ public class TooltipPacket {
         this.message = message;
     }
 
+    @Deprecated(forRemoval = true)
     public static void register() {
-        CHANNEL.registerMessage(0, TooltipPacket.class, TooltipPacket::encode, TooltipPacket::decode, TooltipPacket::handle);
+        Network.register();
     }
 
     private static void encode(TooltipPacket packet, FriendlyByteBuf buf) {
