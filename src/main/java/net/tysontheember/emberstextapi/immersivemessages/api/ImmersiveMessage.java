@@ -1,27 +1,25 @@
 package net.tysontheember.emberstextapi.immersivemessages.api;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.ComponentSerialization;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.TextColor;
-import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FormattedCharSequence;
-import net.minecraft.util.Mth;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.util.Mth;
 import net.minecraftforge.fml.ModList;
+import net.tysontheember.emberstextapi.client.TextLayoutCache;
 import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
-import net.tysontheember.emberstextapi.client.TextLayoutCache;
 import xyz.flirora.caxton.render.CaxtonTextRenderer;
 
 import java.util.ArrayList;
@@ -563,7 +561,10 @@ public class ImmersiveMessage {
     // ----- Network codec -----
     public CompoundTag toNbt() {
         CompoundTag tag = new CompoundTag();
-        ComponentSerialization.CODEC.encodeStart(NbtOps.INSTANCE, text).result().ifPresent(value -> tag.put("Text", value));
+
+        // 1.20.1-safe: store text as JSON
+        tag.putString("TextJson", Component.Serializer.toJson(text));
+
         tag.putFloat("Duration", duration);
         tag.putFloat("XOffset", xOffset);
         tag.putFloat("YOffset", yOffset);
@@ -638,10 +639,13 @@ public class ImmersiveMessage {
 
     public static ImmersiveMessage fromNbt(CompoundTag tag) {
         Component text = Component.literal("");
-        if (tag.contains("Text")) {
-            Tag textTag = tag.get("Text");
-            text = ComponentSerialization.CODEC.parse(NbtOps.INSTANCE, textTag).result().orElse(text);
+
+        // 1.20.1-safe: read JSON text
+        if (tag.contains("TextJson", Tag.TAG_STRING)) {
+            Component parsed = Component.Serializer.fromJson(tag.getString("TextJson"));
+            if (parsed != null) text = parsed;
         }
+
         float duration = tag.contains("Duration") ? tag.getFloat("Duration") : 0f;
         ImmersiveMessage msg = new ImmersiveMessage(text, duration);
         if (tag.contains("XOffset")) msg.xOffset = tag.getFloat("XOffset");
@@ -677,7 +681,8 @@ public class ImmersiveMessage {
         if (tag.contains("Texture")) {
             CompoundTag texture = tag.getCompound("Texture");
             if (texture.contains("Location")) {
-                msg.backgroundTexture = new ResourceLocation(texture.getString("Location"));
+                ResourceLocation rl = ResourceLocation.tryParse(texture.getString("Location"));
+                msg.backgroundTexture = rl != null ? rl : new ResourceLocation("minecraft", "missingno");
                 msg.useTextureBackground = true;
                 msg.background = true;
             }
@@ -911,7 +916,9 @@ public class ImmersiveMessage {
     }
 
     public String fontKey() {
-        return text.getStyle().getFont().map(ResourceLocation::toString).orElse("minecraft:default");
+        // 1.20.1: Style#getFont() returns a ResourceLocation (not Optional)
+        ResourceLocation font = text.getStyle().getFont();
+        return font != null ? font.toString() : "minecraft:default";
     }
 
     private Component getDrawComponent() {
