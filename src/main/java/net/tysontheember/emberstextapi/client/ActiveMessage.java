@@ -32,7 +32,7 @@ public final class ActiveMessage {
     }
 
     public boolean isExpired() {
-        return message.hasDuration() && message.isFinished();
+        return message.isFinished();
     }
 
     public void render(GuiGraphics graphics, float partialTick) {
