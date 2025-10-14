@@ -37,6 +37,7 @@ public class ImmersiveMessage {
     private final Component text;
     private final float duration;
     private float age;
+    private float previousAge;
     /** Number of ticks spent fading in before reaching full opacity. */
     private int fadeInTicks = 0;
     /** Number of ticks spent fading out after the visible duration completes. */
@@ -978,7 +979,19 @@ public class ImmersiveMessage {
 
     public int renderColour() {
         int base = text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF;
-        int alpha = Mth.clamp((int)(computeAlpha() * 255f), 0, 255);
+        int alpha = Mth.clamp((int)(computeAlpha(age) * 255f), 0, 255);
+        return (alpha << 24) | base;
+    }
+
+    /**
+     * Computes the ARGB colour for rendering with interpolation between the previous and current age values.
+     *
+     * @param partialTick render partial tick, typically between {@code 0} and {@code 1}.
+     * @return colour with fade alpha applied for the provided partial tick.
+     */
+    public int renderColour(float partialTick) {
+        int base = text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF;
+        int alpha = Mth.clamp((int)(computeAlpha(sampleAge(partialTick)) * 255f), 0, 255);
         return (alpha << 24) | base;
     }
 
@@ -1003,24 +1016,29 @@ public class ImmersiveMessage {
         return current.getString().isEmpty() ? text : current;
     }
 
-    private float computeAlpha() {
+    private float computeAlpha(float sampleAge) {
         float fadeIn = this.fadeInTicks;
         float fadeOut = this.fadeOutTicks;
         float visibleEnd = fadeIn + duration;
         float total = visibleEnd + fadeOut;
 
         float alpha;
-        if (fadeIn > 0f && age < fadeIn) {
-            alpha = age / Math.max(1f, fadeIn);
-        } else if (age < visibleEnd || (duration <= 0f && fadeIn == 0f && fadeOut == 0f)) {
+        if (fadeIn > 0f && sampleAge < fadeIn) {
+            alpha = sampleAge / Math.max(1f, fadeIn);
+        } else if (sampleAge < visibleEnd || (duration <= 0f && fadeIn == 0f && fadeOut == 0f)) {
             alpha = 1f;
-        } else if (fadeOut > 0f && age < total) {
-            float fadeProgress = age - visibleEnd;
+        } else if (fadeOut > 0f && sampleAge < total) {
+            float fadeProgress = sampleAge - visibleEnd;
             alpha = 1f - (fadeProgress / Math.max(1f, fadeOut));
         } else {
             alpha = 0f;
         }
         return Mth.clamp(alpha, 0f, 1f);
+    }
+
+    private float sampleAge(float partialTick) {
+        float clamped = Mth.clamp(partialTick, 0f, 1f);
+        return Mth.lerp(clamped, previousAge, age);
     }
 
     public TextLayoutCache.Layout buildLayout(Component draw) {
@@ -1089,13 +1107,15 @@ public class ImmersiveMessage {
         float x = screenW * anchor.xFactor - baseWidth * textScale * align.xFactor + xOffset;
         float y = screenH * anchor.yFactor - baseHeight * textScale * align.yFactor + yOffset;
 
+        float renderAge = sampleAge(partialTick);
+
         if (shake) {
             float sx = 0f, sy = 0f;
             switch (shakeType) {
-                case WAVE -> sy = (float) Math.sin(age * 10f) * shakeStrength;
+                case WAVE -> sy = (float) Math.sin(renderAge * 10f) * shakeStrength;
                 case CIRCLE -> {
-                    sx = (float) Math.cos(age * 10f) * shakeStrength;
-                    sy = (float) Math.sin(age * 10f) * shakeStrength;
+                    sx = (float) Math.cos(renderAge * 10f) * shakeStrength;
+                    sy = (float) Math.sin(renderAge * 10f) * shakeStrength;
                 }
                 case RANDOM -> {
                     sx = (random.nextFloat() - 0.5f) * 2f * shakeStrength;
@@ -1106,7 +1126,7 @@ public class ImmersiveMessage {
             y += sy;
         }
 
-        float alpha = computeAlpha();
+        float alpha = computeAlpha(renderAge);
         int colour = ((int)(alpha * 255) << 24) | (text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF);
 
         if (typewriter && typewriterCenter && wrapMaxWidth <= 0) {
@@ -1189,6 +1209,7 @@ public class ImmersiveMessage {
     }
 
     public void tick(float delta) {
+        previousAge = age;
         age += delta;
 
         // Typewriter progression

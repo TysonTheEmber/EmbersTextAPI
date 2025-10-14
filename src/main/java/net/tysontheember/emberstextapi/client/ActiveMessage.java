@@ -37,7 +37,7 @@ public final class ActiveMessage {
 
     public void render(GuiGraphics graphics, float partialTick) {
         Component draw = message.component();
-        int colour = message.renderColour();
+        int colour = message.renderColour(partialTick);
         float scale = message.getTextScale();
         int wrap = message.getWrapWidth();
         String fontKey = message.fontKey();
