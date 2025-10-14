@@ -33,15 +33,15 @@ public class TooltipPacket {
         Network.register();
     }
 
-    private static void encode(TooltipPacket packet, FriendlyByteBuf buf) {
+    public static void encode(TooltipPacket packet, FriendlyByteBuf buf) {
         packet.message.encode(buf);
     }
 
-    private static TooltipPacket decode(FriendlyByteBuf buf) {
+    public static TooltipPacket decode(FriendlyByteBuf buf) {
         return new TooltipPacket(ImmersiveMessage.decode(buf));
     }
 
-    private static void handle(TooltipPacket packet, Supplier<NetworkEvent.Context> ctx) {
+    public static void handle(TooltipPacket packet, Supplier<NetworkEvent.Context> ctx) {
         NetworkEvent.Context context = ctx.get();
         if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
             context.enqueueWork(() -> {

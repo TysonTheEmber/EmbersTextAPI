@@ -32,12 +32,12 @@ public final class ActiveMessage {
     }
 
     public boolean isExpired() {
-        return message.hasDuration() && message.isFinished();
+        return message.isFinished();
     }
 
     public void render(GuiGraphics graphics, float partialTick) {
         Component draw = message.component();
-        int colour = message.renderColour();
+        int colour = message.renderColour(partialTick);
         float scale = message.getTextScale();
         int wrap = message.getWrapWidth();
         String fontKey = message.fontKey();
