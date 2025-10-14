@@ -59,14 +59,29 @@ public class MessageCommands {
         return Commands.literal("send")
             .then(Commands.argument("player", EntityArgument.player())
                 .then(Commands.argument("duration", FloatArgumentType.floatArg())
+                    .then(Commands.argument("fadeIn", IntegerArgumentType.integer(0))
+                        .then(Commands.argument("fadeOut", IntegerArgumentType.integer(0))
+                            .then(Commands.argument("text", StringArgumentType.greedyString())
+                                .executes(ctx -> sendBasicMessage(ctx,
+                                        IntegerArgumentType.getInteger(ctx, "fadeIn"),
+                                        IntegerArgumentType.getInteger(ctx, "fadeOut")))))
+                        .then(Commands.argument("text", StringArgumentType.greedyString())
+                            .executes(ctx -> sendBasicMessage(ctx,
+                                    IntegerArgumentType.getInteger(ctx, "fadeIn"), 0))))
                     .then(Commands.argument("text", StringArgumentType.greedyString())
-                        .executes(ctx -> {
-                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
-                            float duration = FloatArgumentType.getFloat(ctx, "duration");
-                            String text = StringArgumentType.getString(ctx, "text");
-                            EmbersTextAPI.sendMessage(target, ImmersiveMessage.builder(duration, text));
-                            return Command.SINGLE_SUCCESS;
-                        }))));
+                        .executes(ctx -> sendBasicMessage(ctx, 0, 0)))));
+    }
+
+    private static int sendBasicMessage(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx,
+                                        int fadeIn, int fadeOut) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+        float duration = FloatArgumentType.getFloat(ctx, "duration");
+        String text = StringArgumentType.getString(ctx, "text");
+        EmbersTextAPI.sendMessage(target,
+                ImmersiveMessage.builder(duration, text)
+                        .fadeInTicks(fadeIn)
+                        .fadeOutTicks(fadeOut));
+        return Command.SINGLE_SUCCESS;
     }
 
     private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> customSubcommand() {
@@ -123,6 +138,12 @@ public class MessageCommands {
                                 }
 
                                 ImmersiveMessage msg = new ImmersiveMessage(component, duration);
+                                if (keys.containsKey("fadein")) {
+                                    msg.fadeInTicks(tag.getInt(keys.get("fadein")));
+                                }
+                                if (keys.containsKey("fadeout")) {
+                                    msg.fadeOutTicks(tag.getInt(keys.get("fadeout")));
+                                }
 
                                 // Text gradient (supports list of stops or {start,end})
                                 if (tag.contains("gradient", Tag.TAG_LIST)) {

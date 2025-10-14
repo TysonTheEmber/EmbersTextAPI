@@ -37,6 +37,10 @@ public class ImmersiveMessage {
     private final Component text;
     private final float duration;
     private float age;
+    /** Number of ticks spent fading in before reaching full opacity. */
+    private int fadeInTicks = 0;
+    /** Number of ticks spent fading out after the visible duration completes. */
+    private int fadeOutTicks = 0;
     private float xOffset;
     private float yOffset = 55f;
     private boolean shadow = true;
@@ -122,6 +126,36 @@ public class ImmersiveMessage {
     public ImmersiveMessage anchor(TextAnchor anchor) { this.anchor = anchor; return this; }
     public ImmersiveMessage align(TextAnchor align) { this.align = align; return this; }
     public ImmersiveMessage offset(float x, float y) { this.xOffset = x; this.yOffset = y; return this; }
+
+    /**
+     * Sets the number of ticks to fade the message in before it reaches full opacity.
+     *
+     * @param ticks fade-in length in ticks, must be non-negative.
+     * @return this builder instance for chaining.
+     * @throws IllegalArgumentException if {@code ticks} is negative.
+     */
+    public ImmersiveMessage fadeInTicks(int ticks) {
+        if (ticks < 0) {
+            throw new IllegalArgumentException("fadeInTicks must be non-negative");
+        }
+        this.fadeInTicks = ticks;
+        return this;
+    }
+
+    /**
+     * Sets the number of ticks to fade the message out after the visible duration completes.
+     *
+     * @param ticks fade-out length in ticks, must be non-negative.
+     * @return this builder instance for chaining.
+     * @throws IllegalArgumentException if {@code ticks} is negative.
+     */
+    public ImmersiveMessage fadeOutTicks(int ticks) {
+        if (ticks < 0) {
+            throw new IllegalArgumentException("fadeOutTicks must be non-negative");
+        }
+        this.fadeOutTicks = ticks;
+        return this;
+    }
 
     public ImmersiveMessage color(ChatFormatting vanilla) {
         if (text instanceof MutableComponent mutable && vanilla != null) {
@@ -566,6 +600,8 @@ public class ImmersiveMessage {
         tag.putString("TextJson", Component.Serializer.toJson(text));
 
         tag.putFloat("Duration", duration);
+        tag.putInt("fadeIn", fadeInTicks);
+        tag.putInt("fadeOut", fadeOutTicks);
         tag.putFloat("XOffset", xOffset);
         tag.putFloat("YOffset", yOffset);
         tag.putBoolean("Shadow", shadow);
@@ -647,7 +683,13 @@ public class ImmersiveMessage {
         }
 
         float duration = tag.contains("Duration") ? tag.getFloat("Duration") : 0f;
+        int fadeIn = tag.contains("fadeIn") ? tag.getInt("fadeIn")
+                : tag.contains("FadeIn") ? tag.getInt("FadeIn") : 0;
+        int fadeOut = tag.contains("fadeOut") ? tag.getInt("fadeOut")
+                : tag.contains("FadeOut") ? tag.getInt("FadeOut") : 0;
         ImmersiveMessage msg = new ImmersiveMessage(text, duration);
+        msg.fadeInTicks = Math.max(0, fadeIn);
+        msg.fadeOutTicks = Math.max(0, fadeOut);
         if (tag.contains("XOffset")) msg.xOffset = tag.getFloat("XOffset");
         if (tag.contains("YOffset")) msg.yOffset = tag.getFloat("YOffset");
         if (tag.contains("Shadow")) msg.shadow = tag.getBoolean("Shadow");
@@ -813,6 +855,8 @@ public class ImmersiveMessage {
         buf.writeFloat(charShakeStrength);
         buf.writeInt(wrapMaxWidth);
         buf.writeFloat(delay);
+        buf.writeVarInt(fadeInTicks);
+        buf.writeVarInt(fadeOutTicks);
     }
 
     public static ImmersiveMessage decode(FriendlyByteBuf buf) {
@@ -880,6 +924,12 @@ public class ImmersiveMessage {
         msg.charShakeStrength = buf.readFloat();
         msg.wrapMaxWidth = buf.readInt();
         msg.delay = buf.readFloat();
+        if (buf.isReadable()) {
+            msg.fadeInTicks = Math.max(0, buf.readVarInt());
+        }
+        if (buf.isReadable()) {
+            msg.fadeOutTicks = Math.max(0, buf.readVarInt());
+        }
         if (msg.obfuscateMode != ObfuscateMode.NONE) msg.initObfuscation();
         return msg;
     }
@@ -890,11 +940,36 @@ public class ImmersiveMessage {
     }
 
     public boolean hasDuration() {
-        return duration > 0f;
+        return totalLifetime() > 0f;
     }
 
     public int durationTicks() {
         return Mth.ceil(duration);
+    }
+
+    /**
+     * @return configured fade-in length in ticks.
+     */
+    public int getFadeInTicks() {
+        return fadeInTicks;
+    }
+
+    /**
+     * @return configured fade-out length in ticks.
+     */
+    public int getFadeOutTicks() {
+        return fadeOutTicks;
+    }
+
+    /**
+     * Total lifetime in ticks including fade in/out wrappers.
+     */
+    public float totalLifetime() {
+        return fadeInTicks + duration + fadeOutTicks;
+    }
+
+    public int totalLifetimeTicks() {
+        return Mth.ceil(totalLifetime());
     }
 
     public Component component() {
@@ -929,14 +1004,21 @@ public class ImmersiveMessage {
     }
 
     private float computeAlpha() {
-        float fadeTime = Math.min(10f, duration * 0.25f);
-        float alpha = 1f;
-        if (duration > 0f) {
-            if (age < fadeTime) {
-                alpha = age / Math.max(0.0001f, fadeTime);
-            } else if (age > duration - fadeTime) {
-                alpha = (duration - age) / Math.max(0.0001f, fadeTime);
-            }
+        float fadeIn = this.fadeInTicks;
+        float fadeOut = this.fadeOutTicks;
+        float visibleEnd = fadeIn + duration;
+        float total = visibleEnd + fadeOut;
+
+        float alpha;
+        if (fadeIn > 0f && age < fadeIn) {
+            alpha = age / Math.max(1f, fadeIn);
+        } else if (age < visibleEnd || (duration <= 0f && fadeIn == 0f && fadeOut == 0f)) {
+            alpha = 1f;
+        } else if (fadeOut > 0f && age < total) {
+            float fadeProgress = age - visibleEnd;
+            alpha = 1f - (fadeProgress / Math.max(1f, fadeOut));
+        } else {
+            alpha = 0f;
         }
         return Mth.clamp(alpha, 0f, 1f);
     }
@@ -1149,7 +1231,9 @@ public class ImmersiveMessage {
         rebuildObfuscation();
     }
 
-    public boolean isFinished() { return age >= duration; }
+    public boolean isFinished() {
+        return hasDuration() && age >= totalLifetime();
+    }
 
     public float getDelay() { return delay; }
 
