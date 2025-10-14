@@ -23,7 +23,7 @@ Ember’s Text API lets your mod display polished, animated text overlays withou
 
 ### **Basic Example**
 
-<div><div><div><div>&nbsp;</div></div></div><div><code>ImmersiveMessage msg = ImmersiveMessage.builder(80f, "Hello world")</code></div><div><code>&nbsp; &nbsp; .anchor(TextAnchor.CENTER_CENTER)</code></div><div><code>&nbsp; &nbsp; .offset(0f, -20f)</code></div><div><code>&nbsp; &nbsp; .gradient(0xFF0000, 0x00FF00)</code></div><div><code>&nbsp; &nbsp; .background(true) .typewriter(2f, true)</code></div><div><code>&nbsp; &nbsp; .shake(ShakeType.WAVE, 1.5f);</code></div><div><code>EmbersTextAPI.sendMessage(player, msg);</code></div></div>
+<div><div><div><div>&nbsp;</div></div></div><div><code>ImmersiveMessage msg = ImmersiveMessage.builder(80f, "Hello world")</code></div><div><code>&nbsp; &nbsp; .anchor(TextAnchor.CENTER_CENTER)</code></div><div><code>&nbsp; &nbsp; .offset(0f, -20f)</code></div><div><code>&nbsp; &nbsp; .gradient(0xFF0000, 0x00FF00)</code></div><div><code>&nbsp; &nbsp; .background(true) .typewriter(2f, true)</code></div><div><code>&nbsp; &nbsp; .fadeInTicks(10)</code></div><div><code>&nbsp; &nbsp; .fadeOutTicks(20)</code></div><div><code>&nbsp; &nbsp; .shake(ShakeType.WAVE, 1.5f);</code></div><div><code>EmbersTextAPI.sendMessage(player, msg);</code></div></div>
 
 ### Common Builder Methods
 
@@ -35,7 +35,7 @@ Ember’s Text API lets your mod display polished, animated text overlays withou
 
 ## 📜 Commands
 
-<div><div><table style="border-collapse: collapse; width: 100%; height: 103px; border-width: 1px; border-color: #FFFFFF; border-style: solid;" border="1"><thead><tr style="height: 25px;"><th style="width: 65.7658%; border-color: rgb(255, 255, 255); border-width: 1px; height: 25px;">Command</th><th style="width: 34.2342%; border-color: rgb(255, 255, 255); border-width: 1px; height: 25px;">Purpose</th></tr></thead><tbody><tr style="height: 26px;"><td style="width: 65.7658%; border-color: rgb(255, 255, 255); border-width: 1px; height: 26px;"><code>/emberstextapi test &lt;id&gt;</code></td><td style="width: 34.2342%; border-color: rgb(255, 255, 255); border-width: 1px; height: 26px;">Play built-in demonstration messages</td></tr><tr style="height: 26px;"><td style="width: 65.7658%; border-color: rgb(255, 255, 255); border-width: 1px; height: 26px;"><code>/emberstextapi send &lt;player&gt; &lt;duration&gt; &lt;text&gt;</code></td><td style="width: 34.2342%; border-color: rgb(255, 255, 255); border-width: 1px; height: 26px;">Send a basic message</td></tr><tr style="height: 26px;"><td style="width: 65.7658%; border-color: rgb(255, 255, 255); border-width: 1px; height: 26px;"><code>/emberstextapi sendcustom &lt;player&gt; &lt;nbt&gt; &lt;duration&gt; &lt;text&gt;</code></td><td style="width: 34.2342%; border-color: rgb(255, 255, 255); border-width: 1px; height: 26px;">Full control via NBT tags</td></tr></tbody></table></div></div>
+<div><div><table style="border-collapse: collapse; width: 100%; height: 103px; border-width: 1px; border-color: #FFFFFF; border-style: solid;" border="1"><thead><tr style="height: 25px;"><th style="width: 65.7658%; border-color: rgb(255, 255, 255); border-width: 1px; height: 25px;">Command</th><th style="width: 34.2342%; border-color: rgb(255, 255, 255); border-width: 1px; height: 25px;">Purpose</th></tr></thead><tbody><tr style="height: 26px;"><td style="width: 65.7658%; border-color: rgb(255, 255, 255); border-width: 1px; height: 26px;"><code>/emberstextapi test &lt;id&gt;</code></td><td style="width: 34.2342%; border-color: rgb(255, 255, 255); border-width: 1px; height: 26px;">Play built-in demonstration messages</td></tr><tr style="height: 26px;"><td style="width: 65.7658%; border-color: rgb(255, 255, 255); border-width: 1px; height: 26px;"><code>/emberstextapi send &lt;player&gt; &lt;duration&gt; [fadeIn] [fadeOut] &lt;text&gt;</code></td><td style="width: 34.2342%; border-color: rgb(255, 255, 255); border-width: 1px; height: 26px;">Send a basic message</td></tr><tr style="height: 26px;"><td style="width: 65.7658%; border-color: rgb(255, 255, 255); border-width: 1px; height: 26px;"><code>/emberstextapi sendcustom &lt;player&gt; &lt;nbt&gt; &lt;duration&gt; &lt;text&gt;</code></td><td style="width: 34.2342%; border-color: rgb(255, 255, 255); border-width: 1px; height: 26px;">Full control via NBT tags</td></tr></tbody></table></div></div>
 
  
 
@@ -43,6 +43,7 @@ Ember’s Text API lets your mod display polished, animated text overlays withou
 
 | Tag                                                 |Purpose                                                                                             |Usage Example                                                                  |
 | --------------------------------------------------- |--------------------------------------------------------------------------------------------------- |------------------------------------------------------------------------------ |
+| <code>fadeIn</code>, <code>fadeOut</code>             |Fade durations before and after the main display (ticks).           |<code>{fadeIn:10,fadeOut:20}</code>                                                |
 | <code>font</code>                                   |Apply a specific font resource to the message.                                                      |<code>{font:"modid:font_name"}</code>                                          |
 | <code>bold</code>, <code>italic</code>, <code>underlined</code>, <code>strikethrough</code>, <code>obfuscated</code> |Enable text style flags. Set to <code>true</code> to apply.                                         |<code>{bold:true,italic:true}</code>                                           |
 | <code>color</code>                                  |Set a single text color by name (<code>"red"</code>) or hex (<code>"#FF0000"</code>).               |<code>{color:"#FFAA00"}</code>                                                 |
@@ -71,6 +72,21 @@ Ember’s Text API lets your mod display polished, animated text overlays withou
 
   
 \*Deprecated tags still work, but with log warnings.
+
+### Fade Timing Example
+
+```java
+ImmersiveMessage msg = ImmersiveMessage.builder(60f, "Boss Approaches!")
+        .fadeInTicks(10)
+        .fadeOutTicks(20);
+EmbersTextAPI.sendMessage(player, msg);
+```
+
+Command variant:
+
+```
+/immersivemessages sendcustom @p {text:"Boss Approaches!",duration:60,fadeIn:10,fadeOut:20}
+```
 
 ### Multiple Concurrent Messages
 
