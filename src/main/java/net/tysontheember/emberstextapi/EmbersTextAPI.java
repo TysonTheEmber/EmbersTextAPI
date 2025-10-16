@@ -54,6 +54,10 @@ public class EmbersTextAPI
         modEventBus.addListener(this::addCreative);
     }
 
+    public static Logger logger() {
+        return LOGGER;
+    }
+
     private void commonSetup(final FMLCommonSetupEvent event)
     {
         Network.register();
