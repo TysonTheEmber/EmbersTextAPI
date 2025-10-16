@@ -39,4 +39,10 @@ class EmberParserTest {
         assertEquals("1.2", shake.attrs().get("amp"));
         assertEquals(List.of(new RText("Alert!")), shake.children());
     }
+
+    @Test
+    void escapedLessThanIsLiteral() {
+        RSpan root = EmberParser.parse("Value is \\<10");
+        assertEquals("Value is <10", ((RText) root.children().get(0)).text());
+    }
 }

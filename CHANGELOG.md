@@ -4,3 +4,4 @@
 - New builder methods: fadeInTicks(int), fadeOutTicks(int)
 - Commands now accept NBT keys `fadeIn`, `fadeOut` (ints).
 - Introduced Ember Markup with AST parser, vanilla component emitter, overlay stubs, and `/emberstextapi preview` command.
+- Fix: attribute markers now live in Style insertion so chat no longer shows payload text.

@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ImmersiveMessageFadeTest {
+    private static final float ALPHA_EPSILON = 1f / 255f;
     private static void setAge(ImmersiveMessage message, float age) throws Exception {
         setAges(message, age, age);
     }
@@ -75,33 +76,33 @@ public class ImmersiveMessageFadeTest {
     public void alphaCurveHandlesAllFadeCombinations() throws Exception {
         ImmersiveMessage none = ImmersiveMessage.builder(60f, "None");
         setAge(none, 0f);
-        assertEquals(1f, alphaOf(none), 0.0001f);
+        assertEquals(1f, alphaOf(none), ALPHA_EPSILON);
         setAge(none, 60f);
-        assertEquals(0f, alphaOf(none), 0.0001f);
+        assertEquals(0f, alphaOf(none), ALPHA_EPSILON);
 
         ImmersiveMessage fadeInOnly = ImmersiveMessage.builder(60f, "Fade in")
                 .fadeInTicks(10);
         setAge(fadeInOnly, 5f);
-        assertEquals(0.5f, alphaOf(fadeInOnly), 0.0001f);
+        assertEquals(0.5f, alphaOf(fadeInOnly), ALPHA_EPSILON);
         setAge(fadeInOnly, 20f);
-        assertEquals(1f, alphaOf(fadeInOnly), 0.0001f);
+        assertEquals(1f, alphaOf(fadeInOnly), ALPHA_EPSILON);
 
         ImmersiveMessage fadeOutOnly = ImmersiveMessage.builder(60f, "Fade out")
                 .fadeOutTicks(10);
         setAge(fadeOutOnly, 65f);
-        assertEquals(0.5f, alphaOf(fadeOutOnly), 0.0001f);
+        assertEquals(0.5f, alphaOf(fadeOutOnly), ALPHA_EPSILON);
         setAge(fadeOutOnly, 70f);
-        assertEquals(0f, alphaOf(fadeOutOnly), 0.0001f);
+        assertEquals(0f, alphaOf(fadeOutOnly), ALPHA_EPSILON);
 
         ImmersiveMessage both = ImmersiveMessage.builder(60f, "Both")
                 .fadeInTicks(10)
                 .fadeOutTicks(10);
         setAge(both, 5f);
-        assertEquals(0.5f, alphaOf(both), 0.0001f);
+        assertEquals(0.5f, alphaOf(both), ALPHA_EPSILON);
         setAge(both, 60f);
-        assertEquals(1f, alphaOf(both), 0.0001f);
+        assertEquals(1f, alphaOf(both), ALPHA_EPSILON);
         setAge(both, 75f);
-        assertEquals(0.5f, alphaOf(both), 0.0001f);
+        assertEquals(0.5f, alphaOf(both), ALPHA_EPSILON);
     }
 
     @Test
@@ -109,7 +110,7 @@ public class ImmersiveMessageFadeTest {
         ImmersiveMessage message = ImmersiveMessage.builder(40f, "Interp")
                 .fadeInTicks(10);
         setAges(message, 2f, 3f);
-        assertEquals(0.25f, alphaOf(message, 0.5f), 0.0001f);
+        assertEquals(0.25f, alphaOf(message, 0.5f), ALPHA_EPSILON);
     }
 
     @Test

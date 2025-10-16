@@ -49,6 +49,13 @@ public final class ComponentEmitter {
         for (RNode child : span.children()) {
             root.append(emitNode(child, context));
         }
+        if (root.getSiblings().size() == 1 && root.getString().equals(root.getSiblings().get(0).getString())) {
+            Component child = root.getSiblings().get(0);
+            if (child instanceof MutableComponent mutable) {
+                return mutable;
+            }
+            return child.copy();
+        }
         return root;
     }
 
@@ -71,7 +78,10 @@ public final class ComponentEmitter {
         }
 
         if (requiresOverlay(handler, span.tag())) {
-            Markers.encode(span).ifPresent(marker -> component.append(Component.literal(marker)));
+            String insertion = Markers.encode(span);
+            if (insertion != null) {
+                component = component.withStyle(style -> style.withInsertion(insertion));
+            }
         }
 
         return component;

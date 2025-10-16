@@ -8,7 +8,9 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ClientChatEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.tysontheember.emberstextapi.config.ClientConfig;
 import net.tysontheember.emberstextapi.markup.EmberMarkup;
+import net.tysontheember.emberstextapi.overlay.Markers;
 
 /**
  * Simple client chat interception that runs incoming/outgoing strings through
@@ -34,6 +36,10 @@ public final class ChatInterceptor {
         if (player == null) {
             return;
         }
-        player.sendSystemMessage(component);
+        Component display = component;
+        if (ClientConfig.STRIP_INSERTION_IN_CHAT.get()) {
+            display = Markers.stripInsertions(component);
+        }
+        player.sendSystemMessage(display);
     }
 }

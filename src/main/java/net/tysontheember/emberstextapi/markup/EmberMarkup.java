@@ -3,13 +3,17 @@ package net.tysontheember.emberstextapi.markup;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.MutableComponent;
 import net.tysontheember.emberstextapi.attributes.BuiltinAttributes;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import net.tysontheember.emberstextapi.overlay.LayoutRun;
+import net.tysontheember.emberstextapi.overlay.Markers;
 import net.tysontheember.emberstextapi.overlay.OverlayQueue;
 import net.tysontheember.emberstextapi.overlay.OverlayRenderer;
 
 import javax.annotation.Nullable;
+import java.util.Optional;
 
 import static net.tysontheember.emberstextapi.markup.RNode.RSpan;
 
@@ -53,8 +57,22 @@ public final class EmberMarkup {
         if (options.enableOverlay) {
             OverlayRenderer renderer = OverlayRenderer.instance();
             OverlayQueue queue = renderer.queue();
-            queue.enqueue("root", new RSpan("root", java.util.Map.of(), java.util.List.of()), new LayoutRun(component, x, y, options.scale));
+            collectOverlayMarkers(queue, component, x, y, options.scale);
         }
+    }
+
+    private static void collectOverlayMarkers(OverlayQueue queue, Component component, float x, float y, float scale) {
+        component.visit((style, text) -> {
+            if (text.isEmpty()) {
+                return Optional.<Component>empty();
+            }
+            var header = Markers.decode(style.getInsertion());
+            if (header != null) {
+                MutableComponent segment = Component.literal(text).withStyle(style);
+                queue.enqueue(header.tag(), header, new LayoutRun(segment, x, y, scale));
+            }
+            return Optional.empty();
+        }, Style.EMPTY);
     }
 
     public static DrawOptions defaults() {
