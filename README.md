@@ -17,6 +17,10 @@ Ember’s Text API lets your mod display polished, animated text overlays withou
 *   **Demo Command**: `/emberstextapi test <id>` showcases nine sample effects out of the box.
 *   **Custom Fonts & Backgrounds**: Place font files under `assets/emberstextapi/font/`, toggle tooltip-style backgrounds with gradient borders, or layer textured backgrounds with configurable scaling and padding.
 
+### Ember Markup
+
+Need inline gradients or shake animations without touching JSON components? Ember Markup introduces a small tag language (`<wave>`, `<gradient from=#ff6a00 to=#ffd500>`, etc.) that falls back to vanilla styles when the overlay is disabled. Check the [Ember Markup guide](docs/Embers-Text-API/Ember-Markup.md) for syntax, the Java DSL, and integration tips.
+
 ***
 
 ## 🛠️ Developer Integration

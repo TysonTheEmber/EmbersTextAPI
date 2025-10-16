@@ -22,6 +22,7 @@ import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
+import net.tysontheember.emberstextapi.commands.EmberPreviewCommand;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
 import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
@@ -41,6 +42,7 @@ public class MessageCommands {
                 .then(testSubcommand())
                 .then(sendSubcommand())
                 .then(customSubcommand())
+                .then(EmberPreviewCommand.register())
         );
     }
 

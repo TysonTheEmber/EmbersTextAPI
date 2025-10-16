@@ -20,6 +20,8 @@ import net.tysontheember.emberstextapi.client.TextLayoutCache;
 import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
+import net.tysontheember.emberstextapi.markup.EmberMarkup;
+import net.tysontheember.emberstextapi.markup.RNode.RSpan;
 import xyz.flirora.caxton.render.CaxtonTextRenderer;
 
 import java.util.ArrayList;
@@ -34,7 +36,7 @@ import java.util.Random;
  * intentionally omitted so the API focuses purely on text rendering.
  */
 public class ImmersiveMessage {
-    private final Component text;
+    private Component text;
     private final float duration;
     private float age;
     private float previousAge;
@@ -110,16 +112,50 @@ public class ImmersiveMessage {
     private ShakeType charShakeType = ShakeType.RANDOM;
 
     private OnRenderMessage onRender;
+    private RSpan markupAst;
     private final Random random = new Random();
 
     public ImmersiveMessage(Component text, float duration) {
         this.text = text;
         this.duration = duration;
+        onTextMutated();
     }
 
     /** Builder entry point. */
     public static ImmersiveMessage builder(float duration, String text) {
         return new ImmersiveMessage(Component.literal(text), duration);
+    }
+
+    /**
+     * Parses Ember markup and replaces the underlying text with the generated
+     * component, keeping the legacy builder fluent chain intact.
+     */
+    public ImmersiveMessage markup(String markup) {
+        if (markup == null) {
+            return this;
+        }
+        return markup(EmberMarkup.parse(markup));
+    }
+
+    public ImmersiveMessage markup(RSpan ast) {
+        if (ast == null) {
+            return this;
+        }
+        this.markupAst = ast;
+        this.text = EmberMarkup.toComponent(ast);
+        onTextMutated();
+        return this;
+    }
+
+    public RSpan markupAst() {
+        return markupAst;
+    }
+
+    private void onTextMutated() {
+        this.baseText = text.getString();
+        MutableComponent copy = text.copy();
+        this.current = copy;
+        rebuildGradientCurrent();
     }
 
     // ----- Builder style setters -----
