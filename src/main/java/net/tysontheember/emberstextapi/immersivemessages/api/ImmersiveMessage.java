@@ -20,6 +20,7 @@ import net.tysontheember.emberstextapi.client.TextLayoutCache;
 import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
+import net.tysontheember.emberstextapi.markup.EmberMarkup;
 import xyz.flirora.caxton.render.CaxtonTextRenderer;
 
 import java.util.ArrayList;
@@ -120,6 +121,16 @@ public class ImmersiveMessage {
     /** Builder entry point. */
     public static ImmersiveMessage builder(float duration, String text) {
         return new ImmersiveMessage(Component.literal(text), duration);
+    }
+
+    /**
+     * Builder entry point that accepts Ember Markup. The markup string is parsed
+     * into a lightweight AST and converted into a vanilla {@link Component}
+     * fallback so existing rendering code continues to function even when the
+     * overlay renderer is unavailable.
+     */
+    public static ImmersiveMessage markup(float duration, String markup) {
+        return new ImmersiveMessage(EmberMarkup.toComponent(markup), duration);
     }
 
     // ----- Builder style setters -----
