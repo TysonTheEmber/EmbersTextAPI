@@ -103,3 +103,7 @@ EmbersMessages.close(player, id);
 // Or clear everything:
 EmbersMessages.closeAll(player);
 ```
+
+## Ember Markup (Preview)
+
+A lightweight tag-based system powers chat, tooltips, and overlay text. Combine tags like `<gradient>` and `<shake>` or use the `net.tysontheember.emberstextapi.dsl.Rich` DSL to build ASTs programmatically. Read the [full guide](docs/Embers-Text-API/Ember-Markup.md) for examples.

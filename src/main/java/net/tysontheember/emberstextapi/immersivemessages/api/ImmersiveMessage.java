@@ -122,6 +122,17 @@ public class ImmersiveMessage {
         return new ImmersiveMessage(Component.literal(text), duration);
     }
 
+    /**
+     * Parses Ember Markup into the internal component representation.
+     *
+     * @param markup markup string
+     * @return this builder instance for chaining
+     */
+    public ImmersiveMessage markup(String markup) {
+        this.text = net.tysontheember.emberstextapi.markup.EmberMarkup.toComponent(markup);
+        return this;
+    }
+
     // ----- Builder style setters -----
     public ImmersiveMessage shadow(boolean shadow) { this.shadow = shadow; return this; }
     public ImmersiveMessage anchor(TextAnchor anchor) { this.anchor = anchor; return this; }
