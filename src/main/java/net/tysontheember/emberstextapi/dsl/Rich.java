@@ -69,7 +69,7 @@ public final class Rich {
         }
 
         public NestedSpanBuilder<T> span(String tag) {
-            return new NestedSpanBuilder<>(this, tag);
+            return new NestedSpanBuilder<>(self(), tag);
         }
 
         public T then(RNode node) {
@@ -83,12 +83,12 @@ public final class Rich {
             return new RSpan(tag, Map.copyOf(attrs), List.copyOf(children));
         }
 
-        private void addChild(RNode node) {
+        protected void addChild(RNode node) {
             children.add(node);
         }
     }
 
-    public static final class NestedSpanBuilder<P extends SpanBuilderBase<?>> extends SpanBuilderBase<NestedSpanBuilder<P>> {
+    public static final class NestedSpanBuilder<P extends SpanBuilderBase<P>> extends SpanBuilderBase<NestedSpanBuilder<P>> {
         private final P parent;
 
         private NestedSpanBuilder(P parent, String tag) {

@@ -35,7 +35,7 @@ final class MarkupParser {
         ParserState(String source) {
             this.source = source;
             this.length = source.length();
-            this.stack.push(Frame.root());
+            this.stack.push(Frame.rootFrame());
         }
 
         RSpan root() {
@@ -199,7 +199,7 @@ final class MarkupParser {
     }
 
     private record Frame(String tag, Map<String, String> attrs, List<RNode> children, boolean root) {
-        static Frame root() {
+        static Frame rootFrame() {
             return new Frame("root", Map.of(), new ArrayList<>(), true);
         }
 

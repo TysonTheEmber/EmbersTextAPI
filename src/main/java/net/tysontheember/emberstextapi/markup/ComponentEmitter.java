@@ -125,11 +125,8 @@ public final class ComponentEmitter {
         if (StringUtil.isNullOrEmpty(value)) {
             return Optional.empty();
         }
-        try {
-            return Optional.of(new ResourceLocation(value));
-        } catch (Exception ignored) {
-            return Optional.empty();
-        }
+        ResourceLocation font = ResourceLocation.tryParse(value);
+        return Optional.ofNullable(font);
     }
 
 }

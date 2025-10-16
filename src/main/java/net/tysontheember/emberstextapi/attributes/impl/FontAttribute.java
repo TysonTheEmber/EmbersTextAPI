@@ -18,9 +18,9 @@ public final class FontAttribute implements AttributeHandler {
         if (value == null || value.isEmpty()) {
             return;
         }
-        try {
-            component.withStyle(style -> style.withFont(new ResourceLocation(value)));
-        } catch (Exception ignored) {
+        ResourceLocation font = ResourceLocation.tryParse(value);
+        if (font != null) {
+            component.withStyle(style -> style.withFont(font));
         }
     }
 }

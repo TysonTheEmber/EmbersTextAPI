@@ -387,13 +387,13 @@ public class MessageCommands {
             case 5 -> EmbersTextAPI.sendMessage(player,
                     ImmersiveMessage.builder(100f, "Wrapped text demo that is quite long").wrap(120));
             case 6 -> {
-                ResourceLocation font = new ResourceLocation(EmbersTextAPI.MODID, "norse");
+                ResourceLocation font = ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "norse");
                 Component text = Component.literal("\u16A0\u16A2\u16A6\u16A8\u16AB\u16B2").withStyle(s -> s.withFont(font));
                 EmbersTextAPI.sendMessage(player, new ImmersiveMessage(text, 100f));
             }
             case 7 -> {
                 MutableComponent component = Component.literal("You shall die here...")
-                        .withStyle(s -> s.withFont(new ResourceLocation(EmbersTextAPI.MODID, "norse")))
+                        .withStyle(s -> s.withFont(ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "norse")))
                         .withStyle(s -> s.withBold(true));
                 ImmersiveMessage msg = new ImmersiveMessage(component, 250f)
                         .scale(2f)

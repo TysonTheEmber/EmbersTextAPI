@@ -761,7 +761,7 @@ public class ImmersiveMessage {
             CompoundTag texture = tag.getCompound("Texture");
             if (texture.contains("Location")) {
                 ResourceLocation rl = ResourceLocation.tryParse(texture.getString("Location"));
-                msg.backgroundTexture = rl != null ? rl : new ResourceLocation("minecraft", "missingno");
+                msg.backgroundTexture = rl != null ? rl : ResourceLocation.fromNamespaceAndPath("minecraft", "missingno");
                 msg.useTextureBackground = true;
                 msg.background = true;
             }

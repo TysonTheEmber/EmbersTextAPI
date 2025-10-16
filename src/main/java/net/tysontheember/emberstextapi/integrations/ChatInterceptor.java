@@ -25,7 +25,7 @@ public final class ChatInterceptor {
         String message = event.getMessage();
         if (message.contains("<")) {
             Component component = EmberMarkup.toComponent(message);
-            event.setComponent(component);
+            event.setMessage(component.getString());
         }
     }
 
