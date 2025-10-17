@@ -49,7 +49,6 @@ public class EmbersTextAPI
         modEventBus.addListener(this::commonSetup);
 
         context.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
-        ClientConfig.bake();
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
