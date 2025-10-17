@@ -103,3 +103,14 @@ EmbersMessages.close(player, id);
 // Or clear everything:
 EmbersMessages.closeAll(player);
 ```
+
+## Text tag quickstart
+
+Try the in-game demo command to see animated gradients:
+
+```
+/emberstextapi send @p 120 <grad from=#ff6a00 to=#ffd500><bold>EMBERCRAFT</bold></grad>
+```
+
+The complete syntax reference, built-in parameters, and migration notes live in
+[docs/tags.md](docs/tags.md).
