@@ -1,12 +1,9 @@
 package net.tysontheember.emberstextapi.text;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.tysontheember.emberstextapi.EmbersTextAPI;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 /**
@@ -82,8 +79,12 @@ public final class AttributedText {
         coalesce();
     }
 
-    public void apply(ResourceLocation id, Params params, int start, int end) {
+    public void apply(EmbersKey id, Params params, int start, int end) {
         apply(new Attribute(id, params), start, end);
+    }
+
+    public void apply(String id, Map<String, Object> params, int start, int end) {
+        apply(new Attribute(EmbersKey.parse(id), Params.of(params)), start, end);
     }
 
     private void ensureBaseSpan() {
@@ -133,36 +134,14 @@ public final class AttributedText {
         spans.addAll(result);
     }
 
-    public void toBuffer(FriendlyByteBuf buf) {
-        buf.writeUtf(text);
-        buf.writeVarInt(spans.size());
-        for (Span span : spans) {
-            span.toBuffer(buf);
-        }
-    }
-
-    public static AttributedText fromBuffer(FriendlyByteBuf buf) {
-        String text = buf.readUtf();
-        int size = buf.readVarInt();
-        List<Span> spans = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            spans.add(Span.fromBuffer(buf));
-        }
-        return new AttributedText(text, spans);
-    }
-
     public interface WarningSink extends BiConsumer<String, Throwable> {}
 
     public static AttributedText parse(String tagged) {
-        return TagParser.parse(tagged, (message, throwable) -> {
-            if (EmbersTextAPI.logger().isDebugEnabled()) {
-                if (throwable != null) {
-                    EmbersTextAPI.logger().debug(message, throwable);
-                } else {
-                    EmbersTextAPI.logger().debug(message);
-                }
-            }
-        });
+        return parse(tagged, null);
+    }
+
+    public static AttributedText parse(String tagged, WarningSink warningSink) {
+        return TagParser.parse(tagged, warningSink);
     }
 
     public static boolean looksTagged(String input) {

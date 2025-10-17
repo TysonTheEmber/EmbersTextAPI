@@ -1,42 +1,28 @@
 package net.tysontheember.emberstextapi.text;
 
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-
 import java.util.Map;
 import java.util.Objects;
 
 /**
  * Represents a single text attribute applied to a span within an
- * {@link AttributedText}. Attributes are identified by a
- * {@link ResourceLocation} and may carry arbitrary typed parameters.
+ * {@link AttributedText}. Attributes are identified by an {@link EmbersKey}
+ * and may carry arbitrary typed parameters.
  */
 public final class Attribute {
-    private final ResourceLocation id;
+    private final EmbersKey id;
     private final Params params;
 
-    public Attribute(ResourceLocation id, Params params) {
+    public Attribute(EmbersKey id, Params params) {
         this.id = Objects.requireNonNull(id, "id");
         this.params = params == null ? Params.of(Map.of()) : params;
     }
 
-    public ResourceLocation id() {
+    public EmbersKey id() {
         return id;
     }
 
     public Params params() {
         return params;
-    }
-
-    public void toBuffer(FriendlyByteBuf buf) {
-        buf.writeResourceLocation(id);
-        params.toBuffer(buf);
-    }
-
-    public static Attribute fromBuffer(FriendlyByteBuf buf) {
-        ResourceLocation id = buf.readResourceLocation();
-        Params params = Params.fromBuffer(buf);
-        return new Attribute(id, params);
     }
 
     @Override

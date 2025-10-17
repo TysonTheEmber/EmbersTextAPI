@@ -2,11 +2,12 @@ package net.tysontheember.emberstextapi.text;
 
 import java.util.Objects;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Rendering preferences supplied to {@link EmbersText#draw}.
  */
-public final class DrawStyle {
+public final class DrawStyle implements TextEffect.EffectEnvironment {
     private final int baseColor;
     private final boolean shadow;
     private final float scale;
@@ -14,7 +15,7 @@ public final class DrawStyle {
     private final float lineHeightMultiplier;
     private final float animationStartTime;
     private final long seed;
-    private final BiConsumer<String, Throwable> warningSink;
+    private final Consumer<ParamError> warningSink;
 
     private DrawStyle(Builder builder) {
         this.baseColor = builder.baseColor;
@@ -35,6 +36,7 @@ public final class DrawStyle {
         return new Builder();
     }
 
+    @Override
     public int baseColor() {
         return baseColor;
     }
@@ -55,15 +57,17 @@ public final class DrawStyle {
         return lineHeightMultiplier;
     }
 
+    @Override
     public float animationStartTime() {
         return animationStartTime;
     }
 
+    @Override
     public long seed() {
         return seed;
     }
 
-    public BiConsumer<String, Throwable> warningSink() {
+    public Consumer<ParamError> warningSink() {
         return warningSink;
     }
 
@@ -88,7 +92,7 @@ public final class DrawStyle {
         private float lineHeightMultiplier = 1f;
         private float animationStartTime = TextAnimationClock.now();
         private long seed = 0L;
-        private BiConsumer<String, Throwable> warningSink = (message, throwable) -> {};
+        private Consumer<ParamError> warningSink = error -> {};
 
         private Builder() {
         }
@@ -137,7 +141,13 @@ public final class DrawStyle {
         }
 
         public Builder warningSink(BiConsumer<String, Throwable> warningSink) {
-            this.warningSink = Objects.requireNonNullElse(warningSink, (message, throwable) -> {});
+            Objects.requireNonNull(warningSink, "warningSink");
+            this.warningSink = error -> warningSink.accept(error.message(), error.cause());
+            return this;
+        }
+
+        public Builder warningSink(Consumer<ParamError> warningSink) {
+            this.warningSink = Objects.requireNonNullElse(warningSink, error -> {});
             return this;
         }
 

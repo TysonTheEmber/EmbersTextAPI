@@ -1,7 +1,5 @@
 package net.tysontheember.emberstextapi.text;
 
-import net.minecraft.resources.ResourceLocation;
-
 /**
  * Factory responsible for compiling an {@link Attribute} definition into a
  * runtime {@link TextEffect} instance. Factories validate the supplied
@@ -13,7 +11,7 @@ public interface TextAttributeFactory {
     /**
      * @return the identifier for the attribute handled by this factory.
      */
-    default ResourceLocation id() {
+    default EmbersKey id() {
         throw new UnsupportedOperationException("Factory must override id()");
     }
 

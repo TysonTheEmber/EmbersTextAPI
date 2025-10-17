@@ -1,6 +1,6 @@
 package net.tysontheember.emberstextapi.text;
 
-import net.minecraft.resources.ResourceLocation;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.BiConsumer;
 
 /**
  * Parses lightweight markup tags into {@link AttributedText} instances.
@@ -19,7 +18,7 @@ public final class TagParser {
 
     record AttributeRange(int start, int end, Attribute attribute) {}
 
-    public static AttributedText parse(String input, BiConsumer<String, Throwable> warningSink) {
+    public static AttributedText parse(String input, @Nullable AttributedText.WarningSink warningSink) {
         if (input == null || input.isEmpty()) {
             return AttributedText.of("");
         }
@@ -95,13 +94,13 @@ public final class TagParser {
         AttributedText attributed = new AttributedText(output.toString());
         for (AttributeRange range : ranges) {
             if (range.start < range.end) {
-                attributed.apply(range.attribute().id(), range.attribute().params(), range.start, range.end);
+                attributed.apply(range.attribute(), range.start, range.end);
             }
         }
         return attributed;
     }
 
-    private static boolean closeTag(List<ActiveTag> stack, String name, int end, List<AttributeRange> ranges, BiConsumer<String, Throwable> warningSink) {
+    private static boolean closeTag(List<ActiveTag> stack, String name, int end, List<AttributeRange> ranges, @Nullable AttributedText.WarningSink warningSink) {
         if (stack.isEmpty()) {
             if (warningSink != null) {
                 warningSink.accept("Encountered closing tag </" + name + "> without matching open", null);
@@ -122,7 +121,8 @@ public final class TagParser {
         return true;
     }
 
-    private static TagInfo parseTagInfo(String inside, BiConsumer<String, Throwable> warningSink) {
+    @Nullable
+    private static TagInfo parseTagInfo(String inside, @Nullable AttributedText.WarningSink warningSink) {
         String trimmed = inside.trim();
         if (trimmed.isEmpty()) {
             return null;
@@ -166,7 +166,7 @@ public final class TagParser {
             }
             params.put(key.toLowerCase(Locale.ROOT), value);
         }
-        ResourceLocation id = resolveId(name);
+        EmbersKey id = resolveId(name);
         return new TagInfo(name, new Attribute(id, Params.of(params)));
     }
 
@@ -226,13 +226,13 @@ public final class TagParser {
         return raw;
     }
 
-    private static ResourceLocation resolveId(String name) {
+    private static EmbersKey resolveId(String name) {
         Objects.requireNonNull(name, "name");
         String normalized = name.trim();
         if (normalized.contains(":")) {
-            return new ResourceLocation(normalized);
+            return EmbersKey.parse(normalized);
         }
-        return new ResourceLocation("embers", normalized.toLowerCase(Locale.ROOT));
+        return EmbersKey.of(EmbersKey.DEFAULT_NAMESPACE, normalized.toLowerCase(Locale.ROOT));
     }
 
     private static int findTagEnd(String input, int pos) {

@@ -1,7 +1,5 @@
 package net.tysontheember.emberstextapi.text;
 
-import net.minecraft.network.FriendlyByteBuf;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -52,26 +50,6 @@ public final class Span {
 
     public Span withAttributes(List<Attribute> newAttributes) {
         return new Span(start, end, newAttributes);
-    }
-
-    public void toBuffer(FriendlyByteBuf buf) {
-        buf.writeVarInt(start);
-        buf.writeVarInt(end);
-        buf.writeVarInt(attributes.size());
-        for (Attribute attribute : attributes) {
-            attribute.toBuffer(buf);
-        }
-    }
-
-    public static Span fromBuffer(FriendlyByteBuf buf) {
-        int start = buf.readVarInt();
-        int end = buf.readVarInt();
-        int size = buf.readVarInt();
-        List<Attribute> attributes = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            attributes.add(Attribute.fromBuffer(buf));
-        }
-        return new Span(start, end, attributes);
     }
 
     @Override

@@ -1,7 +1,5 @@
 package net.tysontheember.emberstextapi.text;
 
-import net.minecraft.resources.ResourceLocation;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -17,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@link TextEffect}s.
  */
 public final class Effects {
-    private static final Map<ResourceLocation, TextAttributeFactory> FACTORIES = new ConcurrentHashMap<>();
+    private static final Map<EmbersKey, TextAttributeFactory> FACTORIES = new ConcurrentHashMap<>();
     private static final Map<CacheKey, TextEffect> CACHE = new ConcurrentHashMap<>();
 
     private static final Random SHARED_RANDOM = new Random();
@@ -27,7 +25,7 @@ public final class Effects {
 
     public static void register(TextAttributeFactory factory) {
         Objects.requireNonNull(factory, "factory");
-        ResourceLocation id = factory.id();
+        EmbersKey id = factory.id();
         if (id == null) {
             throw new IllegalArgumentException("Factory provided null id");
         }
@@ -69,7 +67,7 @@ public final class Effects {
         register(new ShadowFactory());
     }
 
-    private record CacheKey(ResourceLocation id, Params params, int spanHash) {
+    private record CacheKey(EmbersKey id, Params params, int spanHash) {
     }
 
     private static int spanHash(Span span, AttributedText text) {
@@ -87,16 +85,16 @@ public final class Effects {
     }
 
     private abstract static class BaseFactory implements TextAttributeFactory {
-        private final ResourceLocation id;
+        private final EmbersKey id;
         private final ParamSpec spec;
 
         BaseFactory(String path, ParamSpec spec) {
-            this.id = path.contains(":") ? new ResourceLocation(path) : new ResourceLocation("embers", path);
+            this.id = path.contains(":") ? EmbersKey.parse(path) : EmbersKey.of(EmbersKey.DEFAULT_NAMESPACE, path);
             this.spec = spec == null ? ParamSpec.builder().build() : spec;
         }
 
         @Override
-        public ResourceLocation id() {
+        public EmbersKey id() {
             return id;
         }
 
@@ -139,7 +137,7 @@ public final class Effects {
 
         @Override
         public TextEffect compile(Params params, TextEffect.CompileContext context) {
-            int fallback = context.style().baseColor();
+            int fallback = context.environment().baseColor();
             int color = params.getColor("value", fallback);
             return (glyphContext, state) -> state.setColor(color);
         }
@@ -159,8 +157,8 @@ public final class Effects {
 
         @Override
         public TextEffect compile(Params params, TextEffect.CompileContext context) {
-            final int from = params.getColor("from", context.style().baseColor());
-            final int to = params.getColor("to", context.style().baseColor());
+            final int from = params.getColor("from", context.environment().baseColor());
+            final int to = params.getColor("to", context.environment().baseColor());
             final boolean hue = params.getBoolean("hue", false);
             final float flow = params.getFloat("f", 0f);
             final float spanScale = Math.max(0.0001f, params.getFloat("sp", 1f));
@@ -168,12 +166,12 @@ public final class Effects {
             return (glyphContext, state) -> {
                 float t = uniform ? 0f : glyphContext.spanProgress();
                 t *= spanScale;
-                float elapsed = glyphContext.timeSeconds() - context.style().animationStartTime();
+                float elapsed = glyphContext.timeSeconds() - context.environment().animationStartTime();
                 if (Float.isFinite(elapsed)) {
                     t += elapsed * flow;
                 }
-                t = t - (float) Math.floor(t);
-                int color = hue ? lerpHsv(from, to, t) : lerpRgb(from, to, t);
+                t = Math.max(0f, Math.min(1f, t));
+                int color = hue ? ColorUtil.lerpHsv(from, to, t) : ColorUtil.lerpRgb(from, to, t);
                 state.setColor(color);
             };
         }
@@ -196,7 +194,7 @@ public final class Effects {
             final int[] wordBoundaries = buildWordBoundaries(context.span(), context.text());
             final boolean byWord = "word".equals(by);
             return (glyphContext, state) -> {
-                float elapsed = glyphContext.timeSeconds() - context.style().animationStartTime() - delay;
+                float elapsed = glyphContext.timeSeconds() - context.environment().animationStartTime() - delay;
                 if (elapsed < 0f) {
                     state.setVisible(false);
                     return;
@@ -262,10 +260,10 @@ public final class Effects {
             final float frequency = params.getFloat("f", 2f);
             final float wave = params.getFloat("w", 0f);
             return (glyphContext, state) -> {
-                float elapsed = glyphContext.timeSeconds() - context.style().animationStartTime();
+                float elapsed = glyphContext.timeSeconds() - context.environment().animationStartTime();
                 float offset = glyphContext.spanLocalIndex() * wave;
                 if (randomised) {
-                    long seed = context.style().seed() ^ glyphContext.seed() ^ (glyphContext.glyphIndex() * 31L);
+                    long seed = context.environment().seed() ^ glyphContext.seed() ^ (glyphContext.glyphIndex() * 31L);
                     SHARED_RANDOM.setSeed(seed);
                     float angle = elapsed * frequency;
                     float x = (SHARED_RANDOM.nextFloat() - 0.5f) * 2f;
@@ -294,7 +292,7 @@ public final class Effects {
             final float fadeIn = Math.max(0f, params.getFloat("in", 0f));
             final float fadeOut = Math.max(0f, params.getFloat("out", 0f));
             return (glyphContext, state) -> {
-                float elapsed = glyphContext.timeSeconds() - context.style().animationStartTime();
+                float elapsed = glyphContext.timeSeconds() - context.environment().animationStartTime();
                 float alpha = state.alpha();
                 if (fadeIn > 0f) {
                     alpha *= Math.min(1f, Math.max(0f, elapsed / fadeIn));
@@ -326,115 +324,6 @@ public final class Effects {
                 state.setShadowAlpha(alpha);
             };
         }
-    }
-
-    private static int lerpRgb(int from, int to, float t) {
-        int a1 = (from >> 24) & 0xFF;
-        int r1 = (from >> 16) & 0xFF;
-        int g1 = (from >> 8) & 0xFF;
-        int b1 = from & 0xFF;
-        int a2 = (to >> 24) & 0xFF;
-        int r2 = (to >> 16) & 0xFF;
-        int g2 = (to >> 8) & 0xFF;
-        int b2 = to & 0xFF;
-        int a = (int) (a1 + (a2 - a1) * t);
-        int r = (int) (r1 + (r2 - r1) * t);
-        int g = (int) (g1 + (g2 - g1) * t);
-        int b = (int) (b1 + (b2 - b1) * t);
-        return (a << 24) | (r << 16) | (g << 8) | b;
-    }
-
-    private static int lerpHsv(int from, int to, float t) {
-        float[] hsv1 = rgbToHsv(from);
-        float[] hsv2 = rgbToHsv(to);
-        float h = hsv1[0] + wrapDistance(hsv1[0], hsv2[0]) * t;
-        float s = hsv1[1] + (hsv2[1] - hsv1[1]) * t;
-        float v = hsv1[2] + (hsv2[2] - hsv1[2]) * t;
-        return hsvToRgb(h, s, v, (int) (lerp(((from >> 24) & 0xFF) / 255f, ((to >> 24) & 0xFF) / 255f, t) * 255f));
-    }
-
-    private static float wrapDistance(float a, float b) {
-        float diff = (b - a + 3f) % 1f;
-        if (diff > 0.5f) {
-            diff -= 1f;
-        }
-        return diff;
-    }
-
-    private static int hsvToRgb(float h, float s, float v, int alpha) {
-        h = (h % 1f + 1f) % 1f;
-        int i = (int) Math.floor(h * 6f);
-        float f = h * 6f - i;
-        float p = v * (1f - s);
-        float q = v * (1f - f * s);
-        float t = v * (1f - (1f - f) * s);
-        float r, g, b;
-        switch (i % 6) {
-            case 0 -> {
-                r = v;
-                g = t;
-                b = p;
-            }
-            case 1 -> {
-                r = q;
-                g = v;
-                b = p;
-            }
-            case 2 -> {
-                r = p;
-                g = v;
-                b = t;
-            }
-            case 3 -> {
-                r = p;
-                g = q;
-                b = v;
-            }
-            case 4 -> {
-                r = t;
-                g = p;
-                b = v;
-            }
-            default -> {
-                r = v;
-                g = p;
-                b = q;
-            }
-        }
-        int ri = (int) (r * 255f);
-        int gi = (int) (g * 255f);
-        int bi = (int) (b * 255f);
-        return (alpha << 24) | (ri << 16) | (gi << 8) | bi;
-    }
-
-    private static float[] rgbToHsv(int color) {
-        float r = ((color >> 16) & 0xFF) / 255f;
-        float g = ((color >> 8) & 0xFF) / 255f;
-        float b = (color & 0xFF) / 255f;
-        float max = Math.max(r, Math.max(g, b));
-        float min = Math.min(r, Math.min(g, b));
-        float h;
-        float s;
-        float v = max;
-        float d = max - min;
-        if (max == 0f) {
-            s = 0f;
-        } else {
-            s = d / max;
-        }
-        if (d == 0f) {
-            h = 0f;
-        } else {
-            if (max == r) {
-                h = (g - b) / d + (g < b ? 6f : 0f);
-            } else if (max == g) {
-                h = (b - r) / d + 2f;
-            } else {
-                h = (r - g) / d + 4f;
-            }
-            h /= 6f;
-        }
-        return new float[]{h, s, v};
     }
 
     private static float lerp(float a, float b, float t) {

@@ -1,6 +1,5 @@
 package net.tysontheember.emberstextapi.text;
 
-import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -18,10 +17,12 @@ class TagParserTest {
         assertEquals(0, span.start());
         assertEquals(5, span.end());
         assertEquals(2, span.attributes().size());
-        Attribute bold = span.attributes().get(0);
-        Attribute color = span.attributes().get(1);
-        assertEquals(new ResourceLocation("embers", "bold"), bold.id());
-        assertEquals(new ResourceLocation("embers", "color"), color.id());
+        assertTrue(span.attributes().stream().anyMatch(attr -> attr.id().equals(EmbersKey.of("embers", "bold"))),
+                "Missing bold attribute");
+        Attribute color = span.attributes().stream()
+                .filter(attr -> attr.id().equals(EmbersKey.of("embers", "color")))
+                .findFirst()
+                .orElseThrow();
         assertEquals("#ff0000", color.params().raw().get("value"));
     }
 
@@ -36,7 +37,9 @@ class TagParserTest {
     void escapedAngleBracketsAreRespected() {
         AttributedText text = AttributedText.parse("Value: \\<<bold>ignored</bold>");
         assertEquals("Value: <ignored", text.text());
-        assertTrue(text.spans().isEmpty());
+        assertEquals(1, text.spans().size());
+        Attribute bold = text.spans().get(0).attributes().get(0);
+        assertEquals(EmbersKey.of("embers", "bold"), bold.id());
     }
 
     @Test

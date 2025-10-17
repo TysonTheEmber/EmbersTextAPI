@@ -1,7 +1,5 @@
 package net.tysontheember.emberstextapi.text;
 
-import net.minecraft.resources.ResourceLocation;
-
 import java.util.Locale;
 import java.util.Objects;
 
@@ -125,26 +123,14 @@ public enum ParamType {
             if (s.isEmpty()) {
                 return null;
             }
-            if (s.startsWith("#")) {
-                s = s.substring(1);
-            }
-            if (s.startsWith("0x")) {
-                s = s.substring(2);
-            }
-            if (s.length() == 6) {
-                return (int) (0xFF000000L | Long.parseLong(s, 16));
-            }
-            if (s.length() == 8) {
-                return (int) Long.parseLong(s, 16);
-            }
-            throw new IllegalArgumentException("Not a color value: " + value);
+            return ColorUtil.parseColor(s);
         }
     },
     RESOURCE {
         @Override
         public Object convert(Object value) {
-            if (value instanceof ResourceLocation rl) {
-                return rl;
+            if (value instanceof EmbersKey key) {
+                return key;
             }
             if (value == null) {
                 return null;
@@ -153,7 +139,7 @@ public enum ParamType {
             if (s.isEmpty()) {
                 return null;
             }
-            return new ResourceLocation(s);
+            return EmbersKey.parse(s);
         }
     };
 

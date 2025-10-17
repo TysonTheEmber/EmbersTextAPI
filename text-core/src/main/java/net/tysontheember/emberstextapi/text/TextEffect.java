@@ -1,7 +1,9 @@
 package net.tysontheember.emberstextapi.text;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Objects;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Runtime animation hook applied to individual glyphs. Implementations mutate
@@ -19,12 +21,12 @@ public interface TextEffect {
     /**
      * Compile time metadata provided to {@link TextAttributeFactory} instances.
      */
-    record CompileContext(AttributedText text, Span span, DrawStyle style,
-                          BiConsumer<String, Throwable> warningSink) {
+    record CompileContext(AttributedText text, Span span, EffectEnvironment environment,
+                          @Nullable Consumer<ParamError> warningSink) {
         public CompileContext {
             Objects.requireNonNull(text, "text");
             Objects.requireNonNull(span, "span");
-            Objects.requireNonNull(style, "style");
+            Objects.requireNonNull(environment, "environment");
         }
     }
 
@@ -168,5 +170,30 @@ public interface TextEffect {
             a = Math.round(a * alpha);
             return (a << 24) | (r << 16) | (g << 8) | b;
         }
+    }
+
+    interface EffectEnvironment {
+        int baseColor();
+
+        float animationStartTime();
+
+        long seed();
+
+        EffectEnvironment DEFAULT = new EffectEnvironment() {
+            @Override
+            public int baseColor() {
+                return 0xFFFFFFFF;
+            }
+
+            @Override
+            public float animationStartTime() {
+                return 0f;
+            }
+
+            @Override
+            public long seed() {
+                return 0L;
+            }
+        };
     }
 }

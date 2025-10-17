@@ -1,19 +1,19 @@
 package net.tysontheember.emberstextapi.text;
 
-import com.google.common.collect.ImmutableMap;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Describes the parameters accepted by a {@link TextAttributeFactory}. Each
  * parameter entry declares the expected {@link ParamType}, optional range
- * information and a default value. The {@link #validate(Map, BiConsumer)}
- * method converts a loosely typed input map into a strongly typed {@link Params}
+ * information and a default value. The {@link #validate(Map, Consumer)} method
+ * converts a loosely typed input map into a strongly typed {@link Params}
  * instance.
  */
 public final class ParamSpec {
@@ -21,11 +21,11 @@ public final class ParamSpec {
     private final Map<String, String> aliases;
 
     private ParamSpec(Builder builder) {
-        this.entries = ImmutableMap.copyOf(builder.entries);
-        this.aliases = ImmutableMap.copyOf(builder.aliases);
+        this.entries = Collections.unmodifiableMap(new LinkedHashMap<>(builder.entries));
+        this.aliases = Collections.unmodifiableMap(new LinkedHashMap<>(builder.aliases));
     }
 
-    public Params validate(Map<String, Object> raw, BiConsumer<String, Throwable> warningSink) {
+    public Params validate(Map<String, Object> raw, @Nullable Consumer<ParamError> errorSink) {
         Objects.requireNonNull(raw, "raw");
         Map<String, Object> validated = new LinkedHashMap<>();
 
@@ -36,8 +36,8 @@ public final class ParamSpec {
                 target = aliases.get(normalized);
             }
             if (target == null || !entries.containsKey(target)) {
-                if (warningSink != null) {
-                    warningSink.accept("Unknown parameter '" + key + "'", null);
+                if (errorSink != null) {
+                    errorSink.accept(new ParamError("Unknown parameter '" + key + "'", null));
                 }
                 return;
             }
@@ -46,8 +46,8 @@ public final class ParamSpec {
             try {
                 converted = entry.type.convert(value);
             } catch (Exception ex) {
-                if (warningSink != null) {
-                    warningSink.accept("Failed to parse parameter '" + key + "' as " + entry.type.name().toLowerCase(Locale.ROOT), ex);
+                if (errorSink != null) {
+                    errorSink.accept(new ParamError("Failed to parse parameter '" + key + "' as " + entry.type.name().toLowerCase(Locale.ROOT) + "'", ex));
                 }
                 return;
             }
@@ -58,8 +58,8 @@ public final class ParamSpec {
                 double d = number.doubleValue();
                 if (d < entry.min || d > entry.max) {
                     double clamped = Math.min(entry.max, Math.max(entry.min, d));
-                    if (warningSink != null) {
-                        warningSink.accept("Parameter '" + key + "' clamped to range [" + entry.min + ", " + entry.max + "]", null);
+                    if (errorSink != null) {
+                        errorSink.accept(new ParamError("Parameter '" + key + "' clamped to range [" + entry.min + ", " + entry.max + "]", null));
                     }
                     d = clamped;
                 }
@@ -95,7 +95,7 @@ public final class ParamSpec {
             return add(name, type, null);
         }
 
-        public Builder add(String name, ParamType type, Object defaultValue) {
+        public Builder add(String name, ParamType type, @Nullable Object defaultValue) {
             String normalized = name.toLowerCase(Locale.ROOT);
             if (entries.containsKey(normalized)) {
                 throw new IllegalArgumentException("Parameter already defined: " + name);
