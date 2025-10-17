@@ -28,6 +28,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
 import net.minecraftforge.network.PacketDistributor;
+import net.tysontheember.emberstextapi.config.ClientConfig;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.network.TooltipPacket;
 import net.tysontheember.emberstextapi.network.Network;
@@ -46,6 +47,9 @@ public class EmbersTextAPI
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
+
+        context.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
+        ClientConfig.bake();
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);

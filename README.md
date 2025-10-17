@@ -103,3 +103,25 @@ EmbersMessages.close(player, id);
 // Or clear everything:
 EmbersMessages.closeAll(player);
 ```
+
+## Inline Tags
+
+Embers Text API can now parse inline markup inspired by TextAnimator. Wrap text in angle-bracket tags to stack effects:
+
+```
+<typewriter speed=2><wiggle amp=1.2>TextAnimator</wiggle> is a mod by <wave><rainb>Snownee</rainb></wave></typewriter>
+```
+
+Built-in tags include `typewriter`, `wiggle`, `wave`, `rainb`/`rainbow`, `bold`, `italic`, `obf`, `color`, and `gradient`. Tags may be nested and escaped with `\<` and `\\`.
+
+Use the fluent API when building text programmatically:
+
+```java
+AttributedText text = AttributedText.builder("Custom FTB Quest Title")
+        .span(0, 6).add(Bold.INSTANCE).up()
+        .span(7, 11).add(Gradient.of(0xFF6A00, 0xFFD500)).up()
+        .build();
+Component component = EmbersText.render(text, mc.level.getGameTime() / 20f);
+```
+
+Enable debug logging or disable inline parsing in the client config. The `/embertextapi parse <text>` command renders chat previews for quick iteration.
