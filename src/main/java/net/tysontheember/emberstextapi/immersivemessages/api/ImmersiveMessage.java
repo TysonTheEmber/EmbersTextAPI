@@ -979,7 +979,7 @@ public class ImmersiveMessage {
 
     public int renderColour() {
         int base = text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF;
-        int alpha = Mth.clamp((int)(computeAlpha(age) * 255f), 0, 255);
+        int alpha = Mth.clamp(Math.round(computeAlpha(age) * 255f), 0, 255);
         return (alpha << 24) | base;
     }
 
@@ -991,7 +991,7 @@ public class ImmersiveMessage {
      */
     public int renderColour(float partialTick) {
         int base = text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF;
-        int alpha = Mth.clamp((int)(computeAlpha(sampleAge(partialTick)) * 255f), 0, 255);
+        int alpha = Mth.clamp(Math.round(computeAlpha(sampleAge(partialTick)) * 255f), 0, 255);
         return (alpha << 24) | base;
     }
 
