@@ -14,7 +14,7 @@ import net.tysontheember.emberstextapi.net.C2S_UpdateMessagePacket;
  * Central registration point for mod networking.
  */
 public final class Network {
-    private static final String PROTOCOL = "3";
+    private static final String PROTOCOL = "4";
     private static final ResourceLocation ID = new ResourceLocation(EmbersTextAPI.MODID, "tooltip");
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(ID, () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
 

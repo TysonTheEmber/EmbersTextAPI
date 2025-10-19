@@ -11,21 +11,30 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec2;
 import net.minecraftforge.fml.ModList;
 import net.tysontheember.emberstextapi.client.TextLayoutCache;
 import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
-import xyz.flirora.caxton.render.CaxtonTextRenderer;
+import net.tysontheember.emberstextapi.text.AttributeSet;
+import net.tysontheember.emberstextapi.text.AttributedText;
+import net.tysontheember.emberstextapi.text.AttributedTextCodec;
+import net.tysontheember.emberstextapi.text.Span;
+import net.tysontheember.emberstextapi.text.effect.Effect;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * More feature rich port of the original Immersive Messages class.
@@ -83,6 +92,10 @@ public class ImmersiveMessage {
 
     // Current rendered text (may be typewritten or obfuscated)
     private MutableComponent current = Component.literal("");
+    private AttributedText attributedText;
+    private Component attributedComponent;
+
+    private static final AttributeSet EMPTY_ATTRIBUTES = AttributeSet.builder().build();
 
     // Obfuscation
     private ObfuscateMode obfuscateMode = ObfuscateMode.NONE;
@@ -181,6 +194,28 @@ public class ImmersiveMessage {
             mutable.withStyle(s -> s.withColor(rgb));
         }
         return this;
+    }
+
+    /**
+     * Replaces the message text with a precomputed attributed representation.
+     *
+     * @param text attributed text to render
+     * @return this message for chaining
+     */
+    public ImmersiveMessage attributedText(AttributedText text) {
+        this.attributedText = text;
+        this.attributedComponent = text != null ? componentFromAttributed(text) : null;
+        return this;
+    }
+
+    /**
+     * Resolves the attributed text backing this message, building a legacy representation when
+     * the new span-based model has not been provided.
+     *
+     * @return attributed text describing the message contents
+     */
+    public AttributedText getAttributedText() {
+        return resolveAttributedText();
     }
 
     // ----- Background color/border customization -----
@@ -599,6 +634,9 @@ public class ImmersiveMessage {
 
         // 1.20.1-safe: store text as JSON
         tag.putString("TextJson", Component.Serializer.toJson(text));
+        if (attributedText != null) {
+            tag.put("AttributedText", AttributedTextCodec.toNbt(attributedText));
+        }
 
         tag.putFloat("Duration", duration);
         tag.putInt("fadeIn", fadeInTicks);
@@ -785,6 +823,12 @@ public class ImmersiveMessage {
         if (tag.contains("CharShakeStrength")) msg.charShakeStrength = tag.getFloat("CharShakeStrength");
         if (tag.contains("WrapWidth")) msg.wrapMaxWidth = tag.getInt("WrapWidth");
         if (tag.contains("Delay")) msg.delay = tag.getFloat("Delay");
+        if (tag.contains("AttributedText", Tag.TAG_COMPOUND)) {
+            AttributedText attributed = AttributedTextCodec.fromNbt(tag.getCompound("AttributedText"));
+            msg.attributedText(attributed);
+        } else if (tag.contains("AttributedTextJson", Tag.TAG_STRING)) {
+            msg.attributedText(AttributedTextCodec.fromJson(tag.getString("AttributedTextJson")));
+        }
         if (msg.obfuscateMode != ObfuscateMode.NONE) msg.initObfuscation();
         return msg;
     }
@@ -858,6 +902,10 @@ public class ImmersiveMessage {
         buf.writeFloat(delay);
         buf.writeVarInt(fadeInTicks);
         buf.writeVarInt(fadeOutTicks);
+        buf.writeBoolean(attributedText != null);
+        if (attributedText != null) {
+            buf.writeNbt(AttributedTextCodec.toNbt(attributedText));
+        }
     }
 
     public static ImmersiveMessage decode(FriendlyByteBuf buf) {
@@ -931,6 +979,15 @@ public class ImmersiveMessage {
         if (buf.isReadable()) {
             msg.fadeOutTicks = Math.max(0, buf.readVarInt());
         }
+        if (buf.isReadable()) {
+            boolean hasAttributed = buf.readBoolean();
+            if (hasAttributed) {
+                CompoundTag attributedTag = buf.readNbt();
+                if (attributedTag != null) {
+                    msg.attributedText(AttributedTextCodec.fromNbt(attributedTag));
+                }
+            }
+        }
         if (msg.obfuscateMode != ObfuscateMode.NONE) msg.initObfuscation();
         return msg;
     }
@@ -977,6 +1034,226 @@ public class ImmersiveMessage {
         return getDrawComponent();
     }
 
+    private AttributedText resolveAttributedText() {
+        if (attributedText != null) {
+            return attributedText;
+        }
+        Component legacy = getLegacyDrawComponent();
+        String raw = legacy.getString();
+        AttributedText.Builder builder = AttributedText.builder().text(raw);
+        if (!raw.isEmpty()) {
+            AttributeSet.Builder attributes = AttributeSet.builder();
+            Style style = legacy.getStyle();
+            AttributeSet.Style.Builder styleBuilder = AttributeSet.Style.builder()
+                    .bold(style.isBold())
+                    .italic(style.isItalic())
+                    .underlined(style.isUnderlined())
+                    .strikethrough(style.isStrikethrough())
+                    .obfuscated(style.isObfuscated());
+            attributes.style(styleBuilder.build());
+            TextColor color = style.getColor();
+            if (color == null) {
+                color = text.getStyle().getColor();
+            }
+            if (color != null) {
+                attributes.color(formatColor(color));
+            }
+            builder.addSpan(Span.builder()
+                    .start(0)
+                    .end(raw.length())
+                    .attributes(attributes.build())
+                    .build());
+        }
+        return builder.build();
+    }
+
+    private Component componentFromAttributed(AttributedText text) {
+        if (text == null) {
+            return Component.literal("");
+        }
+        String raw = text.getText();
+        if (raw.isEmpty()) {
+            return Component.literal("").withStyle(this.text.getStyle());
+        }
+        MutableComponent result = Component.literal("");
+        List<SpanRun> runs = buildSpanRuns(text);
+        for (SpanRun run : runs) {
+            int start = Math.min(run.start(), raw.length());
+            int end = Math.min(run.end(), raw.length());
+            if (start >= end) {
+                continue;
+            }
+            String segment = raw.substring(start, end);
+            Style style = mergeStyle(run.attributes());
+            result.append(Component.literal(segment).withStyle(style));
+        }
+        return result;
+    }
+
+    private Style mergeStyle(AttributeSet attributes) {
+        Style merged = this.text.getStyle();
+        if (attributes == null) {
+            return merged;
+        }
+        AttributeSet.Style style = attributes.getStyle();
+        if (style != null) {
+            merged = merged.withBold(style.isBold())
+                    .withItalic(style.isItalic())
+                    .withUnderlined(style.isUnderlined())
+                    .withStrikethrough(style.isStrikethrough())
+                    .withObfuscated(style.isObfuscated());
+        }
+        String colorValue = attributes.getColor();
+        if (colorValue != null) {
+            TextColor colour = parseColor(colorValue);
+            if (colour != null) {
+                merged = merged.withColor(colour);
+            }
+        }
+        return merged;
+    }
+
+    private static String formatColor(TextColor color) {
+        return String.format(Locale.ROOT, "#%06X", color.getValue());
+    }
+
+    private List<SpanRun> buildSpanRuns(AttributedText text) {
+        List<Span> spans = new ArrayList<>(text.getSpans());
+        spans.sort(Comparator.comparingInt(Span::getStart).thenComparingInt(Span::getEnd));
+        List<SpanRun> runs = new ArrayList<>();
+        int cursor = 0;
+        int length = text.getText().length();
+        for (Span span : spans) {
+            int start = Mth.clamp(span.getStart(), 0, length);
+            int end = Mth.clamp(span.getEnd(), 0, length);
+            if (end <= start) {
+                continue;
+            }
+            if (start > cursor) {
+                runs.add(new SpanRun(cursor, start, EMPTY_ATTRIBUTES));
+            }
+            AttributeSet attrs = span.getAttributes() != null ? span.getAttributes() : EMPTY_ATTRIBUTES;
+            runs.add(new SpanRun(start, end, attrs));
+            cursor = Math.max(cursor, end);
+        }
+        if (cursor < length) {
+            runs.add(new SpanRun(cursor, length, EMPTY_ATTRIBUTES));
+        }
+        if (runs.isEmpty() && length > 0) {
+            runs.add(new SpanRun(0, length, EMPTY_ATTRIBUTES));
+        }
+        return runs;
+    }
+
+    private int colourWithAlpha(Style style, float alpha) {
+        TextColor colour = style.getColor();
+        if (colour == null) {
+            colour = text.getStyle().getColor();
+        }
+        int rgb = colour != null ? colour.getValue() : 0xFFFFFF;
+        int a = Math.min(255, Math.max(0, Math.round(alpha * 255f)));
+        return (a << 24) | rgb;
+    }
+
+    private void renderAttributedText(GuiGraphics graphics, AttributedText attributed, Component draw, TextLayoutCache.Layout layout,
+                                      float textStartX, float textStartY, float alpha, float renderAge) {
+        if (attributed == null || draw == null) {
+            return;
+        }
+        var font = Minecraft.getInstance().font;
+        var handler = CaxtonCompat.getHandler();
+        List<SpanRun> runs = buildSpanRuns(attributed);
+        if (runs.isEmpty()) {
+            return;
+        }
+        int ticks = Mth.floor(renderAge);
+        for (SpanRun run : runs) {
+            for (Effect effect : run.attributes().getEffects().values()) {
+                effect.beginFrame(ticks);
+            }
+        }
+        RenderGlyphState state = new RenderGlyphState(runs);
+        Effect.Out out = new Effect.Out();
+        List<FormattedCharSequence> lines = layout.lines();
+        if (lines != null) {
+            for (int i = 0; i < lines.size(); i++) {
+                float lineBaseY = textStartY + i * font.lineHeight;
+                renderSequence(graphics, lines.get(i), textStartX, lineBaseY, alpha, state, font, handler, out);
+            }
+        } else {
+            renderSequence(graphics, layout.visualOrder(), textStartX, textStartY, alpha, state, font, handler, out);
+        }
+    }
+
+    private void renderSequence(GuiGraphics graphics, FormattedCharSequence sequence, float baseX, float baseY, float alpha,
+                                RenderGlyphState state, net.minecraft.client.gui.Font font, CaxtonCompat.WidthProvider handler,
+                                Effect.Out out) {
+        final float[] xAdvance = {baseX};
+        sequence.accept((pos, style, codePoint) -> {
+            state.advance();
+            SpanRun run = state.currentRun();
+            AttributeSet attributes = run.attributes();
+            Map<String, Effect> effects = attributes.getEffects();
+            String ch = new String(Character.toChars(codePoint));
+            Component charComponent = Component.literal(ch).withStyle(style);
+            FormattedCharSequence charSeq = charComponent.getVisualOrderText();
+            float width = font.width(charSeq);
+            if (handler != null) {
+                float caxtonWidth = handler.getWidth(charSeq);
+                if (!Float.isNaN(caxtonWidth)) {
+                    width = caxtonWidth;
+                }
+            }
+            int baseColour = colourWithAlpha(style, alpha);
+            Effect.Color baseColor = Effect.Color.fromInt(baseColour);
+            Vec2 basePos = new Vec2(xAdvance[0], baseY);
+            out.reset(basePos, baseColor);
+            for (Effect effect : effects.values()) {
+                effect.applyGlyph(state.glyphIndex(), basePos, baseColor, out);
+            }
+            Vec2 position = out.getPosition();
+            int colour = out.getColor().toArgb();
+            graphics.pose().pushPose();
+            graphics.pose().translate(position.x, position.y, 0);
+            graphics.drawString(font, charSeq, 0, 0, colour, shadow);
+            graphics.pose().popPose();
+            xAdvance[0] += width;
+            state.incrementGlyph();
+            return true;
+        });
+    }
+
+    private record SpanRun(int start, int end, AttributeSet attributes) {
+    }
+
+    private static final class RenderGlyphState {
+        private final List<SpanRun> runs;
+        private int glyphIndex;
+        private int runIndex;
+
+        private RenderGlyphState(List<SpanRun> runs) {
+            this.runs = runs;
+        }
+
+        private void advance() {
+            while (runIndex < runs.size() - 1 && glyphIndex >= runs.get(runIndex).end()) {
+                runIndex++;
+            }
+        }
+
+        private SpanRun currentRun() {
+            return runs.get(runIndex);
+        }
+
+        private int glyphIndex() {
+            return glyphIndex;
+        }
+
+        private void incrementGlyph() {
+            glyphIndex++;
+        }
+    }
+
     public int renderColour() {
         int base = text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF;
         int alpha = Mth.clamp((int)(computeAlpha(age) * 255f), 0, 255);
@@ -1010,6 +1287,13 @@ public class ImmersiveMessage {
     }
 
     private Component getDrawComponent() {
+        if (attributedComponent != null) {
+            return attributedComponent;
+        }
+        return getLegacyDrawComponent();
+    }
+
+    private Component getLegacyDrawComponent() {
         if (typewriter) {
             return current;
         }
@@ -1077,7 +1361,7 @@ public class ImmersiveMessage {
         return new TextLayoutCache.Layout(lines, draw.getVisualOrderText(), baseWidth, baseHeight);
     }
 
-    public void renderWithLayout(GuiGraphics graphics, Component draw, TextLayoutCache.Layout layout, int screenW, int screenH, float partialTick) {
+    public void renderWithLayout(GuiGraphics graphics, AttributedText attributed, Component draw, TextLayoutCache.Layout layout, int screenW, int screenH, float partialTick) {
         var font = Minecraft.getInstance().font;
         var caxtonHandler = CaxtonCompat.getHandler();
         List<FormattedCharSequence> lines = layout.lines();
@@ -1194,16 +1478,8 @@ public class ImmersiveMessage {
             onRender.render(graphics, this, 0, 0, alpha);
         } else if (charShake) {
             renderCharShake(graphics, lines, draw, colour, textStartX, textStartY);
-        } else if (lines != null) {
-            int drawStartX = Mth.floor(textStartX);
-            for (int i = 0; i < lines.size(); i++) {
-                int drawStartY = Mth.floor(textStartY + i * font.lineHeight);
-                graphics.drawString(font, lines.get(i), drawStartX, drawStartY, colour, shadow);
-            }
         } else {
-            int drawStartX = Mth.floor(textStartX);
-            int drawStartY = Mth.floor(textStartY);
-            graphics.drawString(font, draw, drawStartX, drawStartY, colour, shadow);
+            renderAttributedText(graphics, attributed, draw, layout, textStartX, textStartY, alpha, renderAge);
         }
         graphics.pose().popPose();
     }
@@ -1259,11 +1535,12 @@ public class ImmersiveMessage {
     public float getDelay() { return delay; }
 
     public void render(GuiGraphics graphics) {
+        AttributedText attributed = getAttributedText();
         Component draw = component();
         TextLayoutCache.Layout layout = buildLayout(draw);
         int screenW = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         int screenH = Minecraft.getInstance().getWindow().getGuiScaledHeight();
-        renderWithLayout(graphics, draw, layout, screenW, screenH, 0f);
+        renderWithLayout(graphics, attributed, draw, layout, screenW, screenH, 0f);
     }
 
     private void renderCharShake(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int colour, float baseX, float baseY) {

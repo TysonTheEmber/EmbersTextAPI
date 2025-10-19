@@ -5,6 +5,8 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.logging.LogUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.Commands;
@@ -23,16 +25,27 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
-import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
 import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage.TextureSizingMode;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
+import net.tysontheember.emberstextapi.text.AttributedText;
+import net.tysontheember.emberstextapi.text.AttributedTextCodec;
+import net.tysontheember.emberstextapi.text.EmbersText;
+import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
 import org.slf4j.Logger;
+
+import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
 @Mod.EventBusSubscriber(modid = EmbersTextAPI.MODID)
 public class MessageCommands {
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final String[] PARSE_DEMOS = {
+        "<bold>Nested <italic><wave a=2>markup</wave></italic> demo</bold>",
+        "<grad from=#ff6600 to=#33ccff span=true>Gradient showcase text</grad>",
+        "<typewriter sp=1.5><shake a=0.6 f=2>Layered effects example</shake></typewriter>"
+    };
 
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
@@ -41,6 +54,8 @@ public class MessageCommands {
                 .then(testSubcommand())
                 .then(sendSubcommand())
                 .then(customSubcommand())
+                .then(parseSubcommand())
+                .then(spansSubcommand())
         );
     }
 
@@ -102,7 +117,32 @@ public class MessageCommands {
                                     keys.put(k.toLowerCase(java.util.Locale.ROOT), k);
                                 }
 
-                                MutableComponent component = Component.literal(text);
+                                AttributedText attributedOverride = null;
+                                String attributedKey = keys.get("attributed");
+                                if (attributedKey != null && tag.contains(attributedKey, Tag.TAG_COMPOUND)) {
+                                    attributedOverride = AttributedTextCodec.fromNbt(tag.getCompound(attributedKey));
+                                } else {
+                                    String attributedJsonKey = keys.get("attributedjson");
+                                    if (attributedJsonKey != null && tag.contains(attributedJsonKey, Tag.TAG_STRING)) {
+                                        attributedOverride = AttributedTextCodec.fromJson(tag.getString(attributedJsonKey));
+                                    } else {
+                                        String markupKey = keys.get("markup");
+                                        if (markupKey != null && tag.contains(markupKey, Tag.TAG_BYTE) && tag.getBoolean(markupKey)) {
+                                            String markupTextKey = keys.get("markuptext");
+                                            String markupSource = markupTextKey != null && tag.contains(markupTextKey, Tag.TAG_STRING)
+                                                    ? tag.getString(markupTextKey)
+                                                    : text;
+                                            attributedOverride = EmbersText.parse(markupSource);
+                                            if (attributedOverride != null && !attributedOverride.getSpans().isEmpty()) {
+                                                text = markupSource;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                String baseText = attributedOverride != null ? attributedOverride.getText() : text;
+
+                                MutableComponent component = Component.literal(baseText);
                                 if (tag.contains("font")) {
                                     ResourceLocation font = ResourceLocation.tryParse(tag.getString("font"));
                                     if (font != null) {
@@ -138,6 +178,9 @@ public class MessageCommands {
                                 }
 
                                 ImmersiveMessage msg = new ImmersiveMessage(component, duration);
+                                if (attributedOverride != null) {
+                                    msg.attributedText(attributedOverride);
+                                }
                                 if (keys.containsKey("fadein")) {
                                     msg.fadeInTicks(tag.getInt(keys.get("fadein")));
                                 }
@@ -370,6 +413,65 @@ public class MessageCommands {
                                 EmbersTextAPI.sendMessage(target, msg);
                                 return Command.SINGLE_SUCCESS;
                             })))));
+    }
+
+    private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> parseSubcommand() {
+        return Commands.literal("parse")
+            .executes(ctx -> previewMarkup(ctx, PARSE_DEMOS[0]))
+            .then(Commands.literal("demo")
+                .then(Commands.argument("id", IntegerArgumentType.integer(1, PARSE_DEMOS.length))
+                    .executes(ctx -> previewMarkup(ctx, demoString(IntegerArgumentType.getInteger(ctx, "id"))))))
+            .then(Commands.argument("text", StringArgumentType.greedyString())
+                .suggests(MessageCommands::suggestParseExamples)
+                .executes(ctx -> previewMarkup(ctx, StringArgumentType.getString(ctx, "text"))));
+    }
+
+    private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> spansSubcommand() {
+        return Commands.literal("spans")
+            .executes(ctx -> outputSpans(ctx, PARSE_DEMOS[0]))
+            .then(Commands.literal("demo")
+                .then(Commands.argument("id", IntegerArgumentType.integer(1, PARSE_DEMOS.length))
+                    .executes(ctx -> outputSpans(ctx, demoString(IntegerArgumentType.getInteger(ctx, "id"))))))
+            .then(Commands.argument("text", StringArgumentType.greedyString())
+                .suggests(MessageCommands::suggestParseExamples)
+                .executes(ctx -> outputSpans(ctx, StringArgumentType.getString(ctx, "text"))));
+    }
+
+    private static int previewMarkup(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx, String source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        AttributedText attributed = EmbersText.parse(source);
+        ImmersiveMessage message = ImmersiveMessage.builder(120f, attributed.getText());
+        message.attributedText(attributed);
+        EmbersTextAPI.sendMessage(player, message);
+        ctx.getSource().sendSuccess(() -> EmbersText.toComponent(attributed), false);
+        LOGGER.info("Previewing attributed text from '{}': {}", player.getGameProfile().getName(), source);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int outputSpans(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx, String source) {
+        AttributedText attributed = EmbersText.parse(source);
+        String json = AttributedTextCodec.toJson(attributed).toString();
+        ctx.getSource().sendSuccess(() -> Component.literal(json), false);
+        LOGGER.info("Parsed spans for '{}': {}", source, json);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static CompletableFuture<Suggestions> suggestParseExamples(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx, SuggestionsBuilder builder) {
+        String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
+        for (String example : PARSE_DEMOS) {
+            if (remaining.isEmpty() || example.toLowerCase(Locale.ROOT).startsWith(remaining)) {
+                builder.suggest(example);
+            }
+        }
+        return builder.buildFuture();
+    }
+
+    private static String demoString(int index) {
+        if (PARSE_DEMOS.length == 0) {
+            return "";
+        }
+        int clamped = Math.max(1, Math.min(index, PARSE_DEMOS.length)) - 1;
+        return PARSE_DEMOS[clamped];
     }
 
     private static void runTest(ServerPlayer player, int id) {

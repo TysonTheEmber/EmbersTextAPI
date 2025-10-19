@@ -6,6 +6,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
+import net.tysontheember.emberstextapi.text.AttributedText;
 
 import java.util.UUID;
 
@@ -36,6 +37,7 @@ public final class ActiveMessage {
     }
 
     public void render(GuiGraphics graphics, float partialTick) {
+        AttributedText attributed = message.getAttributedText();
         Component draw = message.component();
         int colour = message.renderColour(partialTick);
         float scale = message.getTextScale();
@@ -45,7 +47,7 @@ public final class ActiveMessage {
         TextLayoutCache.Layout layout = TextLayoutCache.getOrCompute(key, () -> message.buildLayout(draw));
         int screenW = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         int screenH = Minecraft.getInstance().getWindow().getGuiScaledHeight();
-        message.renderWithLayout(graphics, draw, layout, screenW, screenH, partialTick);
+        message.renderWithLayout(graphics, attributed, draw, layout, screenW, screenH, partialTick);
     }
 
     public void update(ImmersiveMessage newMessage) {
