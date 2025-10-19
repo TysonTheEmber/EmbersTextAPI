@@ -1168,32 +1168,37 @@ public class ImmersiveMessage {
         }
         int ticks = Mth.floor(renderAge);
         for (SpanRun run : runs) {
-            for (Effect effect : run.attributes().getEffects().values()) {
+            AttributeSet attributes = run.attributes();
+            if (attributes == null) {
+                continue;
+            }
+            for (Effect effect : attributes.getEffects().values()) {
                 effect.beginFrame(ticks);
             }
         }
-        RenderGlyphState state = new RenderGlyphState(runs);
+        RenderGlyphState state = new RenderGlyphState(runs, attributed.getText().length());
         Effect.Out out = new Effect.Out();
         List<FormattedCharSequence> lines = layout.lines();
         if (lines != null) {
             for (int i = 0; i < lines.size(); i++) {
                 float lineBaseY = textStartY + i * font.lineHeight;
-                renderSequence(graphics, lines.get(i), textStartX, lineBaseY, alpha, state, font, handler, out);
+                renderSequence(graphics, lines.get(i), textStartX, lineBaseY, alpha, state, font, handler, out, renderAge);
             }
         } else {
-            renderSequence(graphics, layout.visualOrder(), textStartX, textStartY, alpha, state, font, handler, out);
+            renderSequence(graphics, layout.visualOrder(), textStartX, textStartY, alpha, state, font, handler, out, renderAge);
         }
     }
 
     private void renderSequence(GuiGraphics graphics, FormattedCharSequence sequence, float baseX, float baseY, float alpha,
                                 RenderGlyphState state, net.minecraft.client.gui.Font font, CaxtonCompat.WidthProvider handler,
-                                Effect.Out out) {
+                                Effect.Out out, float renderAge) {
         final float[] xAdvance = {baseX};
         sequence.accept((pos, style, codePoint) -> {
             state.advance();
             SpanRun run = state.currentRun();
-            AttributeSet attributes = run.attributes();
+            AttributeSet attributes = run.attributes() != null ? run.attributes() : EMPTY_ATTRIBUTES;
             Style glyphStyle = applySpanAttributes(style, attributes);
+            glyphStyle = applyGradientColour(glyphStyle, attributes, run, state.glyphIndex(), state.totalLength(), renderAge);
             Map<String, Effect> effects = attributes.getEffects();
             String ch = new String(Character.toChars(codePoint));
             Component charComponent = Component.literal(ch).withStyle(glyphStyle);
@@ -1257,16 +1262,131 @@ public class ImmersiveMessage {
         return result;
     }
 
+    private Style applyGradientColour(Style base, AttributeSet attributes, SpanRun run, int glyphIndex,
+                                      int totalLength, float renderAge) {
+        if (attributes == null) {
+            return base;
+        }
+        AttributeSet.Gradient gradient = attributes.getGradient();
+        if (gradient == null) {
+            return base;
+        }
+        TextColor fallback = resolveFallbackColour(attributes, base);
+        TextColor startColour = resolveColour(gradient.getFrom(), attributes, fallback);
+        TextColor endColour = resolveColour(gradient.getTo(), attributes, fallback);
+        if (startColour == null && endColour == null) {
+            return base;
+        }
+        if (startColour == null) {
+            startColour = endColour;
+        }
+        if (endColour == null) {
+            endColour = startColour;
+        }
+        if (startColour == null || endColour == null) {
+            return base;
+        }
+        Effect.Color start = toEffectColor(startColour);
+        Effect.Color end = toEffectColor(endColour);
+        if (start == null || end == null) {
+            return base;
+        }
+        float position = computeGradientPosition(gradient, run, glyphIndex, totalLength, renderAge);
+        Effect.Color blended = gradient.isHsv() ? start.lerpHsv(end, position) : start.lerp(end, position);
+        TextColor colour = TextColor.fromRgb(blended.toArgb() & 0xFFFFFF);
+        return base.withColor(colour);
+    }
+
+    private TextColor resolveFallbackColour(AttributeSet attributes, Style base) {
+        if (attributes != null) {
+            String attributeColour = attributes.getColor();
+            if (attributeColour != null) {
+                TextColor colour = parseColor(attributeColour);
+                if (colour != null) {
+                    return colour;
+                }
+            }
+        }
+        TextColor baseColour = base.getColor();
+        if (baseColour != null) {
+            return baseColour;
+        }
+        TextColor messageColour = text.getStyle().getColor();
+        if (messageColour != null) {
+            return messageColour;
+        }
+        return TextColor.fromRgb(0xFFFFFF);
+    }
+
+    private TextColor resolveColour(String value, AttributeSet attributes, TextColor fallback) {
+        if (value != null) {
+            TextColor parsed = parseColor(value);
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+        if (attributes != null) {
+            String attributeColour = attributes.getColor();
+            if (attributeColour != null) {
+                TextColor parsed = parseColor(attributeColour);
+                if (parsed != null) {
+                    return parsed;
+                }
+            }
+        }
+        return fallback;
+    }
+
+    private float computeGradientPosition(AttributeSet.Gradient gradient, SpanRun run, int glyphIndex, int totalLength,
+                                          float renderAge) {
+        int gradientStart = gradient.isSpan() ? 0 : run.start();
+        int gradientEnd = gradient.isSpan() ? totalLength : run.end();
+        int length = Math.max(1, gradientEnd - gradientStart);
+        if (length <= 1) {
+            return 0f;
+        }
+        int relativeIndex = Mth.clamp(glyphIndex - gradientStart, 0, length - 1);
+        double position;
+        if (gradient.isUni()) {
+            position = relativeIndex / (double) length;
+        } else {
+            position = relativeIndex / (double) (length - 1);
+        }
+        position = Mth.clamp(position, 0d, 1d);
+        double flow = gradient.getFlow();
+        if (flow != 0d) {
+            position = wrap01(position + renderAge * flow);
+        }
+        return (float) position;
+    }
+
+    private static double wrap01(double value) {
+        double wrapped = value % 1.0d;
+        if (wrapped < 0d) {
+            wrapped += 1.0d;
+        }
+        return wrapped;
+    }
+
+    private static Effect.Color toEffectColor(TextColor colour) {
+        if (colour == null) {
+            return null;
+        }
+        return Effect.Color.fromInt(0xFF000000 | colour.getValue());
+    }
+
     private record SpanRun(int start, int end, AttributeSet attributes) {
     }
 
     private static final class RenderGlyphState {
         private final List<SpanRun> runs;
+        private final int totalLength;
         private int glyphIndex;
         private int runIndex;
 
-        private RenderGlyphState(List<SpanRun> runs) {
+        private RenderGlyphState(List<SpanRun> runs, int totalLength) {
             this.runs = runs;
+            this.totalLength = Math.max(0, totalLength);
         }
 
         private void advance() {
@@ -1285,6 +1405,10 @@ public class ImmersiveMessage {
 
         private void incrementGlyph() {
             glyphIndex++;
+        }
+
+        private int totalLength() {
+            return totalLength;
         }
     }
 
