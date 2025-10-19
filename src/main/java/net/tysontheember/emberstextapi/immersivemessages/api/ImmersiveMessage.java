@@ -1193,9 +1193,10 @@ public class ImmersiveMessage {
             state.advance();
             SpanRun run = state.currentRun();
             AttributeSet attributes = run.attributes();
+            Style glyphStyle = applySpanAttributes(style, attributes);
             Map<String, Effect> effects = attributes.getEffects();
             String ch = new String(Character.toChars(codePoint));
-            Component charComponent = Component.literal(ch).withStyle(style);
+            Component charComponent = Component.literal(ch).withStyle(glyphStyle);
             FormattedCharSequence charSeq = charComponent.getVisualOrderText();
             float width = font.width(charSeq);
             if (handler != null) {
@@ -1204,7 +1205,7 @@ public class ImmersiveMessage {
                     width = caxtonWidth;
                 }
             }
-            int baseColour = colourWithAlpha(style, alpha);
+            int baseColour = colourWithAlpha(glyphStyle, alpha);
             Effect.Color baseColor = Effect.Color.fromInt(baseColour);
             Vec2 basePos = new Vec2(xAdvance[0], baseY);
             out.reset(basePos, baseColor);
@@ -1221,6 +1222,39 @@ public class ImmersiveMessage {
             state.incrementGlyph();
             return true;
         });
+    }
+
+    private Style applySpanAttributes(Style base, AttributeSet attributes) {
+        Style result = base;
+        if (attributes == null) {
+            return result;
+        }
+        AttributeSet.Style style = attributes.getStyle();
+        if (style != null) {
+            if (style.isBold()) {
+                result = result.withBold(true);
+            }
+            if (style.isItalic()) {
+                result = result.withItalic(true);
+            }
+            if (style.isUnderlined()) {
+                result = result.withUnderlined(true);
+            }
+            if (style.isStrikethrough()) {
+                result = result.withStrikethrough(true);
+            }
+            if (style.isObfuscated()) {
+                result = result.withObfuscated(true);
+            }
+        }
+        String colorValue = attributes.getColor();
+        if (colorValue != null) {
+            TextColor colour = parseColor(colorValue);
+            if (colour != null) {
+                result = result.withColor(colour);
+            }
+        }
+        return result;
     }
 
     private record SpanRun(int start, int end, AttributeSet attributes) {
