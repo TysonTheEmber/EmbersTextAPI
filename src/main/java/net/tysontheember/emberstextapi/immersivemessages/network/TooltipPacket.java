@@ -19,7 +19,7 @@ import java.util.function.Supplier;
  * simplicity.
  */
 public class TooltipPacket {
-    private static final ResourceLocation ID = new ResourceLocation(EmbersTextAPI.MODID, "tooltip");
+    private static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "tooltip");
     public static final net.minecraftforge.network.simple.SimpleChannel CHANNEL = Network.CHANNEL;
 
     private final ImmersiveMessage message;

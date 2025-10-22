@@ -32,6 +32,8 @@ import java.util.Random;
  * It supports anchor/align positioning, backgrounds, typewriter
  * animations and progressive de-obfuscation. Audio cues have been
  * intentionally omitted so the API focuses purely on text rendering.
+ * 
+ * Version 2.0.0: Added span-based text rendering with markup parser support.
  */
 public class ImmersiveMessage {
     private final Component text;
@@ -103,11 +105,18 @@ public class ImmersiveMessage {
     private boolean shake = false;
     private float shakeStrength = 0f;
     private ShakeType shakeType = ShakeType.RANDOM;
+    private float shakeSpeed = 10f; // multiplier for shake animation speed
 
     // Per-character shake
     private boolean charShake = false;
     private float charShakeStrength = 0f;
     private ShakeType charShakeType = ShakeType.RANDOM;
+    private float charShakeSpeed = 10f; // multiplier for char shake animation speed
+
+    // NEW: Span-based rendering (v2.0.0)
+    private List<TextSpan> spans;
+    private boolean spanMode = false;
+    private int[] spanTypewriterIndices; // Per-span typewriter progress
 
     private OnRenderMessage onRender;
     private final Random random = new Random();
@@ -115,11 +124,110 @@ public class ImmersiveMessage {
     public ImmersiveMessage(Component text, float duration) {
         this.text = text;
         this.duration = duration;
+        // Initialize age to ensure proper fade-in from start
+        this.age = 0f;
+        this.previousAge = 0f;
+    }
+
+    // NEW: Span-based constructor
+    public ImmersiveMessage(List<TextSpan> spans, float duration) {
+        this.spans = new ArrayList<>(spans);
+        this.text = Component.literal(MarkupParser.toPlainText(spans)); // For compatibility
+        this.duration = duration;
+        this.spanMode = true;
+        this.spanTypewriterIndices = new int[spans.size()];
+        // Initialize age to ensure proper fade-in from start
+        this.age = 0f;
+        this.previousAge = 0f;
+        
+        // Check if any spans have typewriter effects and enable global typewriter if so
+        if (spans.stream().anyMatch(span -> span.getTypewriterSpeed() != null)) {
+            this.typewriter = true;
+        }
+        
+        // Check if any spans have shake effects and enable global shake if so
+        for (TextSpan span : spans) {
+            if (span.getShakeType() != null && span.getShakeAmplitude() != null) {
+                this.shake = true;
+                this.shakeType = span.getShakeType();
+                this.shakeStrength = span.getShakeAmplitude();
+                if (span.getShakeSpeed() != null) {
+                    this.shakeSpeed = span.getShakeSpeed();
+                }
+                break; // Use first shake effect found
+            }
+            if (span.getCharShakeType() != null && span.getCharShakeAmplitude() != null) {
+                this.charShake = true;
+                this.charShakeType = span.getCharShakeType();
+                this.charShakeStrength = span.getCharShakeAmplitude();
+                if (span.getCharShakeSpeed() != null) {
+                    this.charShakeSpeed = span.getCharShakeSpeed();
+                }
+                break; // Use first char shake effect found
+            }
+        }
+        
+        // Extract global message attributes from any span that has them (typically the first one)
+        for (TextSpan span : spans) {
+            if (span.hasGlobalAttributes()) {
+                if (span.getGlobalBackground() != null) {
+                    this.background = span.getGlobalBackground();
+                }
+                if (span.getGlobalBackgroundColor() != null) {
+                    this.backgroundColor = span.getGlobalBackgroundColor();
+                }
+                if (span.getGlobalBackgroundGradient() != null) {
+                    this.backgroundGradientStops = span.getGlobalBackgroundGradient();
+                }
+                if (span.getGlobalBorderStart() != null) {
+                    this.borderStart = span.getGlobalBorderStart();
+                }
+                if (span.getGlobalBorderEnd() != null) {
+                    this.borderEnd = span.getGlobalBorderEnd();
+                }
+                if (span.getGlobalXOffset() != null) {
+                    this.xOffset = span.getGlobalXOffset();
+                }
+                if (span.getGlobalYOffset() != null) {
+                    this.yOffset = span.getGlobalYOffset();
+                }
+                if (span.getGlobalAnchor() != null) {
+                    this.anchor = span.getGlobalAnchor();
+                }
+                if (span.getGlobalAlign() != null) {
+                    this.align = span.getGlobalAlign();
+                }
+                if (span.getGlobalScale() != null) {
+                    this.textScale = span.getGlobalScale();
+                }
+                if (span.getGlobalShadow() != null) {
+                    this.shadow = span.getGlobalShadow();
+                }
+                if (span.getGlobalFadeInTicks() != null) {
+                    this.fadeInTicks = span.getGlobalFadeInTicks();
+                }
+                if (span.getGlobalFadeOutTicks() != null) {
+                    this.fadeOutTicks = span.getGlobalFadeOutTicks();
+                }
+                break; // Use first span with global attributes
+            }
+        }
     }
 
     /** Builder entry point. */
     public static ImmersiveMessage builder(float duration, String text) {
         return new ImmersiveMessage(Component.literal(text), duration);
+    }
+
+    /** NEW: Create from markup text with span-based rendering. */
+    public static ImmersiveMessage fromMarkup(float duration, String markup) {
+        List<TextSpan> parsed = MarkupParser.parse(markup);
+        return new ImmersiveMessage(parsed, duration);
+    }
+
+    /** NEW: Create from TextSpan list. */
+    public static ImmersiveMessage fromSpans(float duration, List<TextSpan> spans) {
+        return new ImmersiveMessage(spans, duration);
     }
 
     // ----- Builder style setters -----
@@ -725,7 +833,7 @@ public class ImmersiveMessage {
             CompoundTag texture = tag.getCompound("Texture");
             if (texture.contains("Location")) {
                 ResourceLocation rl = ResourceLocation.tryParse(texture.getString("Location"));
-                msg.backgroundTexture = rl != null ? rl : new ResourceLocation("minecraft", "missingno");
+                msg.backgroundTexture = rl != null ? rl : ResourceLocation.fromNamespaceAndPath("minecraft", "missingno");
                 msg.useTextureBackground = true;
                 msg.background = true;
             }
@@ -790,6 +898,19 @@ public class ImmersiveMessage {
     }
 
     public void encode(FriendlyByteBuf buf) {
+        // NEW: Write span mode flag first
+        buf.writeBoolean(spanMode);
+        
+        if (spanMode) {
+            // Serialize spans data
+            buf.writeVarInt(spans != null ? spans.size() : 0);
+            if (spans != null) {
+                for (TextSpan span : spans) {
+                    span.encode(buf);
+                }
+            }
+        }
+        
         buf.writeComponent(text);
         buf.writeFloat(duration);
         buf.writeFloat(xOffset);
@@ -850,10 +971,12 @@ public class ImmersiveMessage {
         buf.writeBoolean(shake);
         buf.writeEnum(shakeType);
         buf.writeFloat(shakeStrength);
+        buf.writeFloat(shakeSpeed);
         // Per-char shake
         buf.writeBoolean(charShake);
         buf.writeEnum(charShakeType);
         buf.writeFloat(charShakeStrength);
+        buf.writeFloat(charShakeSpeed);
         buf.writeInt(wrapMaxWidth);
         buf.writeFloat(delay);
         buf.writeVarInt(fadeInTicks);
@@ -861,9 +984,33 @@ public class ImmersiveMessage {
     }
 
     public static ImmersiveMessage decode(FriendlyByteBuf buf) {
-        Component text = buf.readComponent();
-        float duration = buf.readFloat();
-        ImmersiveMessage msg = new ImmersiveMessage(text, duration);
+        // NEW: Read span mode flag first
+        boolean spanMode = buf.readBoolean();
+        
+        ImmersiveMessage msg;
+        if (spanMode) {
+            // Deserialize spans data
+            int spanCount = buf.readVarInt();
+            java.util.List<TextSpan> spans = new java.util.ArrayList<>();
+            for (int i = 0; i < spanCount; i++) {
+                spans.add(TextSpan.decode(buf));
+            }
+            
+            // Read component and duration
+            Component text = buf.readComponent();
+            float duration = buf.readFloat();
+            
+            // Create span-based message
+            msg = new ImmersiveMessage(text, duration);
+            msg.spanMode = true;
+            msg.spans = spans;
+            msg.spanTypewriterIndices = new int[spans.size()];
+        } else {
+            // Legacy deserialization
+            Component text = buf.readComponent();
+            float duration = buf.readFloat();
+            msg = new ImmersiveMessage(text, duration);
+        }
         msg.xOffset = buf.readFloat();
         msg.yOffset = buf.readFloat();
         msg.shadow = buf.readBoolean();
@@ -919,10 +1066,12 @@ public class ImmersiveMessage {
         msg.shake = buf.readBoolean();
         msg.shakeType = buf.readEnum(ShakeType.class);
         msg.shakeStrength = buf.readFloat();
+        msg.shakeSpeed = buf.readFloat();
         // Per-char shake
         msg.charShake = buf.readBoolean();
         msg.charShakeType = buf.readEnum(ShakeType.class);
         msg.charShakeStrength = buf.readFloat();
+        msg.charShakeSpeed = buf.readFloat();
         msg.wrapMaxWidth = buf.readInt();
         msg.delay = buf.readFloat();
         if (buf.isReadable()) {
@@ -1010,10 +1159,168 @@ public class ImmersiveMessage {
     }
 
     private Component getDrawComponent() {
+        // NEW: Handle span-based rendering
+        if (spanMode && spans != null) {
+            return buildComponentFromSpans();
+        }
+        
+        // Legacy rendering
         if (typewriter) {
             return current;
         }
         return current.getString().isEmpty() ? text : current;
+    }
+    
+    /**
+     * Builds a styled Component from the current spans.
+     */
+    private Component buildComponentFromSpans() {
+        if (spans == null || spans.isEmpty()) {
+            return Component.literal("");
+        }
+        
+        MutableComponent result = Component.literal("");
+        boolean hasAnyTypewriter = hasAnyTypewriterSpans();
+        int currentCharIndex = 0;
+        
+        for (int i = 0; i < spans.size(); i++) {
+            TextSpan span = spans.get(i);
+            String content = span.getContent();
+            if (content.isEmpty()) continue;
+            
+            MutableComponent spanComponent;
+            
+            // Handle per-span typewriter effect (frame-rate independent)
+            if (span.getTypewriterSpeed() != null && spanTypewriterIndices != null) {
+                int spanTypewriterIndex = spanTypewriterIndices[i];
+                if (spanTypewriterIndex < content.length()) {
+                    content = content.substring(0, Math.max(0, spanTypewriterIndex));
+                }
+            } else if (typewriter && !hasAnyTypewriter) {
+                // Apply global typewriter if no spans have their own typewriter
+                int remainingChars = typewriterIndex - currentCharIndex;
+                if (remainingChars <= 0) {
+                    content = ""; // This span is not yet revealed by global typewriter
+                } else if (remainingChars < content.length()) {
+                    content = content.substring(0, remainingChars); // Partially revealed
+                }
+            }
+            
+            if (content.isEmpty()) {
+                currentCharIndex += span.getContent().length();
+                continue;
+            }
+            
+            // Handle gradients by building character-by-character
+            if (span.getGradientColors() != null && span.getGradientColors().length >= 2) {
+                spanComponent = buildGradientComponent(span, content);
+            } else {
+                // Simple span with single styling
+                spanComponent = Component.literal(content);
+                applySpanStyling(spanComponent, span);
+            }
+            
+            result.append(spanComponent);
+            currentCharIndex += span.getContent().length();
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Checks if any spans have their own typewriter effects.
+     */
+    private boolean hasAnyTypewriterSpans() {
+        if (spans == null) return false;
+        return spans.stream().anyMatch(span -> span.getTypewriterSpeed() != null);
+    }
+    
+    /**
+     * Builds a gradient component for a span character by character.
+     */
+    private MutableComponent buildGradientComponent(TextSpan span) {
+        return buildGradientComponent(span, span.getContent());
+    }
+    
+    /**
+     * Builds a gradient component for a span with custom content (for typewriter effects).
+     */
+    private MutableComponent buildGradientComponent(TextSpan span, String content) {
+        TextColor[] gradientColors = span.getGradientColors();
+        
+        MutableComponent result = Component.literal("");
+        
+        for (int i = 0; i < content.length(); i++) {
+            char c = content.charAt(i);
+            MutableComponent charComponent = Component.literal(String.valueOf(c));
+            
+            // Apply base styling (bold, italic, etc.)
+            applySpanStyling(charComponent, span);
+            
+            // Apply gradient color for this character
+            TextColor gradColor = computeGradientColor(gradientColors, i, content.length());
+            if (gradColor != null) {
+                charComponent = charComponent.withStyle(style -> style.withColor(gradColor));
+            }
+            
+            result.append(charComponent);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Applies span styling to a component.
+     */
+    private void applySpanStyling(MutableComponent component, TextSpan span) {
+        applySpanStyling(component, span, 1.0f);
+    }
+    
+    /**
+     * Applies span styling to a component with alpha modulation.
+     */
+    private void applySpanStyling(MutableComponent component, TextSpan span, float alpha) {
+        component.withStyle(style -> {
+            if (span.getBold() != null && span.getBold()) style = style.withBold(true);
+            if (span.getItalic() != null && span.getItalic()) style = style.withItalic(true);
+            if (span.getUnderline() != null && span.getUnderline()) style = style.withUnderlined(true);
+            if (span.getStrikethrough() != null && span.getStrikethrough()) style = style.withStrikethrough(true);
+            if (span.getObfuscated() != null && span.getObfuscated()) style = style.withObfuscated(true);
+            if (span.getFont() != null) style = style.withFont(span.getFont());
+            
+            // Apply color with alpha modulation
+            if (span.getColor() != null) {
+                int originalColor = span.getColor().getValue();
+                int alphaComponent = (int)(alpha * 255) << 24;
+                int colorWithAlpha = alphaComponent | (originalColor & 0x00FFFFFF);
+                style = style.withColor(TextColor.fromRgb(colorWithAlpha));
+            } else if (alpha < 1.0f) {
+                // Apply alpha to default color
+                int alphaComponent = (int)(alpha * 255) << 24;
+                int colorWithAlpha = alphaComponent | 0x00FFFFFF; // White with alpha
+                style = style.withColor(TextColor.fromRgb(colorWithAlpha));
+            }
+            
+            return style;
+        });
+    }
+    
+    /**
+     * Computes gradient color for a character at a specific index.
+     */
+    private TextColor computeGradientColor(TextColor[] gradientStops, int index, int totalLength) {
+        if (gradientStops.length < 2 || totalLength <= 1) return gradientStops[0];
+        
+        float t = totalLength <= 1 ? 0f : index / (float) (totalLength - 1);
+        int segments = gradientStops.length - 1;
+        float scaled = t * segments;
+        int segIndex = Mth.clamp((int) Math.floor(scaled), 0, segments - 1);
+        float local = scaled - segIndex;
+        
+        int start = gradientStops[segIndex].getValue();
+        int end = gradientStops[segIndex + 1].getValue();
+        int rgb = lerpColor(start, end, local);
+        return TextColor.fromRgb(rgb);
     }
 
     private float computeAlpha(float sampleAge) {
@@ -1022,6 +1329,39 @@ public class ImmersiveMessage {
         float visibleEnd = fadeIn + duration;
         float total = visibleEnd + fadeOut;
 
+        float alpha;
+        if (fadeIn > 0f && sampleAge <= fadeIn) {
+            // Ensure we start at exactly 0 alpha when sampleAge is 0
+            alpha = Math.max(0f, sampleAge) / Math.max(1f, fadeIn);
+        } else if (sampleAge < visibleEnd || (duration <= 0f && fadeIn == 0f && fadeOut == 0f)) {
+            alpha = 1f;
+        } else if (fadeOut > 0f && sampleAge < total) {
+            float fadeProgress = sampleAge - visibleEnd;
+            alpha = 1f - (fadeProgress / Math.max(1f, fadeOut));
+        } else {
+            alpha = 0f;
+        }
+        return Mth.clamp(alpha, 0f, 1f);
+    }
+    
+    /**
+     * Computes alpha for a specific span with per-span fade effects.
+     */
+    private float computeSpanAlpha(TextSpan span, float sampleAge) {
+        Integer spanFadeIn = span.getFadeInTicks();
+        Integer spanFadeOut = span.getFadeOutTicks();
+        
+        // If span has no fade effects, use global alpha
+        if (spanFadeIn == null && spanFadeOut == null) {
+            return computeAlpha(sampleAge);
+        }
+        
+        // Use span-specific fade timing
+        float fadeIn = spanFadeIn != null ? spanFadeIn : 0f;
+        float fadeOut = spanFadeOut != null ? spanFadeOut : 0f;
+        float visibleEnd = fadeIn + duration;
+        float total = visibleEnd + fadeOut;
+        
         float alpha;
         if (fadeIn > 0f && sampleAge < fadeIn) {
             alpha = sampleAge / Math.max(1f, fadeIn);
@@ -1033,7 +1373,10 @@ public class ImmersiveMessage {
         } else {
             alpha = 0f;
         }
-        return Mth.clamp(alpha, 0f, 1f);
+        
+        // Combine with global alpha (for overall message fade)
+        float globalAlpha = computeAlpha(sampleAge);
+        return Mth.clamp(alpha * globalAlpha, 0f, 1f);
     }
 
     private float sampleAge(float partialTick) {
@@ -1108,14 +1451,23 @@ public class ImmersiveMessage {
         float y = screenH * anchor.yFactor - baseHeight * textScale * align.yFactor + yOffset;
 
         float renderAge = sampleAge(partialTick);
+        
+        // Skip rendering entirely if we have fade-in and haven't started yet
+        if (fadeInTicks > 0 && renderAge <= 0f) {
+            graphics.pose().pushPose();
+            graphics.pose().popPose();
+            return;
+        }
 
         if (shake) {
             float sx = 0f, sy = 0f;
+            // Use tick-based timing for frame-rate independence (20 TPS = 0.05 seconds per tick)
+            float shakeTime = renderAge * 0.05f * shakeSpeed;
             switch (shakeType) {
-                case WAVE -> sy = (float) Math.sin(renderAge * 10f) * shakeStrength;
+                case WAVE -> sy = (float) Math.sin(shakeTime) * shakeStrength;
                 case CIRCLE -> {
-                    sx = (float) Math.cos(renderAge * 10f) * shakeStrength;
-                    sy = (float) Math.sin(renderAge * 10f) * shakeStrength;
+                    sx = (float) Math.cos(shakeTime) * shakeStrength;
+                    sy = (float) Math.sin(shakeTime) * shakeStrength;
                 }
                 case RANDOM -> {
                     sx = (random.nextFloat() - 0.5f) * 2f * shakeStrength;
@@ -1153,7 +1505,7 @@ public class ImmersiveMessage {
         if (background) {
             int start = (Math.min(255, (int)(borderStart.getAlpha() * alpha)) << 24) | borderStart.getRGB();
             int end = (Math.min(255, (int)(borderEnd.getAlpha() * alpha)) << 24) | borderEnd.getRGB();
-            int widthForBg = shake ? backgroundWidthInt + 200 : backgroundWidthInt;
+            int widthForBg = shake ? backgroundWidthInt + (int)(shakeStrength * 4f) : backgroundWidthInt;
 
             if (useTextureBackground && backgroundTexture != null) {
                 RenderSystem.enableBlend();
@@ -1214,6 +1566,7 @@ public class ImmersiveMessage {
 
         // Typewriter progression
         if (typewriter) {
+            // Handle global typewriter (legacy mode)
             int next = (int)(age * typewriterSpeed);
             if (next > typewriterIndex) {
                 typewriterIndex = Math.min(next, text.getString().length());
@@ -1224,6 +1577,19 @@ public class ImmersiveMessage {
                 } else {
                     current = Component.literal(text.getString().substring(0, typewriterIndex))
                             .withStyle(text.getStyle());
+                }
+            }
+            
+            // Handle per-span typewriter (span mode) 
+            if (spanMode && spans != null && spanTypewriterIndices != null) {
+                for (int i = 0; i < spans.size(); i++) {
+                    TextSpan span = spans.get(i);
+                    if (span.getTypewriterSpeed() != null) {
+                        int spanNext = (int)(age * span.getTypewriterSpeed());
+                        spanTypewriterIndices[i] = Math.min(spanNext, span.getContent().length());
+                    } else {
+                        spanTypewriterIndices[i] = span.getContent().length(); // Show all if no typewriter
+                    }
                 }
             }
         }
@@ -1280,10 +1646,15 @@ public class ImmersiveMessage {
                     String ch = new String(Character.toChars(codePoint));
                     float sx = 0f, sy = 0f;
                     switch (charShakeType) {
-                        case WAVE -> sy = (float) Math.sin(age * 10f + index[0]) * charShakeStrength;
+                        // Use tick-based timing for frame-rate independence
+                        case WAVE -> {
+                            float charShakeTime = age * 0.05f * charShakeSpeed + index[0] * 0.1f;
+                            sy = (float) Math.sin(charShakeTime) * charShakeStrength;
+                        }
                         case CIRCLE -> {
-                            sx = (float) Math.cos(age * 10f + index[0]) * charShakeStrength;
-                            sy = (float) Math.sin(age * 10f + index[0]) * charShakeStrength;
+                            float charShakeTime = age * 0.05f * charShakeSpeed + index[0] * 0.1f;
+                            sx = (float) Math.cos(charShakeTime) * charShakeStrength;
+                            sy = (float) Math.sin(charShakeTime) * charShakeStrength;
                         }
                         case RANDOM -> {
                             sx = (random.nextFloat() - 0.5f) * 2f * charShakeStrength;
@@ -1314,10 +1685,15 @@ public class ImmersiveMessage {
                 String ch = new String(Character.toChars(codePoint));
                 float sx = 0f, sy = 0f;
                 switch (charShakeType) {
-                    case WAVE -> sy = (float) Math.sin(age * 10f + index[0]) * charShakeStrength;
+                    // Use tick-based timing for frame-rate independence
+                    case WAVE -> {
+                        float charShakeTime = age * 0.05f * charShakeSpeed + index[0] * 0.1f;
+                        sy = (float) Math.sin(charShakeTime) * charShakeStrength;
+                    }
                     case CIRCLE -> {
-                        sx = (float) Math.cos(age * 10f + index[0]) * charShakeStrength;
-                        sy = (float) Math.sin(age * 10f + index[0]) * charShakeStrength;
+                        float charShakeTime = age * 0.05f * charShakeSpeed + index[0] * 0.1f;
+                        sx = (float) Math.cos(charShakeTime) * charShakeStrength;
+                        sy = (float) Math.sin(charShakeTime) * charShakeStrength;
                     }
                     case RANDOM -> {
                         sx = (random.nextFloat() - 0.5f) * 2f * charShakeStrength;
@@ -1336,6 +1712,54 @@ public class ImmersiveMessage {
                 return true;
             });
         }
+    }
+
+    // NEW: Span-based API methods (v2.0.0)
+    
+    /**
+     * Returns true if this message uses span-based rendering.
+     */
+    public boolean isSpanMode() {
+        return spanMode;
+    }
+    
+    /**
+     * Gets the spans used for rendering. Only valid if isSpanMode() returns true.
+     */
+    public List<TextSpan> getSpans() {
+        return spanMode && spans != null ? new ArrayList<>(spans) : Collections.emptyList();
+    }
+    
+    /**
+     * Adds a span to this message. Converts to span mode if not already.
+     */
+    public ImmersiveMessage addSpan(TextSpan span) {
+        if (!spanMode) {
+            // Convert to span mode
+            List<TextSpan> plainSpans = MarkupParser.fromPlainText(text.getString());
+            spans = new ArrayList<>(plainSpans); // Make it mutable
+            spanMode = true;
+        }
+        spans.add(span);
+        // Resize typewriter indices array
+        if (spanTypewriterIndices == null) {
+            spanTypewriterIndices = new int[spans.size()];
+        } else {
+            int[] newIndices = new int[spans.size()];
+            System.arraycopy(spanTypewriterIndices, 0, newIndices, 0, Math.min(spanTypewriterIndices.length, spans.size()));
+            spanTypewriterIndices = newIndices;
+        }
+        return this;
+    }
+    
+    /**
+     * Gets the total text content across all spans.
+     */
+    public String getFullText() {
+        if (spanMode && spans != null) {
+            return MarkupParser.toPlainText(spans);
+        }
+        return text.getString();
     }
 
     public enum TextureSizingMode {
