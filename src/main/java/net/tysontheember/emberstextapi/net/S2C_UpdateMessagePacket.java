@@ -11,19 +11,19 @@ import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-public record C2S_UpdateMessagePacket(UUID id, CompoundTag nbt) {
-    public static void encode(C2S_UpdateMessagePacket packet, FriendlyByteBuf buf) {
+public record S2C_UpdateMessagePacket(UUID id, CompoundTag nbt) {
+    public static void encode(S2C_UpdateMessagePacket packet, FriendlyByteBuf buf) {
         buf.writeUUID(packet.id);
         buf.writeNbt(packet.nbt);
     }
 
-    public static C2S_UpdateMessagePacket decode(FriendlyByteBuf buf) {
+    public static S2C_UpdateMessagePacket decode(FriendlyByteBuf buf) {
         UUID id = buf.readUUID();
         CompoundTag tag = buf.readNbt();
-        return new C2S_UpdateMessagePacket(id, tag == null ? new CompoundTag() : tag);
+        return new S2C_UpdateMessagePacket(id, tag == null ? new CompoundTag() : tag);
     }
 
-    public static void handle(C2S_UpdateMessagePacket packet, Supplier<NetworkEvent.Context> ctx) {
+    public static void handle(S2C_UpdateMessagePacket packet, Supplier<NetworkEvent.Context> ctx) {
         NetworkEvent.Context context = ctx.get();
         if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
             context.enqueueWork(() -> {

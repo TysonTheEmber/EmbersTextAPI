@@ -8,15 +8,15 @@ import net.tysontheember.emberstextapi.client.ClientMessageManager;
 
 import java.util.function.Supplier;
 
-public record C2S_CloseAllMessagesPacket() {
-    public static void encode(C2S_CloseAllMessagesPacket packet, FriendlyByteBuf buf) {
+public record S2C_CloseAllMessagesPacket() {
+    public static void encode(S2C_CloseAllMessagesPacket packet, FriendlyByteBuf buf) {
     }
 
-    public static C2S_CloseAllMessagesPacket decode(FriendlyByteBuf buf) {
-        return new C2S_CloseAllMessagesPacket();
+    public static S2C_CloseAllMessagesPacket decode(FriendlyByteBuf buf) {
+        return new S2C_CloseAllMessagesPacket();
     }
 
-    public static void handle(C2S_CloseAllMessagesPacket packet, Supplier<NetworkEvent.Context> ctx) {
+    public static void handle(S2C_CloseAllMessagesPacket packet, Supplier<NetworkEvent.Context> ctx) {
         NetworkEvent.Context context = ctx.get();
         if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
             context.enqueueWork(() -> {

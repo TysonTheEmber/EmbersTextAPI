@@ -106,12 +106,14 @@ public class ImmersiveMessage {
     private float shakeStrength = 0f;
     private ShakeType shakeType = ShakeType.RANDOM;
     private float shakeSpeed = 10f; // multiplier for shake animation speed
+    private float shakeWavelength = 1f; // wavelength for WAVE shake type (in arbitrary units)
 
     // Per-character shake
     private boolean charShake = false;
     private float charShakeStrength = 0f;
     private ShakeType charShakeType = ShakeType.RANDOM;
     private float charShakeSpeed = 10f; // multiplier for char shake animation speed
+    private float charShakeWavelength = 1f; // wavelength for WAVE char shake type
 
     // NEW: Span-based rendering (v2.0.0)
     private List<TextSpan> spans;
@@ -154,6 +156,9 @@ public class ImmersiveMessage {
                 if (span.getShakeSpeed() != null) {
                     this.shakeSpeed = span.getShakeSpeed();
                 }
+                if (span.getShakeWavelength() != null) {
+                    this.shakeWavelength = span.getShakeWavelength();
+                }
                 break; // Use first shake effect found
             }
             if (span.getCharShakeType() != null && span.getCharShakeAmplitude() != null) {
@@ -162,6 +167,9 @@ public class ImmersiveMessage {
                 this.charShakeStrength = span.getCharShakeAmplitude();
                 if (span.getCharShakeSpeed() != null) {
                     this.charShakeSpeed = span.getCharShakeSpeed();
+                }
+                if (span.getCharShakeWavelength() != null) {
+                    this.charShakeWavelength = span.getCharShakeWavelength();
                 }
                 break; // Use first char shake effect found
             }
@@ -208,6 +216,11 @@ public class ImmersiveMessage {
                 }
                 if (span.getGlobalFadeOutTicks() != null) {
                     this.fadeOutTicks = span.getGlobalFadeOutTicks();
+                }
+                if (span.getGlobalTypewriterSpeed() != null) {
+                    this.typewriter = true;
+                    this.typewriterSpeed = span.getGlobalTypewriterSpeed();
+                    this.typewriterCenter = span.getGlobalTypewriterCenter() != null ? span.getGlobalTypewriterCenter() : false;
                 }
                 break; // Use first span with global attributes
             }
@@ -1190,19 +1203,18 @@ public class ImmersiveMessage {
             
             MutableComponent spanComponent;
             
-            // Handle per-span typewriter effect (frame-rate independent)
-            if (span.getTypewriterSpeed() != null && spanTypewriterIndices != null) {
+            // Handle typewriter effect
+            if (typewriter && spanTypewriterIndices != null && i < spanTypewriterIndices.length) {
+                // Use the pre-calculated typewriter index (works for both container and per-span typewriter)
                 int spanTypewriterIndex = spanTypewriterIndices[i];
                 if (spanTypewriterIndex < content.length()) {
                     content = content.substring(0, Math.max(0, spanTypewriterIndex));
                 }
-            } else if (typewriter && !hasAnyTypewriter) {
-                // Apply global typewriter if no spans have their own typewriter
-                int remainingChars = typewriterIndex - currentCharIndex;
-                if (remainingChars <= 0) {
-                    content = ""; // This span is not yet revealed by global typewriter
-                } else if (remainingChars < content.length()) {
-                    content = content.substring(0, remainingChars); // Partially revealed
+            } else if (!typewriter && span.getTypewriterSpeed() != null && spanTypewriterIndices != null) {
+                // Handle case where global typewriter is off but span has its own typewriter
+                int spanTypewriterIndex = spanTypewriterIndices[i];
+                if (spanTypewriterIndex < content.length()) {
+                    content = content.substring(0, Math.max(0, spanTypewriterIndex));
                 }
             }
             
@@ -1464,7 +1476,7 @@ public class ImmersiveMessage {
             // Use tick-based timing for frame-rate independence (20 TPS = 0.05 seconds per tick)
             float shakeTime = renderAge * 0.05f * shakeSpeed;
             switch (shakeType) {
-                case WAVE -> sy = (float) Math.sin(shakeTime) * shakeStrength;
+                case WAVE -> sy = (float) Math.sin(shakeTime * 2 * Math.PI / shakeWavelength) * shakeStrength;
                 case CIRCLE -> {
                     sx = (float) Math.cos(shakeTime) * shakeStrength;
                     sy = (float) Math.sin(shakeTime) * shakeStrength;
@@ -1580,15 +1592,44 @@ public class ImmersiveMessage {
                 }
             }
             
-            // Handle per-span typewriter (span mode) 
+            // Handle per-span typewriter (span mode)
             if (spanMode && spans != null && spanTypewriterIndices != null) {
-                for (int i = 0; i < spans.size(); i++) {
-                    TextSpan span = spans.get(i);
-                    if (span.getTypewriterSpeed() != null) {
-                        int spanNext = (int)(age * span.getTypewriterSpeed());
-                        spanTypewriterIndices[i] = Math.min(spanNext, span.getContent().length());
-                    } else {
-                        spanTypewriterIndices[i] = span.getContent().length(); // Show all if no typewriter
+                // Check if ANY span has its own typewriter speed (independent typewriter)
+                boolean hasIndependentTypewriter = spans.stream().anyMatch(span -> span.getTypewriterSpeed() != null);
+                
+                if (hasIndependentTypewriter) {
+                    // Original behavior: Each span with typewriter animates independently
+                    for (int i = 0; i < spans.size(); i++) {
+                        TextSpan span = spans.get(i);
+                        if (span.getTypewriterSpeed() != null) {
+                            int spanNext = (int)(age * span.getTypewriterSpeed());
+                            spanTypewriterIndices[i] = Math.min(spanNext, span.getContent().length());
+                        } else {
+                            spanTypewriterIndices[i] = span.getContent().length(); // Show all if no typewriter
+                        }
+                    }
+                } else {
+                    // NEW: Container-based typewriter - count chars across all spans
+                    // Use global typewriter speed and reveal chars sequentially across spans
+                    int totalCharsToShow = Math.min(next, getFullText().length());
+                    int charsShown = 0;
+                    
+                    for (int i = 0; i < spans.size(); i++) {
+                        TextSpan span = spans.get(i);
+                        int spanLength = span.getContent().length();
+                        
+                        if (charsShown + spanLength <= totalCharsToShow) {
+                            // Show entire span
+                            spanTypewriterIndices[i] = spanLength;
+                            charsShown += spanLength;
+                        } else if (charsShown < totalCharsToShow) {
+                            // Partially show this span
+                            spanTypewriterIndices[i] = totalCharsToShow - charsShown;
+                            charsShown = totalCharsToShow;
+                        } else {
+                            // Don't show this span yet
+                            spanTypewriterIndices[i] = 0;
+                        }
                     }
                 }
             }
@@ -1649,7 +1690,7 @@ public class ImmersiveMessage {
                         // Use tick-based timing for frame-rate independence
                         case WAVE -> {
                             float charShakeTime = age * 0.05f * charShakeSpeed + index[0] * 0.1f;
-                            sy = (float) Math.sin(charShakeTime) * charShakeStrength;
+                            sy = (float) Math.sin(charShakeTime * 2 * Math.PI / charShakeWavelength) * charShakeStrength;
                         }
                         case CIRCLE -> {
                             float charShakeTime = age * 0.05f * charShakeSpeed + index[0] * 0.1f;
@@ -1688,7 +1729,7 @@ public class ImmersiveMessage {
                     // Use tick-based timing for frame-rate independence
                     case WAVE -> {
                         float charShakeTime = age * 0.05f * charShakeSpeed + index[0] * 0.1f;
-                        sy = (float) Math.sin(charShakeTime) * charShakeStrength;
+                        sy = (float) Math.sin(charShakeTime * 2 * Math.PI / charShakeWavelength) * charShakeStrength;
                     }
                     case CIRCLE -> {
                         float charShakeTime = age * 0.05f * charShakeSpeed + index[0] * 0.1f;
@@ -1702,7 +1743,13 @@ public class ImmersiveMessage {
                 }
                 Component comp = Component.literal(ch).withStyle(style);
                 FormattedCharSequence charSeq = comp.getVisualOrderText();
-                float cw = handler != null ? handler.getWidth(charSeq) : font.width(charSeq);
+                float cw = font.width(charSeq);
+                if (handler != null) {
+                    float caxtonWidth = handler.getWidth(charSeq);
+                    if (!Float.isNaN(caxtonWidth)) {
+                        cw = caxtonWidth;
+                    }
+                }
                 graphics.pose().pushPose();
                 graphics.pose().translate(xAdvance[0] + sx, baseY + sy, 0);
                 graphics.drawString(font, charSeq, 0, 0, colour, shadow);
