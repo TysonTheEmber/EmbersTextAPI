@@ -5,10 +5,10 @@ import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
 import net.tysontheember.emberstextapi.immersivemessages.network.TooltipPacket;
-import net.tysontheember.emberstextapi.net.C2S_CloseAllMessagesPacket;
-import net.tysontheember.emberstextapi.net.C2S_CloseMessagePacket;
-import net.tysontheember.emberstextapi.net.C2S_OpenMessagePacket;
-import net.tysontheember.emberstextapi.net.C2S_UpdateMessagePacket;
+import net.tysontheember.emberstextapi.net.S2C_CloseAllMessagesPacket;
+import net.tysontheember.emberstextapi.net.S2C_CloseMessagePacket;
+import net.tysontheember.emberstextapi.net.S2C_OpenMessagePacket;
+import net.tysontheember.emberstextapi.net.S2C_UpdateMessagePacket;
 
 /**
  * Central registration point for mod networking.
@@ -24,9 +24,9 @@ public final class Network {
     public static void register() {
         int id = 0;
         CHANNEL.registerMessage(id++, TooltipPacket.class, TooltipPacket::encode, TooltipPacket::decode, TooltipPacket::handle);
-        CHANNEL.registerMessage(id++, C2S_OpenMessagePacket.class, C2S_OpenMessagePacket::encode, C2S_OpenMessagePacket::decode, C2S_OpenMessagePacket::handle);
-        CHANNEL.registerMessage(id++, C2S_UpdateMessagePacket.class, C2S_UpdateMessagePacket::encode, C2S_UpdateMessagePacket::decode, C2S_UpdateMessagePacket::handle);
-        CHANNEL.registerMessage(id++, C2S_CloseMessagePacket.class, C2S_CloseMessagePacket::encode, C2S_CloseMessagePacket::decode, C2S_CloseMessagePacket::handle);
-        CHANNEL.registerMessage(id, C2S_CloseAllMessagesPacket.class, C2S_CloseAllMessagesPacket::encode, C2S_CloseAllMessagesPacket::decode, C2S_CloseAllMessagesPacket::handle);
+        CHANNEL.registerMessage(id++, S2C_OpenMessagePacket.class, S2C_OpenMessagePacket::encode, S2C_OpenMessagePacket::decode, S2C_OpenMessagePacket::handle);
+        CHANNEL.registerMessage(id++, S2C_UpdateMessagePacket.class, S2C_UpdateMessagePacket::encode, S2C_UpdateMessagePacket::decode, S2C_UpdateMessagePacket::handle);
+        CHANNEL.registerMessage(id++, S2C_CloseMessagePacket.class, S2C_CloseMessagePacket::encode, S2C_CloseMessagePacket::decode, S2C_CloseMessagePacket::handle);
+        CHANNEL.registerMessage(id, S2C_CloseAllMessagesPacket.class, S2C_CloseAllMessagesPacket::encode, S2C_CloseAllMessagesPacket::decode, S2C_CloseAllMessagesPacket::handle);
     }
 }
