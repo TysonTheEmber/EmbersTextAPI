@@ -150,6 +150,11 @@ dependencies {
     implementation fg.deobf("maven.modrinth:caxton:0.6.0+1.20.1-FORGE")
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.3'
+
+    implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
+    implementation fg.deobf("curse.maven:ftb-library-forge-404465:6807424")
+    implementation fg.deobf("curse.maven:ftb-teams-forge-404468:6130786")
+    implementation fg.deobf("curse.maven:ftb-quests-forge-289412:6829212")
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.
