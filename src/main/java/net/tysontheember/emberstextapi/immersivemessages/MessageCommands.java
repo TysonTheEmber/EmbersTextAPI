@@ -31,6 +31,8 @@ import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage.Te
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import org.slf4j.Logger;
 
+import java.util.List;
+
 @Mod.EventBusSubscriber(modid = EmbersTextAPI.MODID)
 public class MessageCommands {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -47,7 +49,7 @@ public class MessageCommands {
 
     private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> testSubcommand() {
         return Commands.literal("test")
-            .then(Commands.argument("id", IntegerArgumentType.integer(1, 15))
+            .then(Commands.argument("id", IntegerArgumentType.integer(1, 30))
                 .executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
                     int id = IntegerArgumentType.getInteger(ctx, "id");
@@ -447,6 +449,68 @@ public class MessageCommands {
                 data.putString("bgColor", "#33000000");
                 ImmersiveMessage msg = ImmersiveMessage.fromMarkup(180f, "<bold>Norse</bold> <italic>Alt</italic> <c value=gold>Default</c>");
                 applyNbtToSpanMessage(msg, data, createKeysMap(data));
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+            case 16 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "You found <item value=\"minecraft:dirt\" size=1></item> x5 and <item value=\"minecraft:diamond\" size=1></item>!"));
+            case 17 -> {
+                // Programmatic item test
+                List<TextSpan> spans = new java.util.ArrayList<>();
+                spans.add(new TextSpan("You got "));
+                spans.add(new TextSpan("").item("minecraft:diamond", 3));
+                spans.add(new TextSpan(" diamonds!"));
+                ImmersiveMessage msg = new ImmersiveMessage(spans, 100f);
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+            case 18 -> {
+                // Simple markup test to debug parsing
+                String markup = "Test <item value=\"minecraft:gold_ingot\"></item> item";
+                LOGGER.info("Sending markup: {}", markup);
+                ImmersiveMessage msg = ImmersiveMessage.fromMarkup(100f, markup);
+                LOGGER.info("Parsed {} spans", msg.getSpans().size());
+                for (int idx = 0; idx < msg.getSpans().size(); idx++) {
+                    TextSpan s = msg.getSpans().get(idx);
+                    LOGGER.info("Span {}: content='{}', itemId='{}', itemCount={}", 
+                        idx, s.getContent(), s.getItemId(), s.getItemCount());
+                }
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+            case 19 -> {
+                // Item with custom offsets
+                EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "Item with offset: <item value=\"minecraft:emerald\" offsetX=2 offsetY=-3></item> test"));
+            }
+            case 20 -> {
+                // Programmatic item with offset
+                List<TextSpan> spans = new java.util.ArrayList<>();
+                spans.add(new TextSpan("Offset item: "));
+                spans.add(new TextSpan("").item("minecraft:redstone", 1).itemOffset(0, -2));
+                spans.add(new TextSpan(" raised"));
+                ImmersiveMessage msg = new ImmersiveMessage(spans, 100f);
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+            case 21 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "Beware of <entity value=\"minecraft:creeper\"></entity> ahead!").scale(4));
+            case 22 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "Small <entity value=\"minecraft:zombie\" scale=0.5></entity> mob").scale(4));
+            case 23 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "Side view <entity value=\"minecraft:skeleton\" yaw=90 pitch=0></entity> mob"));
+            case 24 -> {
+                // Programmatic entity test
+                List<TextSpan> spans = new java.util.ArrayList<>();
+                spans.add(new TextSpan("You see a "));
+                spans.add(new TextSpan("").entity("minecraft:pig", 0.7f));
+                spans.add(new TextSpan(" nearby"));
+                ImmersiveMessage msg = new ImmersiveMessage(spans, 100f).scale(4);
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+            case 25 -> {
+                // Entity with rotation
+                List<TextSpan> spans = new java.util.ArrayList<>();
+                spans.add(new TextSpan("Rotated "));
+                spans.add(new TextSpan("").entity("minecraft:cow", 0.7f).entityRotation(180, 20));
+                spans.add(new TextSpan(" facing away"));
+                ImmersiveMessage msg = new ImmersiveMessage(spans, 100f);
                 EmbersTextAPI.sendMessage(player, msg);
             }
         }

@@ -53,6 +53,21 @@ public class TextSpan {
     private ImmersiveColor backgroundColor;
     private ImmersiveColor[] backgroundGradient;
     
+    // Item rendering
+    private String itemId;  // Minecraft item ID (e.g., "minecraft:dirt")
+    private Integer itemCount;  // Stack size (defaults to 1 if not specified)
+    private Float itemOffsetX;  // X offset for item rendering (pixels)
+    private Float itemOffsetY;  // Y offset for item rendering (pixels)
+    
+    // Entity rendering
+    private String entityId;  // Minecraft entity ID (e.g., "minecraft:creeper")
+    private Float entityScale;  // Scale multiplier for entity (defaults to 1.0)
+    private Float entityOffsetX;  // X offset for entity rendering (pixels)
+    private Float entityOffsetY;  // Y offset for entity rendering (pixels)
+    private Float entityYaw;  // Y-axis rotation in degrees (default: 45)
+    private Float entityPitch;  // X-axis rotation in degrees (default: 0)
+    private String entityAnimation;  // Animation state: "idle", "walk", "attack", "hurt" (default: "idle")
+    
     // Global message attributes (only used by top-level/wrapper spans)
     private Boolean globalBackground;
     private ImmersiveColor globalBackgroundColor;
@@ -102,6 +117,17 @@ public class TextSpan {
         this.hasBackground = other.hasBackground;
         this.backgroundColor = other.backgroundColor;
         this.backgroundGradient = other.backgroundGradient != null ? other.backgroundGradient.clone() : null;
+        this.itemId = other.itemId;
+        this.itemCount = other.itemCount;
+        this.itemOffsetX = other.itemOffsetX;
+        this.itemOffsetY = other.itemOffsetY;
+        this.entityId = other.entityId;
+        this.entityScale = other.entityScale;
+        this.entityOffsetX = other.entityOffsetX;
+        this.entityOffsetY = other.entityOffsetY;
+        this.entityYaw = other.entityYaw;
+        this.entityPitch = other.entityPitch;
+        this.entityAnimation = other.entityAnimation;
         this.globalBackground = other.globalBackground;
         this.globalBackgroundColor = other.globalBackgroundColor;
         this.globalBackgroundGradient = other.globalBackgroundGradient != null ? other.globalBackgroundGradient.clone() : null;
@@ -146,6 +172,17 @@ public class TextSpan {
     public Boolean getHasBackground() { return hasBackground; }
     public ImmersiveColor getBackgroundColor() { return backgroundColor; }
     public ImmersiveColor[] getBackgroundGradient() { return backgroundGradient; }
+    public String getItemId() { return itemId; }
+    public Integer getItemCount() { return itemCount; }
+    public Float getItemOffsetX() { return itemOffsetX; }
+    public Float getItemOffsetY() { return itemOffsetY; }
+    public String getEntityId() { return entityId; }
+    public Float getEntityScale() { return entityScale; }
+    public Float getEntityOffsetX() { return entityOffsetX; }
+    public Float getEntityOffsetY() { return entityOffsetY; }
+    public Float getEntityYaw() { return entityYaw; }
+    public Float getEntityPitch() { return entityPitch; }
+    public String getEntityAnimation() { return entityAnimation; }
     
     // Global message attribute getters
     public Boolean getGlobalBackground() { return globalBackground; }
@@ -304,6 +341,53 @@ public class TextSpan {
         return this;
     }
     
+    public TextSpan item(String itemId) {
+        this.itemId = itemId;
+        this.itemCount = 1;
+        return this;
+    }
+    
+    public TextSpan item(String itemId, int count) {
+        this.itemId = itemId;
+        this.itemCount = Math.max(1, count);
+        return this;
+    }
+    
+    public TextSpan itemOffset(float x, float y) {
+        this.itemOffsetX = x;
+        this.itemOffsetY = y;
+        return this;
+    }
+    
+    public TextSpan entity(String entityId) {
+        this.entityId = entityId;
+        this.entityScale = 1.0f;
+        return this;
+    }
+    
+    public TextSpan entity(String entityId, float scale) {
+        this.entityId = entityId;
+        this.entityScale = scale;
+        return this;
+    }
+    
+    public TextSpan entityOffset(float x, float y) {
+        this.entityOffsetX = x;
+        this.entityOffsetY = y;
+        return this;
+    }
+    
+    public TextSpan entityRotation(float yaw, float pitch) {
+        this.entityYaw = yaw;
+        this.entityPitch = pitch;
+        return this;
+    }
+    
+    public TextSpan entityAnimation(String animation) {
+        this.entityAnimation = animation;
+        return this;
+    }
+    
     // Global message attribute setters
     public TextSpan globalBackground(boolean enabled) {
         this.globalBackground = enabled;
@@ -383,7 +467,7 @@ public class TextSpan {
                gradientColors != null || typewriterSpeed != null ||
                shakeType != null || shakeSpeed != null || charShakeType != null || charShakeSpeed != null ||
                obfuscateMode != null || hasBackground != null || fadeInTicks != null || fadeOutTicks != null ||
-               hasGlobalAttributes();
+               itemId != null || entityId != null || hasGlobalAttributes();
     }
     
     /**
@@ -564,6 +648,48 @@ public class TextSpan {
         if (fadeOutTicks != null) {
             buf.writeInt(fadeOutTicks);
         }
+        
+        // Encode item rendering
+        buf.writeBoolean(itemId != null);
+        if (itemId != null) {
+            buf.writeUtf(itemId);
+            buf.writeVarInt(itemCount != null ? itemCount : 1);
+            buf.writeBoolean(itemOffsetX != null);
+            if (itemOffsetX != null) {
+                buf.writeFloat(itemOffsetX);
+            }
+            buf.writeBoolean(itemOffsetY != null);
+            if (itemOffsetY != null) {
+                buf.writeFloat(itemOffsetY);
+            }
+        }
+        
+        // Encode entity rendering
+        buf.writeBoolean(entityId != null);
+        if (entityId != null) {
+            buf.writeUtf(entityId);
+            buf.writeFloat(entityScale != null ? entityScale : 1.0f);
+            buf.writeBoolean(entityOffsetX != null);
+            if (entityOffsetX != null) {
+                buf.writeFloat(entityOffsetX);
+            }
+            buf.writeBoolean(entityOffsetY != null);
+            if (entityOffsetY != null) {
+                buf.writeFloat(entityOffsetY);
+            }
+            buf.writeBoolean(entityYaw != null);
+            if (entityYaw != null) {
+                buf.writeFloat(entityYaw);
+            }
+            buf.writeBoolean(entityPitch != null);
+            if (entityPitch != null) {
+                buf.writeFloat(entityPitch);
+            }
+            buf.writeBoolean(entityAnimation != null);
+            if (entityAnimation != null) {
+                buf.writeUtf(entityAnimation);
+            }
+        }
     }
     
     public static TextSpan decode(net.minecraft.network.FriendlyByteBuf buf) {
@@ -702,6 +828,39 @@ public class TextSpan {
         }
         if (buf.readBoolean()) {
             span.fadeOutTicks = buf.readInt();
+        }
+        
+        // Decode item rendering
+        if (buf.readBoolean()) {
+            span.itemId = buf.readUtf();
+            span.itemCount = buf.readVarInt();
+            if (buf.readBoolean()) {
+                span.itemOffsetX = buf.readFloat();
+            }
+            if (buf.readBoolean()) {
+                span.itemOffsetY = buf.readFloat();
+            }
+        }
+        
+        // Decode entity rendering
+        if (buf.readBoolean()) {
+            span.entityId = buf.readUtf();
+            span.entityScale = buf.readFloat();
+            if (buf.readBoolean()) {
+                span.entityOffsetX = buf.readFloat();
+            }
+            if (buf.readBoolean()) {
+                span.entityOffsetY = buf.readFloat();
+            }
+            if (buf.readBoolean()) {
+                span.entityYaw = buf.readFloat();
+            }
+            if (buf.readBoolean()) {
+                span.entityPitch = buf.readFloat();
+            }
+            if (buf.readBoolean()) {
+                span.entityAnimation = buf.readUtf();
+            }
         }
         
         return span;
