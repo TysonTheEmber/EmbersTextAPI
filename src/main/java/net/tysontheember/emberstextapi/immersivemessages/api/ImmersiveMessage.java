@@ -16,6 +16,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.tysontheember.emberstextapi.client.TextLayoutCache;
+import net.tysontheember.emberstextapi.client.markup.MarkupService;
+import net.tysontheember.emberstextapi.client.spans.SpanBundle;
 import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
@@ -23,6 +25,7 @@ import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 
 /**
@@ -232,7 +235,13 @@ public class ImmersiveMessage {
 
     /** NEW: Create from markup text with span-based rendering. */
     public static ImmersiveMessage fromMarkup(float duration, String markup) {
-        List<TextSpan> parsed = MarkupParser.parse(markup);
+        var parsedBundle = MarkupService.getInstance().parse(markup, Locale.getDefault(), true);
+        List<TextSpan> parsed;
+        if (parsedBundle.isPresent()) {
+            parsed = new ArrayList<>(parsedBundle.get().spans());
+        } else {
+            parsed = new ArrayList<>(MarkupParser.fromPlainText(markup));
+        }
         return new ImmersiveMessage(parsed, duration);
     }
 
