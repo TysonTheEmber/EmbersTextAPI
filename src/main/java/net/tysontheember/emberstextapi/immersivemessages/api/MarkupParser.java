@@ -49,6 +49,46 @@ public class MarkupParser {
             
             if ("/".equals(isClosing)) {
                 // Closing tag - pop from stack
+                // Special case: if this is an item or entity closing tag and the last span on stack has one,
+                // create the span now
+                if ("item".equals(tagName) && !styleStack.isEmpty()) {
+                    TextSpan itemStyle = styleStack.peek();
+                    if (itemStyle.getItemId() != null) {
+                        // Create an empty-content span for the item
+                        TextSpan itemSpan = new TextSpan("");
+                        itemSpan.item(itemStyle.getItemId(), itemStyle.getItemCount() != null ? itemStyle.getItemCount() : 1);
+                        if (itemStyle.getItemOffsetX() != null || itemStyle.getItemOffsetY() != null) {
+                            itemSpan.itemOffset(
+                                itemStyle.getItemOffsetX() != null ? itemStyle.getItemOffsetX() : 0f,
+                                itemStyle.getItemOffsetY() != null ? itemStyle.getItemOffsetY() : 0f
+                            );
+                        }
+                        result.add(itemSpan);
+                    }
+                } else if ("entity".equals(tagName) && !styleStack.isEmpty()) {
+                    TextSpan entityStyle = styleStack.peek();
+                    if (entityStyle.getEntityId() != null) {
+                        // Create an empty-content span for the entity
+                        TextSpan entitySpan = new TextSpan("");
+                        entitySpan.entity(entityStyle.getEntityId(), entityStyle.getEntityScale() != null ? entityStyle.getEntityScale() : 1.0f);
+                        if (entityStyle.getEntityOffsetX() != null || entityStyle.getEntityOffsetY() != null) {
+                            entitySpan.entityOffset(
+                                entityStyle.getEntityOffsetX() != null ? entityStyle.getEntityOffsetX() : 0f,
+                                entityStyle.getEntityOffsetY() != null ? entityStyle.getEntityOffsetY() : 0f
+                            );
+                        }
+                        if (entityStyle.getEntityYaw() != null || entityStyle.getEntityPitch() != null) {
+                            entitySpan.entityRotation(
+                                entityStyle.getEntityYaw() != null ? entityStyle.getEntityYaw() : 45f,
+                                entityStyle.getEntityPitch() != null ? entityStyle.getEntityPitch() : 0f
+                            );
+                        }
+                        if (entityStyle.getEntityAnimation() != null) {
+                            entitySpan.entityAnimation(entityStyle.getEntityAnimation());
+                        }
+                        result.add(entitySpan);
+                    }
+                }
                 if (!styleStack.isEmpty()) {
                     styleStack.pop();
                 }
@@ -129,6 +169,17 @@ public class MarkupParser {
             target.backgroundGradient(source.getBackgroundGradient());
         }
         
+        // Inherit item properties
+        if (source.getItemId() != null) {
+            target.item(source.getItemId(), source.getItemCount() != null ? source.getItemCount() : 1);
+            if (source.getItemOffsetX() != null || source.getItemOffsetY() != null) {
+                target.itemOffset(
+                    source.getItemOffsetX() != null ? source.getItemOffsetX() : 0f,
+                    source.getItemOffsetY() != null ? source.getItemOffsetY() : 0f
+                );
+            }
+        }
+        
         // Inherit global message attributes (these typically aren't inherited, but just in case)
         if (source.getGlobalBackground() != null) {
             target.globalBackground(source.getGlobalBackground());
@@ -196,11 +247,24 @@ public class MarkupParser {
             }
             
             case "grad", "gradient" -> {
-                String from = attrs.get("from");
-                String to = attrs.get("to");
-                if (from != null && to != null) {
-                    // The gradient method in TextSpan will validate colors internally
-                    span.gradient(from, to);
+                String values = attrs.get("values");
+                if (values != null) {
+                    // Parse comma-separated color list: values=red,blue,white
+                    String[] colorStrs = values.split(",");
+                    if (colorStrs.length >= 2) {
+                        // Trim whitespace from each color
+                        for (int i = 0; i < colorStrs.length; i++) {
+                            colorStrs[i] = colorStrs[i].trim();
+                        }
+                        span.gradient(colorStrs);
+                    }
+                } else {
+                    // Fallback to from/to syntax for backwards compatibility
+                    String from = attrs.get("from");
+                    String to = attrs.get("to");
+                    if (from != null && to != null) {
+                        span.gradient(from, to);
+                    }
                 }
             }
             
@@ -387,6 +451,71 @@ public class MarkupParser {
                         int outTicks = Integer.parseInt(outStr);
                         span.globalFadeOut(outTicks);
                     } catch (NumberFormatException ignored) {}
+                }
+            }
+            
+            case "item" -> {
+                String itemId = attrs.getOrDefault("value", attrs.get("id"));
+                String sizeStr = attrs.getOrDefault("size", attrs.getOrDefault("count", "1"));
+                String offsetXStr = attrs.getOrDefault("offsetx", attrs.getOrDefault("x", "0"));
+                String offsetYStr = attrs.getOrDefault("offsety", attrs.getOrDefault("y", "0"));
+                
+                if (itemId != null) {
+                    try {
+                        int size = Integer.parseInt(sizeStr);
+                        span.item(itemId, size);
+                    } catch (NumberFormatException ignored) {
+                        span.item(itemId);
+                    }
+                    
+                    // Parse offsets
+                    try {
+                        float offsetX = Float.parseFloat(offsetXStr);
+                        float offsetY = Float.parseFloat(offsetYStr);
+                        if (offsetX != 0 || offsetY != 0) {
+                            span.itemOffset(offsetX, offsetY);
+                        }
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+            
+            case "entity" -> {
+                String entityId = attrs.getOrDefault("value", attrs.get("id"));
+                String scaleStr = attrs.getOrDefault("scale", "1.0");
+                String offsetXStr = attrs.getOrDefault("offsetx", attrs.getOrDefault("x", "0"));
+                String offsetYStr = attrs.getOrDefault("offsety", attrs.getOrDefault("y", "0"));
+                String yawStr = attrs.getOrDefault("yaw", "45");
+                String pitchStr = attrs.getOrDefault("pitch", "0");
+                String animation = attrs.getOrDefault("animation", attrs.getOrDefault("anim", "idle"));
+                
+                if (entityId != null) {
+                    try {
+                        float scale = Float.parseFloat(scaleStr);
+                        span.entity(entityId, scale);
+                    } catch (NumberFormatException ignored) {
+                        span.entity(entityId);
+                    }
+                    
+                    // Parse offsets
+                    try {
+                        float offsetX = Float.parseFloat(offsetXStr);
+                        float offsetY = Float.parseFloat(offsetYStr);
+                        if (offsetX != 0 || offsetY != 0) {
+                            span.entityOffset(offsetX, offsetY);
+                        }
+                    } catch (NumberFormatException ignored) {}
+                    
+                    // Parse rotation
+                    try {
+                        float yaw = Float.parseFloat(yawStr);
+                        float pitch = Float.parseFloat(pitchStr);
+                        span.entityRotation(yaw, pitch);
+                    } catch (NumberFormatException ignored) {}
+                    
+                    // Set animation
+                    if (animation != null && !animation.isEmpty()) {
+                        span.entityAnimation(animation);
+                    }
                 }
             }
         }

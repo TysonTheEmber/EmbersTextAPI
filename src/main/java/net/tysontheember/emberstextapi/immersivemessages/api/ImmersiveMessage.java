@@ -15,12 +15,10 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
-import net.minecraftforge.fml.ModList;
 import net.tysontheember.emberstextapi.client.TextLayoutCache;
 import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
-import xyz.flirora.caxton.render.CaxtonTextRenderer;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,7 +30,7 @@ import java.util.Random;
  * It supports anchor/align positioning, backgrounds, typewriter
  * animations and progressive de-obfuscation. Audio cues have been
  * intentionally omitted so the API focuses purely on text rendering.
- * 
+ *
  * Version 2.0.0: Added span-based text rendering with markup parser support.
  */
 public class ImmersiveMessage {
@@ -141,12 +139,12 @@ public class ImmersiveMessage {
         // Initialize age to ensure proper fade-in from start
         this.age = 0f;
         this.previousAge = 0f;
-        
+
         // Check if any spans have typewriter effects and enable global typewriter if so
         if (spans.stream().anyMatch(span -> span.getTypewriterSpeed() != null)) {
             this.typewriter = true;
         }
-        
+
         // Check if any spans have shake effects and enable global shake if so
         for (TextSpan span : spans) {
             if (span.getShakeType() != null && span.getShakeAmplitude() != null) {
@@ -174,7 +172,7 @@ public class ImmersiveMessage {
                 break; // Use first char shake effect found
             }
         }
-        
+
         // Extract global message attributes from any span that has them (typically the first one)
         for (TextSpan span : spans) {
             if (span.hasGlobalAttributes()) {
@@ -913,7 +911,7 @@ public class ImmersiveMessage {
     public void encode(FriendlyByteBuf buf) {
         // NEW: Write span mode flag first
         buf.writeBoolean(spanMode);
-        
+
         if (spanMode) {
             // Serialize spans data
             buf.writeVarInt(spans != null ? spans.size() : 0);
@@ -923,7 +921,7 @@ public class ImmersiveMessage {
                 }
             }
         }
-        
+
         buf.writeComponent(text);
         buf.writeFloat(duration);
         buf.writeFloat(xOffset);
@@ -999,7 +997,7 @@ public class ImmersiveMessage {
     public static ImmersiveMessage decode(FriendlyByteBuf buf) {
         // NEW: Read span mode flag first
         boolean spanMode = buf.readBoolean();
-        
+
         ImmersiveMessage msg;
         if (spanMode) {
             // Deserialize spans data
@@ -1008,11 +1006,11 @@ public class ImmersiveMessage {
             for (int i = 0; i < spanCount; i++) {
                 spans.add(TextSpan.decode(buf));
             }
-            
+
             // Read component and duration
             Component text = buf.readComponent();
             float duration = buf.readFloat();
-            
+
             // Create span-based message
             msg = new ImmersiveMessage(text, duration);
             msg.spanMode = true;
@@ -1176,14 +1174,14 @@ public class ImmersiveMessage {
         if (spanMode && spans != null) {
             return buildComponentFromSpans();
         }
-        
+
         // Legacy rendering
         if (typewriter) {
             return current;
         }
         return current.getString().isEmpty() ? text : current;
     }
-    
+
     /**
      * Builds a styled Component from the current spans.
      */
@@ -1191,18 +1189,19 @@ public class ImmersiveMessage {
         if (spans == null || spans.isEmpty()) {
             return Component.literal("");
         }
-        
+
         MutableComponent result = Component.literal("");
         boolean hasAnyTypewriter = hasAnyTypewriterSpans();
         int currentCharIndex = 0;
-        
+
         for (int i = 0; i < spans.size(); i++) {
             TextSpan span = spans.get(i);
             String content = span.getContent();
-            if (content.isEmpty()) continue;
-            
+            // Skip only if empty AND not an item span
+            if (content.isEmpty() && span.getItemId() == null) continue;
+
             MutableComponent spanComponent;
-            
+
             // Handle typewriter effect
             if (typewriter && spanTypewriterIndices != null && i < spanTypewriterIndices.length) {
                 // Use the pre-calculated typewriter index (works for both container and per-span typewriter)
@@ -1217,12 +1216,30 @@ public class ImmersiveMessage {
                     content = content.substring(0, Math.max(0, spanTypewriterIndex));
                 }
             }
-            
+
+            // Handle item spans specially
+            if (span.getItemId() != null) {
+                // Add a placeholder space for items - they'll be rendered custom in renderSpansWithItems
+                spanComponent = Component.literal(" ");
+                result.append(spanComponent);
+                currentCharIndex += span.getContent().length();
+                continue;
+            }
+
+            // Handle entity spans specially
+            if (span.getEntityId() != null) {
+                // Add a placeholder space for entities - they'll be rendered custom in renderSpansWithItems
+                spanComponent = Component.literal("  ");
+                result.append(spanComponent);
+                currentCharIndex += span.getContent().length();
+                continue;
+            }
+
             if (content.isEmpty()) {
                 currentCharIndex += span.getContent().length();
                 continue;
             }
-            
+
             // Handle gradients by building character-by-character
             if (span.getGradientColors() != null && span.getGradientColors().length >= 2) {
                 spanComponent = buildGradientComponent(span, content);
@@ -1231,14 +1248,14 @@ public class ImmersiveMessage {
                 spanComponent = Component.literal(content);
                 applySpanStyling(spanComponent, span);
             }
-            
+
             result.append(spanComponent);
             currentCharIndex += span.getContent().length();
         }
-        
+
         return result;
     }
-    
+
     /**
      * Checks if any spans have their own typewriter effects.
      */
@@ -1246,48 +1263,48 @@ public class ImmersiveMessage {
         if (spans == null) return false;
         return spans.stream().anyMatch(span -> span.getTypewriterSpeed() != null);
     }
-    
+
     /**
      * Builds a gradient component for a span character by character.
      */
     private MutableComponent buildGradientComponent(TextSpan span) {
         return buildGradientComponent(span, span.getContent());
     }
-    
+
     /**
      * Builds a gradient component for a span with custom content (for typewriter effects).
      */
     private MutableComponent buildGradientComponent(TextSpan span, String content) {
         TextColor[] gradientColors = span.getGradientColors();
-        
+
         MutableComponent result = Component.literal("");
-        
+
         for (int i = 0; i < content.length(); i++) {
             char c = content.charAt(i);
             MutableComponent charComponent = Component.literal(String.valueOf(c));
-            
+
             // Apply base styling (bold, italic, etc.)
             applySpanStyling(charComponent, span);
-            
+
             // Apply gradient color for this character
             TextColor gradColor = computeGradientColor(gradientColors, i, content.length());
             if (gradColor != null) {
                 charComponent = charComponent.withStyle(style -> style.withColor(gradColor));
             }
-            
+
             result.append(charComponent);
         }
-        
+
         return result;
     }
-    
+
     /**
      * Applies span styling to a component.
      */
     private void applySpanStyling(MutableComponent component, TextSpan span) {
         applySpanStyling(component, span, 1.0f);
     }
-    
+
     /**
      * Applies span styling to a component with alpha modulation.
      */
@@ -1299,7 +1316,7 @@ public class ImmersiveMessage {
             if (span.getStrikethrough() != null && span.getStrikethrough()) style = style.withStrikethrough(true);
             if (span.getObfuscated() != null && span.getObfuscated()) style = style.withObfuscated(true);
             if (span.getFont() != null) style = style.withFont(span.getFont());
-            
+
             // Apply color with alpha modulation
             if (span.getColor() != null) {
                 int originalColor = span.getColor().getValue();
@@ -1312,23 +1329,23 @@ public class ImmersiveMessage {
                 int colorWithAlpha = alphaComponent | 0x00FFFFFF; // White with alpha
                 style = style.withColor(TextColor.fromRgb(colorWithAlpha));
             }
-            
+
             return style;
         });
     }
-    
+
     /**
      * Computes gradient color for a character at a specific index.
      */
     private TextColor computeGradientColor(TextColor[] gradientStops, int index, int totalLength) {
         if (gradientStops.length < 2 || totalLength <= 1) return gradientStops[0];
-        
+
         float t = totalLength <= 1 ? 0f : index / (float) (totalLength - 1);
         int segments = gradientStops.length - 1;
         float scaled = t * segments;
         int segIndex = Mth.clamp((int) Math.floor(scaled), 0, segments - 1);
         float local = scaled - segIndex;
-        
+
         int start = gradientStops[segIndex].getValue();
         int end = gradientStops[segIndex + 1].getValue();
         int rgb = lerpColor(start, end, local);
@@ -1355,25 +1372,25 @@ public class ImmersiveMessage {
         }
         return Mth.clamp(alpha, 0f, 1f);
     }
-    
+
     /**
      * Computes alpha for a specific span with per-span fade effects.
      */
     private float computeSpanAlpha(TextSpan span, float sampleAge) {
         Integer spanFadeIn = span.getFadeInTicks();
         Integer spanFadeOut = span.getFadeOutTicks();
-        
+
         // If span has no fade effects, use global alpha
         if (spanFadeIn == null && spanFadeOut == null) {
             return computeAlpha(sampleAge);
         }
-        
+
         // Use span-specific fade timing
         float fadeIn = spanFadeIn != null ? spanFadeIn : 0f;
         float fadeOut = spanFadeOut != null ? spanFadeOut : 0f;
         float visibleEnd = fadeIn + duration;
         float total = visibleEnd + fadeOut;
-        
+
         float alpha;
         if (fadeIn > 0f && sampleAge < fadeIn) {
             alpha = sampleAge / Math.max(1f, fadeIn);
@@ -1385,7 +1402,7 @@ public class ImmersiveMessage {
         } else {
             alpha = 0f;
         }
-        
+
         // Combine with global alpha (for overall message fade)
         float globalAlpha = computeAlpha(sampleAge);
         return Mth.clamp(alpha * globalAlpha, 0f, 1f);
@@ -1463,7 +1480,7 @@ public class ImmersiveMessage {
         float y = screenH * anchor.yFactor - baseHeight * textScale * align.yFactor + yOffset;
 
         float renderAge = sampleAge(partialTick);
-        
+
         // Skip rendering entirely if we have fade-in and haven't started yet
         if (fadeInTicks > 0 && renderAge <= 0f) {
             graphics.pose().pushPose();
@@ -1558,6 +1575,9 @@ public class ImmersiveMessage {
             onRender.render(graphics, this, 0, 0, alpha);
         } else if (charShake) {
             renderCharShake(graphics, lines, draw, colour, textStartX, textStartY);
+        } else if (spanMode && spans != null && hasItemSpans()) {
+            // Render spans with items/entities inline (entities static; no animations)
+            renderSpansWithItems(graphics, textStartX, textStartY, colour, alpha);
         } else if (lines != null) {
             int drawStartX = Mth.floor(textStartX);
             for (int i = 0; i < lines.size(); i++) {
@@ -1591,12 +1611,12 @@ public class ImmersiveMessage {
                             .withStyle(text.getStyle());
                 }
             }
-            
+
             // Handle per-span typewriter (span mode)
             if (spanMode && spans != null && spanTypewriterIndices != null) {
                 // Check if ANY span has its own typewriter speed (independent typewriter)
                 boolean hasIndependentTypewriter = spans.stream().anyMatch(span -> span.getTypewriterSpeed() != null);
-                
+
                 if (hasIndependentTypewriter) {
                     // Original behavior: Each span with typewriter animates independently
                     for (int i = 0; i < spans.size(); i++) {
@@ -1613,11 +1633,11 @@ public class ImmersiveMessage {
                     // Use global typewriter speed and reveal chars sequentially across spans
                     int totalCharsToShow = Math.min(next, getFullText().length());
                     int charsShown = 0;
-                    
+
                     for (int i = 0; i < spans.size(); i++) {
                         TextSpan span = spans.get(i);
                         int spanLength = span.getContent().length();
-                        
+
                         if (charsShown + spanLength <= totalCharsToShow) {
                             // Show entire span
                             spanTypewriterIndices[i] = spanLength;
@@ -1671,6 +1691,134 @@ public class ImmersiveMessage {
         int screenW = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         int screenH = Minecraft.getInstance().getWindow().getGuiScaledHeight();
         renderWithLayout(graphics, draw, layout, screenW, screenH, 0f);
+    }
+
+    /**
+     * Checks if any spans contain items or entities to render.
+     */
+    private boolean hasItemSpans() {
+        if (spans == null) return false;
+        return spans.stream().anyMatch(span -> span.getItemId() != null || span.getEntityId() != null);
+    }
+
+    /**
+     * Renders spans with inline items/entities. Entities are rendered statically (no animations).
+     */
+    private void renderSpansWithItems(GuiGraphics graphics, float startX, float startY, int colour, float alpha) {
+        var font = Minecraft.getInstance().font;
+        var mc = Minecraft.getInstance();
+        float xOffset = startX;
+        float yOffset = startY;
+
+        for (int i = 0; i < spans.size(); i++) {
+            TextSpan span = spans.get(i);
+
+            // Check if this is an item span
+            if (span.getItemId() != null) {
+                // Render item icon
+                try {
+                    ResourceLocation itemLocation = ResourceLocation.tryParse(span.getItemId());
+                    if (itemLocation != null) {
+                        net.minecraft.world.item.Item item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(itemLocation);
+                        if (item != null) {
+                            net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item, span.getItemCount() != null ? span.getItemCount() : 1);
+
+                            // Render the item at 16x16 size (standard Minecraft item size)
+                            int itemSize = 16;
+                            // Center item vertically with text (font height is 9, item is 16)
+                            float itemYOffset = yOffset - (itemSize - font.lineHeight) / 2.0f;
+
+                            // Apply custom offsets if specified
+                            float customOffsetX = span.getItemOffsetX() != null ? span.getItemOffsetX() : 0f;
+                            float customOffsetY = span.getItemOffsetY() != null ? span.getItemOffsetY() : 0f;
+
+                            graphics.pose().pushPose();
+                            graphics.pose().translate(xOffset + customOffsetX, itemYOffset + customOffsetY, 0);
+                            graphics.renderItem(stack, 0, 0);
+                            graphics.pose().popPose();
+
+                            xOffset += itemSize + 2; // Add spacing after item
+                        }
+                    }
+                } catch (Exception e) {
+                    // If item rendering fails, just skip it
+                }
+            } else if (span.getEntityId() != null) {
+                // Render entity (static; no animations)
+                try {
+                    ResourceLocation entityLocation = ResourceLocation.tryParse(span.getEntityId());
+                    if (entityLocation != null) {
+                        net.minecraft.world.entity.EntityType<?> entityType = net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES.getValue(entityLocation);
+                        if (entityType != null) {
+                            // Create a dummy entity for rendering
+                            net.minecraft.world.entity.Entity entity = entityType.create(mc.level);
+                            if (entity != null) {
+                                float entityScale = span.getEntityScale() != null ? span.getEntityScale() : 1.0f;
+                                int entitySize = (int)(16 * entityScale); // Base size scaled
+
+                                // Center entity vertically with text
+                                float entityYOffset = yOffset - (entitySize - font.lineHeight) / 2.0f;
+
+                                // Apply custom offsets if specified
+                                float customOffsetX = span.getEntityOffsetX() != null ? span.getEntityOffsetX() : 0f;
+                                float customOffsetY = span.getEntityOffsetY() != null ? span.getEntityOffsetY() : 0f;
+
+                                // Get rotation values (defaults: yaw=45, pitch=0)
+                                float yaw = span.getEntityYaw() != null ? span.getEntityYaw() : 45f;
+                                float pitch = span.getEntityPitch() != null ? span.getEntityPitch() : 0f;
+
+                                graphics.pose().pushPose();
+                                graphics.pose().translate(xOffset + customOffsetX + entitySize / 2.0f, entityYOffset + customOffsetY + entitySize, 100); // Z=100 for depth
+                                graphics.pose().scale(entityScale * 10, entityScale * 10, entityScale * 10);
+                                graphics.pose().mulPose(com.mojang.math.Axis.XP.rotationDegrees(180)); // Flip upright
+                                graphics.pose().mulPose(com.mojang.math.Axis.YP.rotationDegrees(180 + yaw)); // Yaw rotation (180 offset so 0=front)
+                                graphics.pose().mulPose(com.mojang.math.Axis.XP.rotationDegrees(pitch)); // Pitch rotation
+
+                                // Render the entity
+                                var entityRenderDispatcher = mc.getEntityRenderDispatcher();
+                                entityRenderDispatcher.render(entity, 0, 0, 0, 0, 0, graphics.pose(), mc.renderBuffers().bufferSource(), 15728880);
+                                mc.renderBuffers().bufferSource().endBatch();
+
+                                graphics.pose().popPose();
+
+                                xOffset += entitySize + 2; // Add spacing after entity
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    // If entity rendering fails, just skip it
+                }
+            } else {
+                // Render text span
+                String content = span.getContent();
+
+                // Handle typewriter effect
+                if (typewriter && spanTypewriterIndices != null && i < spanTypewriterIndices.length) {
+                    int spanTypewriterIndex = spanTypewriterIndices[i];
+                    if (spanTypewriterIndex < content.length()) {
+                        content = content.substring(0, Math.max(0, spanTypewriterIndex));
+                    }
+                }
+
+                if (!content.isEmpty()) {
+                    Component spanComponent = Component.literal(content);
+                    applySpanStyling((MutableComponent) spanComponent, span, alpha);
+
+                    // Apply gradient if needed
+                    if (span.getGradientColors() != null && span.getGradientColors().length >= 2) {
+                        spanComponent = buildGradientComponent(span, content);
+                    }
+
+                    int spanColor = colour;
+                    if (span.getColor() != null) {
+                        spanColor = ((int)(alpha * 255) << 24) | span.getColor().getValue();
+                    }
+
+                    graphics.drawString(font, spanComponent, (int)xOffset, (int)yOffset, spanColor, shadow);
+                    xOffset += font.width(spanComponent);
+                }
+            }
+        }
     }
 
     private void renderCharShake(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int colour, float baseX, float baseY) {
@@ -1762,21 +1910,21 @@ public class ImmersiveMessage {
     }
 
     // NEW: Span-based API methods (v2.0.0)
-    
+
     /**
      * Returns true if this message uses span-based rendering.
      */
     public boolean isSpanMode() {
         return spanMode;
     }
-    
+
     /**
      * Gets the spans used for rendering. Only valid if isSpanMode() returns true.
      */
     public List<TextSpan> getSpans() {
         return spanMode && spans != null ? new ArrayList<>(spans) : Collections.emptyList();
     }
-    
+
     /**
      * Adds a span to this message. Converts to span mode if not already.
      */
@@ -1798,7 +1946,7 @@ public class ImmersiveMessage {
         }
         return this;
     }
-    
+
     /**
      * Gets the total text content across all spans.
      */
