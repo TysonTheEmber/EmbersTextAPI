@@ -3,7 +3,9 @@ package net.tysontheember.emberstextapi.client.markup;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
+import net.tysontheember.emberstextapi.client.spans.SpanAttr;
 import net.tysontheember.emberstextapi.client.spans.SpanBundle;
+import net.tysontheember.emberstextapi.client.spans.TextSpanView;
 import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
 import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
@@ -63,7 +65,7 @@ public final class MarkupService {
         }
 
         ParseResult result = parseInternal(preprocessEscapes(rawText));
-        SpanBundle bundle = new SpanBundle(result.plainText(), result.spans(), result.warnings(), result.errors());
+        SpanBundle bundle = new SpanBundle(result.plainText(), result.views(), result.legacySpans(), result.warnings(), result.errors());
         if (allowCache && !bundle.hasErrors()) {
             cache.put(key, bundle);
         }
@@ -71,7 +73,7 @@ public final class MarkupService {
     }
 
     private ParseResult parseInternal(String markup) {
-        List<TextSpan> result = new ArrayList<>();
+        List<SpanSegment> segments = new ArrayList<>();
         List<TextSpan> styleStack = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         List<String> errors = new ArrayList<>();
@@ -84,9 +86,11 @@ public final class MarkupService {
                 String rawContent = markup.substring(lastEnd, matcher.start());
                 if (!rawContent.isEmpty()) {
                     String content = restoreEscapes(rawContent);
+                    int startIndex = plain.length();
                     plain.append(content);
                     TextSpan span = createSpanWithCurrentStyles(content, styleStack);
-                    result.add(span);
+                    int endIndex = plain.length();
+                    segments.add(new SpanSegment(startIndex, endIndex, span));
                 }
             }
 
@@ -106,7 +110,8 @@ public final class MarkupService {
                                 itemStyle.getItemOffsetY() != null ? itemStyle.getItemOffsetY() : 0f
                             );
                         }
-                        result.add(itemSpan);
+                        int index = plain.length();
+                        segments.add(new SpanSegment(index, index, itemSpan));
                     }
                 } else if ("entity".equals(tagName) && !styleStack.isEmpty()) {
                     TextSpan entityStyle = styleStack.get(styleStack.size() - 1);
@@ -128,7 +133,8 @@ public final class MarkupService {
                         if (entityStyle.getEntityAnimation() != null) {
                             entitySpan.entityAnimation(entityStyle.getEntityAnimation());
                         }
-                        result.add(entitySpan);
+                        int index = plain.length();
+                        segments.add(new SpanSegment(index, index, entitySpan));
                     }
                 }
 
@@ -150,9 +156,11 @@ public final class MarkupService {
             String rawContent = markup.substring(lastEnd);
             if (!rawContent.isEmpty()) {
                 String content = restoreEscapes(rawContent);
+                int startIndex = plain.length();
                 plain.append(content);
                 TextSpan span = createSpanWithCurrentStyles(content, styleStack);
-                result.add(span);
+                int endIndex = plain.length();
+                segments.add(new SpanSegment(startIndex, endIndex, span));
             }
         }
 
@@ -160,7 +168,15 @@ public final class MarkupService {
             warnings.add("Unclosed tag(s) detected");
         }
 
-        return new ParseResult(result, plain.toString(), warnings, errors);
+        List<TextSpan> legacy = new ArrayList<>(segments.size());
+        List<TextSpanView> views = new ArrayList<>(segments.size());
+        for (SpanSegment segment : segments) {
+            TextSpan span = segment.span();
+            legacy.add(span);
+            views.add(new TextSpanView(segment.start(), segment.end(), SpanAttr.fromTextSpan(span)));
+        }
+
+        return new ParseResult(views, legacy, plain.toString(), warnings, errors);
     }
 
     private TextSpan createSpanWithCurrentStyles(String content, List<TextSpan> styleStack) {
@@ -662,7 +678,13 @@ public final class MarkupService {
         return builder.toString();
     }
 
-    private record ParseResult(List<TextSpan> spans, String plainText, List<String> warnings, List<String> errors) {}
+    private record ParseResult(List<TextSpanView> views,
+                               List<TextSpan> legacySpans,
+                               String plainText,
+                               List<String> warnings,
+                               List<String> errors) {}
+
+    private record SpanSegment(int start, int end, TextSpan span) {}
 
     private record CacheKey(String rawText, Locale locale) {
         private CacheKey {

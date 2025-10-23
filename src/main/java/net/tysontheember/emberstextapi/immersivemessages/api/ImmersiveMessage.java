@@ -238,7 +238,7 @@ public class ImmersiveMessage {
         var parsedBundle = MarkupService.getInstance().parse(markup, Locale.getDefault(), true);
         List<TextSpan> parsed;
         if (parsedBundle.isPresent()) {
-            parsed = new ArrayList<>(parsedBundle.get().spans());
+            parsed = new ArrayList<>(parsedBundle.get().legacySpans());
         } else {
             parsed = new ArrayList<>(MarkupParser.fromPlainText(markup));
         }

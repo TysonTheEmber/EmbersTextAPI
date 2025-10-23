@@ -19,7 +19,7 @@ public class MarkupParser {
     public static List<TextSpan> parse(String markup) {
         var parsed = MarkupService.getInstance().parse(markup, Locale.getDefault(), true);
         if (parsed.isPresent()) {
-            return new ArrayList<>(parsed.get().spans());
+            return new ArrayList<>(parsed.get().legacySpans());
         }
         if (markup == null || markup.isEmpty()) {
             return Collections.emptyList();

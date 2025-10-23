@@ -2,7 +2,9 @@ package net.tysontheember.emberstextapi.client.markup;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.TextColor;
+import net.tysontheember.emberstextapi.client.spans.SpanAttr;
 import net.tysontheember.emberstextapi.client.spans.SpanBundle;
+import net.tysontheember.emberstextapi.client.spans.TextSpanView;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import org.junit.jupiter.api.Test;
 
@@ -20,17 +22,30 @@ class MarkupServiceTest {
             .orElseThrow();
 
         assertEquals("Hello World", bundle.plainText());
-        assertEquals(2, bundle.spans().size());
+        assertEquals(2, bundle.legacySpans().size());
 
-        TextSpan first = bundle.spans().get(0);
+        TextSpan first = bundle.legacySpans().get(0);
         assertEquals("Hello ", first.getContent());
         assertEquals(Boolean.TRUE, first.getBold());
         assertNull(first.getItalic());
 
-        TextSpan second = bundle.spans().get(1);
+        TextSpan second = bundle.legacySpans().get(1);
         assertEquals("World", second.getContent());
         assertEquals(Boolean.TRUE, second.getBold());
         assertEquals(Boolean.TRUE, second.getItalic());
+
+        TextSpanView firstView = bundle.spans().get(0);
+        assertEquals(0, firstView.start());
+        assertEquals(6, firstView.end());
+        SpanAttr.StyleFlags flags = firstView.attr().style();
+        assertTrue(flags.bold());
+        assertFalse(flags.italic());
+
+        TextSpanView secondView = bundle.spans().get(1);
+        assertEquals(6, secondView.start());
+        assertEquals(11, secondView.end());
+        assertTrue(secondView.attr().style().bold());
+        assertTrue(secondView.attr().style().italic());
     }
 
     @Test
@@ -41,13 +56,23 @@ class MarkupServiceTest {
             .orElseThrow();
 
         assertEquals("Hi", bundle.plainText());
-        assertEquals(1, bundle.spans().size());
-        TextSpan span = bundle.spans().get(0);
+        assertEquals(1, bundle.legacySpans().size());
+        TextSpan span = bundle.legacySpans().get(0);
         TextColor[] colors = span.getGradientColors();
         assertNotNull(colors);
         assertEquals(2, colors.length);
         assertEquals(TextColor.fromLegacyFormat(ChatFormatting.RED).getValue(), colors[0].getValue());
         assertEquals(TextColor.parseColor("#00ff00").getValue(), colors[1].getValue());
+
+        TextSpanView view = bundle.spans().get(0);
+        assertEquals(0, view.start());
+        assertEquals(2, view.end());
+        assertNotNull(view.attr().gradient());
+        TextColor[] gradient = view.attr().gradient().colors();
+        assertNotNull(gradient);
+        assertEquals(2, gradient.length);
+        assertEquals(TextColor.fromLegacyFormat(ChatFormatting.RED).getValue(), gradient[0].getValue());
+        assertEquals(TextColor.parseColor("#00ff00").getValue(), gradient[1].getValue());
     }
 
     @Test
@@ -66,14 +91,19 @@ class MarkupServiceTest {
             .orElseThrow();
 
         assertEquals("Keep \\ and <tags> end>\\", bundle.plainText());
-        assertEquals(2, bundle.spans().size());
+        assertEquals(2, bundle.legacySpans().size());
 
-        TextSpan first = bundle.spans().get(0);
+        TextSpan first = bundle.legacySpans().get(0);
         assertEquals("Keep \\ and <tags> ", first.getContent());
         assertNull(first.getBold());
 
-        TextSpan second = bundle.spans().get(1);
+        TextSpan second = bundle.legacySpans().get(1);
         assertEquals("end>\\", second.getContent());
         assertEquals(Boolean.TRUE, second.getBold());
+
+        TextSpanView secondView = bundle.spans().get(1);
+        assertEquals(first.getContent().length(), secondView.start());
+        assertEquals(bundle.plainText().length(), secondView.end());
+        assertTrue(secondView.attr().style().bold());
     }
 }
