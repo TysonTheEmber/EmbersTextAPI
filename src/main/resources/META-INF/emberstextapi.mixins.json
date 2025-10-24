@@ -10,7 +10,9 @@
   ],
   "client": [
     "client.LiteralContentsMixin",
-    "client.TranslatableContentsMixin"
+    "client.TranslatableContentsMixin",
+    "client.FontStringRenderOutputMixin",
+    "client.BakedGlyphMixin"
   ],
   "server": []
 }
