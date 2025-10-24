@@ -28,6 +28,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
 import net.minecraftforge.network.PacketDistributor;
+import net.tysontheember.emberstextapi.client.hook.MixinBootstrapper;
 import net.tysontheember.emberstextapi.config.ClientSettings;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.network.TooltipPacket;
@@ -46,6 +47,7 @@ public class EmbersTextAPI
         IEventBus modEventBus = context.getModEventBus();
 
         ClientSettings.register(context);
+        MixinBootstrapper.init();
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
