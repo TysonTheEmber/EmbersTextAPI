@@ -4,6 +4,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.tysontheember.emberstextapi.client.cache.TextLayoutCache;
+import net.tysontheember.emberstextapi.client.hook.SpanAwareFontHook;
 import net.tysontheember.emberstextapi.config.ClientSettings;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,13 +30,14 @@ class SplitterHookTest {
         assertNotNull(result);
         assertEquals("Hello world", result.getString());
 
+        long seed = SpanAwareFontHook.computeSeed("<bold>Hello</bold> world", "Hello world");
         TextLayoutCache.Key key = new TextLayoutCache.Key(
             "<bold>Hello</bold> world",
             "Hello world",
             80,
             1.0f,
             Locale.ROOT,
-            0L,
+            seed,
             ClientSettings.effectsVersion()
         );
         assertTrue(TextLayoutCache.getInstance().get(key).isPresent(), "Expected cached layout for parsed markup");

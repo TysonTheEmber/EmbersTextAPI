@@ -5,10 +5,14 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.FormattedCharSink;
 import net.minecraft.util.Mth;
+import net.tysontheember.emberstextapi.client.spans.effects.ObfuscateEffect;
+import net.tysontheember.emberstextapi.client.spans.effects.TypewriterEffect;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.LongSupplier;
 
 /**
  * FormattedCharSequence wrapper that emits per-character styles derived from markup spans.
@@ -32,7 +36,7 @@ public final class SpanifiedSequence implements FormattedCharSequence {
         }
         EvalContext ctx = context != null ? context : EvalContext.EMPTY;
         int length = Math.max(0, bundle.plainText().length());
-        SpanEntry[] entries = buildEntries(bundle.spans(), length);
+        SpanEntry[] entries = buildEntries(bundle.spans(), length, ctx);
         return new SpanifiedSequence(base, entries, ctx);
     }
 
@@ -40,12 +44,16 @@ public final class SpanifiedSequence implements FormattedCharSequence {
     public boolean accept(FormattedCharSink sink) {
         return base.accept((index, style, codePoint) -> {
             SpanEntry entry = index >= 0 && index < entries.length ? entries[index] : null;
-            Style applied = apply(entry, style);
+            EffectAdapter.StyleDelta delta = EffectAdapter.apply(entry, context);
+            if (delta != null && !delta.visible()) {
+                return true;
+            }
+            Style applied = apply(entry, style, delta);
             return sink.accept(index, applied, codePoint);
         });
     }
 
-    private Style apply(SpanEntry entry, Style baseStyle) {
+    private Style apply(SpanEntry entry, Style baseStyle, EffectAdapter.StyleDelta delta) {
         if (entry == null || entry.attr == null) {
             return baseStyle;
         }
@@ -76,35 +84,40 @@ public final class SpanifiedSequence implements FormattedCharSequence {
             result = result.withColor(colour);
         }
 
-        // Effects are evaluated but currently unused until render hooks consume deltas.
-        EffectAdapter.StyleDelta delta = EffectAdapter.apply(entry.globalIndex, entry.lineIndex, context.timeMs(), context.seed(), attr);
-        if (delta.styleOverride() != null) {
-            SpanAttr.StyleFlags override = delta.styleOverride();
-            result = result
-                .withBold(override.bold())
-                .withItalic(override.italic())
-                .withUnderlined(override.underline())
-                .withStrikethrough(override.strikethrough())
-                .withObfuscated(override.obfuscated());
-            if (override.font() != null) {
-                result = result.withFont(override.font());
+        if (delta != null) {
+            if (delta.styleOverride() != null) {
+                SpanAttr.StyleFlags override = delta.styleOverride();
+                result = result
+                    .withBold(override.bold())
+                    .withItalic(override.italic())
+                    .withUnderlined(override.underline())
+                    .withStrikethrough(override.strikethrough())
+                    .withObfuscated(override.obfuscated());
+                if (override.font() != null) {
+                    result = result.withFont(override.font());
+                }
             }
-        }
-        if (delta.colorOverride() != null) {
-            result = result.withColor(delta.colorOverride());
+            if (delta.obfuscatedOverride() != null) {
+                result = result.withObfuscated(delta.obfuscatedOverride());
+            }
+            if (delta.colorOverride() != null) {
+                result = result.withColor(delta.colorOverride());
+            }
         }
 
         return result;
     }
 
-    private static SpanEntry[] buildEntries(List<TextSpanView> spans, int length) {
+    private static SpanEntry[] buildEntries(List<TextSpanView> spans, int length, EvalContext context) {
         SpanEntry[] entries = new SpanEntry[length];
+        AtomicInteger spanIndex = new AtomicInteger();
         for (TextSpanView view : spans) {
             int start = Math.max(0, view.start());
             int end = Math.min(length, view.end());
+            SpanState state = SpanState.create(view.attr(), Math.max(1, end - start), context.seed(), spanIndex.getAndIncrement());
             for (int i = start; i < end; i++) {
                 int offset = i - start;
-                entries[i] = new SpanEntry(view.attr(), offset, Math.max(1, end - start), i, 0);
+                entries[i] = new SpanEntry(view.attr(), offset, Math.max(1, end - start), i, 0, state);
             }
         }
         return entries;
@@ -146,29 +159,92 @@ public final class SpanifiedSequence implements FormattedCharSequence {
         return (r << 16) | (g << 8) | b;
     }
 
-    public record EvalContext(long timeMs, long seed, Locale locale) {
-        public static final EvalContext EMPTY = new EvalContext(0L, 0L, Locale.ROOT);
+    public static final class EvalContext {
+        public static final EvalContext EMPTY = new EvalContext(() -> 0L, 0L, Locale.ROOT);
 
-        public EvalContext {
-            if (locale == null) {
-                locale = Locale.ROOT;
-            }
+        private final LongSupplier timeSource;
+        private final long startTimeMs;
+        private final long seed;
+        private final Locale locale;
+
+        public EvalContext(LongSupplier timeSource, long seed, Locale locale) {
+            this.timeSource = timeSource != null ? timeSource : () -> 0L;
+            this.seed = seed;
+            this.locale = locale != null ? locale : Locale.ROOT;
+            this.startTimeMs = this.timeSource.getAsLong();
+        }
+
+        public long seed() {
+            return seed;
+        }
+
+        public Locale locale() {
+            return locale;
+        }
+
+        public long elapsedMs() {
+            long now = timeSource.getAsLong();
+            return Math.max(0L, now - startTimeMs);
+        }
+
+        public float elapsedTicks() {
+            return elapsedMs() / 50f;
         }
     }
 
-    private static final class SpanEntry {
-        private final SpanAttr attr;
-        private final int offset;
-        private final int length;
-        private final int globalIndex;
-        private final int lineIndex;
+    static final class SpanEntry {
+        final SpanAttr attr;
+        final int offset;
+        final int length;
+        final int globalIndex;
+        final int lineIndex;
+        final SpanState state;
 
-        private SpanEntry(SpanAttr attr, int offset, int length, int globalIndex, int lineIndex) {
+        SpanEntry(SpanAttr attr, int offset, int length, int globalIndex, int lineIndex, SpanState state) {
             this.attr = attr;
             this.offset = offset;
             this.length = length;
             this.globalIndex = globalIndex;
             this.lineIndex = lineIndex;
+            this.state = state;
+        }
+    }
+
+    static final class SpanState {
+        final TypewriterEffect.State typewriter;
+        final ObfuscateEffect.State obfuscate;
+
+        private SpanState(TypewriterEffect.State typewriter, ObfuscateEffect.State obfuscate) {
+            this.typewriter = typewriter;
+            this.obfuscate = obfuscate;
+        }
+
+        static SpanState create(SpanAttr attr, int length, long seed, int spanIndex) {
+            if (attr == null || attr.effect() == null) {
+                return new SpanState(null, null);
+            }
+            SpanAttr.EffectSpec spec = attr.effect();
+            long mixedSeed = mixSeed(seed, spanIndex);
+            TypewriterEffect.State typewriter = spec.typewriter() != null
+                ? TypewriterEffect.create(spec.typewriter(), length)
+                : null;
+            if (typewriter == null && spec.global() != null && spec.global().typewriterSpeed() != null) {
+                SpanAttr.EffectSpec.Typewriter globalTypewriter = new SpanAttr.EffectSpec.Typewriter(
+                    spec.global().typewriterSpeed(),
+                    Boolean.TRUE.equals(spec.global().typewriterCenter())
+                );
+                typewriter = TypewriterEffect.create(globalTypewriter, length);
+            }
+            ObfuscateEffect.State obfuscate = spec.obfuscate() != null
+                ? ObfuscateEffect.create(spec.obfuscate(), length, mixedSeed)
+                : null;
+            return new SpanState(typewriter, obfuscate);
+        }
+
+        private static long mixSeed(long seed, int spanIndex) {
+            long mixed = seed;
+            mixed ^= 0x9E3779B97F4A7C15L * (spanIndex + 1L);
+            return mixed;
         }
     }
 }

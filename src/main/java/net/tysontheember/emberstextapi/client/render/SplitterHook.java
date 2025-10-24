@@ -57,19 +57,20 @@ public final class SplitterHook {
         }
 
         Style effectiveStyle = baseStyle != null ? baseStyle : Style.EMPTY;
+        long seed = SpanAwareFontHook.computeSeed(raw, bundle.plainText());
         TextLayoutCache.Key key = new TextLayoutCache.Key(
             raw,
             bundle.plainText(),
             width,
             1.0f,
             locale,
-            0L,
+            seed,
             ClientSettings.effectsVersion()
         );
 
         TextLayoutCache cache = TextLayoutCache.getInstance();
         if (cache.get(key).isEmpty()) {
-            SpanifiedSequence.EvalContext context = new SpanifiedSequence.EvalContext(Util.getMillis(), 0L, locale);
+            SpanifiedSequence.EvalContext context = new SpanifiedSequence.EvalContext(Util::getMillis, seed, locale);
             cache.put(
                 key,
                 TextLayoutCache.CachedLayout.deferred(

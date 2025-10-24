@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -56,6 +57,45 @@ class SpanifiedSequenceTest {
             assertNotNull(actual, "Gradient colour should be present at index " + i);
             assertEquals(expected.getValue(), actual.getValue(), "Unexpected gradient colour at index " + i);
         }
+    }
+
+    @Test
+    void typewriterEffectRevealsCharactersOverTime() {
+        String markup = "<typewriter speed=1.0>Hello</typewriter>";
+        SpanBundle bundle = MarkupService.getInstance()
+            .parse(markup, Locale.ROOT, false)
+            .orElseThrow();
+
+        AtomicLong time = new AtomicLong(0L);
+        SpanifiedSequence.EvalContext context = new SpanifiedSequence.EvalContext(time::get, 0L, Locale.ROOT);
+        FormattedCharSequence sequence = SpanifiedSequence.of(
+            Component.literal(bundle.plainText()).getVisualOrderText(),
+            bundle,
+            context
+        );
+
+        StringBuilder rendered = new StringBuilder();
+        sequence.accept((index, style, codePoint) -> {
+            rendered.appendCodePoint(codePoint);
+            return true;
+        });
+        assertEquals("", rendered.toString(), "No characters should be visible initially");
+
+        time.set(50L);
+        rendered.setLength(0);
+        sequence.accept((index, style, codePoint) -> {
+            rendered.appendCodePoint(codePoint);
+            return true;
+        });
+        assertEquals("H", rendered.toString(), "First character should appear after one tick");
+
+        time.set(250L);
+        rendered.setLength(0);
+        sequence.accept((index, style, codePoint) -> {
+            rendered.appendCodePoint(codePoint);
+            return true;
+        });
+        assertEquals(bundle.plainText(), rendered.toString(), "All characters should be revealed after sufficient time");
     }
 
     private static TextColor sampleGradient(TextColor[] colors, int offset, int spanLength) {

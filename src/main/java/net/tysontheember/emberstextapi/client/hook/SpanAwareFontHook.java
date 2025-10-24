@@ -73,7 +73,8 @@ public final class SpanAwareFontHook {
         }
 
         FormattedCharSequence base = buildBaseSequence(bundle.plainText(), sequence);
-        SpanifiedSequence.EvalContext context = new SpanifiedSequence.EvalContext(Util.getMillis(), 0L, locale);
+        long seed = computeSeed(raw, bundle.plainText());
+        SpanifiedSequence.EvalContext context = new SpanifiedSequence.EvalContext(Util::getMillis, seed, locale);
         FormattedCharSequence spanified = SpanifiedSequence.of(base, bundle, context);
         cache.put(key, TextLayoutCache.CachedLayout.eager(bundle, spanified));
         return spanified;
@@ -129,6 +130,17 @@ public final class SpanAwareFontHook {
     private static FormattedCharSequence buildBaseSequence(String plainText, FormattedCharSequence original) {
         Style baseStyle = resolveBaseStyle(original);
         return FormattedCharSequence.forward(plainText, baseStyle);
+    }
+
+    public static long computeSeed(String raw, String plain) {
+        long seed = 0L;
+        if (raw != null) {
+            seed ^= raw.hashCode();
+        }
+        if (plain != null) {
+            seed = seed * 31L + plain.hashCode();
+        }
+        return seed;
     }
 
     private static Style resolveBaseStyle(FormattedCharSequence sequence) {
