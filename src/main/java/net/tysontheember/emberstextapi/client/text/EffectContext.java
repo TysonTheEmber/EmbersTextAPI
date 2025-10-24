@@ -1,11 +1,15 @@
 package net.tysontheember.emberstextapi.client.text;
 
+import java.util.Objects;
+import java.util.function.LongSupplier;
+
 /**
  * Provides clock and option state for effect evaluation. Stub implementation for Phase D1.
  */
 public final class EffectContext {
     private static final ThreadLocal<EffectContext> LOCAL = ThreadLocal.withInitial(EffectContext::new);
     private static volatile boolean animationsEnabled = true;
+    private static volatile LongSupplier clock = System::nanoTime;
 
     private long tickCount;
     private float partialTicks;
@@ -26,6 +30,14 @@ public final class EffectContext {
 
     public static void setAnimationsEnabled(boolean enabled) {
         animationsEnabled = enabled;
+    }
+
+    public static void setClock(LongSupplier supplier) {
+        clock = Objects.requireNonNullElse(supplier, System::nanoTime);
+    }
+
+    public static long nowNanos() {
+        return clock.getAsLong();
     }
 
     public long getTickCount() {
