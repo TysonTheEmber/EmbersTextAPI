@@ -5,8 +5,12 @@
   "refmap": "emberstextapi.refmap.json",
   "mixins": [
     "common.StyleMixin",
-    "common.StyleSerializerMixin"
+    "common.StyleSerializerMixin",
+    "common.StringDecomposerMixin"
   ],
-  "client": [],
+  "client": [
+    "client.LiteralContentsMixin",
+    "client.TranslatableContentsMixin"
+  ],
   "server": []
 }
