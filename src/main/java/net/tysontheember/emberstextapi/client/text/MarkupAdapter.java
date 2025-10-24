@@ -7,16 +7,17 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
-import net.minecraft.network.chat.ComponentContents;
+import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSink;
 import net.minecraft.util.StringDecomposer;
 import net.tysontheember.emberstextapi.duck.ETAStyle;
 import net.tysontheember.emberstextapi.immersivemessages.api.MarkupParser;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
-import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan.ObfuscateMode;
-import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan.ShakeType;
+import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
+import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
 
 /**
  * Bridges legacy Immersive Message markup parsing to vanilla component traversal.
@@ -38,7 +39,7 @@ public final class MarkupAdapter {
         return text.indexOf('>', start + 1) > start;
     }
 
-    public static boolean visitFormatted(String text, Style baseStyle, StringDecomposer.FormattedCharSink sink) {
+    public static boolean visitFormatted(String text, Style baseStyle, FormattedCharSink sink) {
         List<TextSpan> spans = MarkupParser.parse(text);
         if (spans.isEmpty()) {
             return StringDecomposer.iterateFormatted(text, baseStyle, sink);
@@ -66,7 +67,7 @@ public final class MarkupAdapter {
         return true;
     }
 
-    public static <T> Optional<T> visitLiteral(String text, Style baseStyle, ComponentContents.StyledContentConsumer<T> consumer) {
+    public static <T> Optional<T> visitLiteral(String text, Style baseStyle, FormattedText.StyledContentConsumer<T> consumer) {
         List<TextSpan> spans = MarkupParser.parse(text);
         if (spans.isEmpty()) {
             return consumer.accept(baseStyle, text);

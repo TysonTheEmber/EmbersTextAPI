@@ -2,7 +2,7 @@ package net.tysontheember.emberstextapi.mixin.client;
 
 import java.util.Optional;
 
-import net.minecraft.network.chat.ComponentContents;
+import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.contents.LiteralContents;
 import net.tysontheember.emberstextapi.client.text.GlobalTextConfig;
@@ -20,9 +20,9 @@ public abstract class LiteralContentsMixin {
     @Final
     private String text;
 
-    @Inject(method = "visit(Lnet/minecraft/network/chat/ComponentContents$StyledContentConsumer;Lnet/minecraft/network/chat/Style;)Ljava/util/Optional;",
+    @Inject(method = "visit(Lnet/minecraft/network/chat/FormattedText$StyledContentConsumer;Lnet/minecraft/network/chat/Style;)Ljava/util/Optional;",
             at = @At("HEAD"), cancellable = true)
-    private <T> void emberstextapi$visitMarkup(ComponentContents.StyledContentConsumer<T> consumer, Style style,
+    private <T> void emberstextapi$visitMarkup(FormattedText.StyledContentConsumer<T> consumer, Style style,
             CallbackInfoReturnable<Optional<T>> cir) {
         if (!GlobalTextConfig.isMarkupEnabled() || !MarkupAdapter.hasMarkup(this.text)) {
             return;

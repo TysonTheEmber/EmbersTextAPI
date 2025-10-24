@@ -4,6 +4,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 import net.minecraft.network.chat.Style;
+import net.minecraft.util.FormattedCharSink;
 import net.minecraft.util.StringDecomposer;
 import net.tysontheember.emberstextapi.client.text.ETAOptions;
 import net.tysontheember.emberstextapi.client.text.EffectContext;
@@ -23,9 +24,9 @@ public abstract class StringDecomposerMixin {
     @Unique
     private static final ThreadLocal<Boolean> emberstextapi$parsingMarkup = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
-    @Inject(method = "iterateFormatted(Ljava/lang/String;Lnet/minecraft/network/chat/Style;Lnet/minecraft/util/StringDecomposer$FormattedCharSink;)Z",
+    @Inject(method = "iterateFormatted(Ljava/lang/String;Lnet/minecraft/network/chat/Style;Lnet/minecraft/util/FormattedCharSink;)Z",
             at = @At("HEAD"), cancellable = true)
-    private static void emberstextapi$injectMarkup(String text, Style style, StringDecomposer.FormattedCharSink sink,
+    private static void emberstextapi$injectMarkup(String text, Style style, FormattedCharSink sink,
             CallbackInfoReturnable<Boolean> cir) {
         if (Boolean.TRUE.equals(emberstextapi$parsingMarkup.get())) {
             return;
@@ -40,7 +41,7 @@ public abstract class StringDecomposerMixin {
 
         ETAOptions options = GlobalTextConfig.getOptions();
         TypewriterGateContext gateContext = gatingEnabled ? new TypewriterGateContext(options) : null;
-        StringDecomposer.FormattedCharSink effectiveSink = gateContext == null ? sink
+        FormattedCharSink effectiveSink = gateContext == null ? sink
                 : (index, styled, codePoint) -> {
                     if (!gateContext.allow(styled)) {
                         return false;
