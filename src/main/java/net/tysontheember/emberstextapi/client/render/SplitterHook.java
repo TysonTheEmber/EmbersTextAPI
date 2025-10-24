@@ -20,10 +20,21 @@ import java.util.Optional;
  * measurements and wrapping calculations.
  */
 public final class SplitterHook {
+    private static final ThreadLocal<Context> CONTEXT = new ThreadLocal<>();
+
     private SplitterHook() {
     }
 
+    public static void captureContext(int width, Style baseStyle) {
+        CONTEXT.set(new Context(width, baseStyle));
+    }
+
     public static FormattedText preprocess(FormattedText text, Style baseStyle, int width) {
+        captureContext(width, baseStyle);
+        return preprocess(text);
+    }
+
+    public static FormattedText preprocess(FormattedText text) {
         if (text == null) {
             return null;
         }
@@ -32,10 +43,19 @@ public final class SplitterHook {
             return text;
         }
 
+        Context context = CONTEXT.get();
         String raw = text.getString();
         if (!SpanAwareFontHook.looksLikeMarkup(raw)) {
+            if (context != null) {
+                CONTEXT.remove();
+            }
             return text;
         }
+
+        if (context == null) {
+            context = new Context(Integer.MIN_VALUE, Style.EMPTY);
+        }
+        CONTEXT.remove();
 
         Locale locale = resolveLocale();
         Optional<SpanBundle> parsed = MarkupService.getInstance().parse(raw, locale, true);
@@ -56,12 +76,12 @@ public final class SplitterHook {
             return text;
         }
 
-        Style effectiveStyle = baseStyle != null ? baseStyle : Style.EMPTY;
+        Style effectiveStyle = context.baseStyle != null ? context.baseStyle : Style.EMPTY;
         long seed = SpanAwareFontHook.computeSeed(raw, bundle.plainText());
         TextLayoutCache.Key key = new TextLayoutCache.Key(
             raw,
             bundle.plainText(),
-            width,
+            context.width,
             1.0f,
             locale,
             seed,
@@ -70,7 +90,7 @@ public final class SplitterHook {
 
         TextLayoutCache cache = TextLayoutCache.getInstance();
         if (cache.get(key).isEmpty()) {
-            SpanifiedSequence.EvalContext context = new SpanifiedSequence.EvalContext(Util::getMillis, seed, locale);
+            SpanifiedSequence.EvalContext evalContext = new SpanifiedSequence.EvalContext(Util::getMillis, seed, locale);
             cache.put(
                 key,
                 TextLayoutCache.CachedLayout.deferred(
@@ -78,13 +98,16 @@ public final class SplitterHook {
                     () -> SpanifiedSequence.of(
                         FormattedCharSequence.forward(bundle.plainText(), effectiveStyle),
                         bundle,
-                        context
+                        evalContext
                     )
                 )
             );
         }
 
         return FormattedText.of(bundle.plainText());
+    }
+
+    private record Context(int width, Style baseStyle) {
     }
 
     private static Locale resolveLocale() {
