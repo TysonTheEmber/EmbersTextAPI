@@ -81,9 +81,10 @@ public final class TextLayoutCache {
         }
     }
 
-    public record Key(String cleanText, int width, float scale, Locale lang, long seed, int effectsVersion) {
+    public record Key(String rawText, String plainText, int width, float scale, Locale lang, long seed, int effectsVersion) {
         public Key {
-            cleanText = cleanText != null ? cleanText : "";
+            rawText = rawText != null ? rawText : "";
+            plainText = plainText != null ? plainText : "";
             lang = lang != null ? lang : Locale.ROOT;
         }
     }

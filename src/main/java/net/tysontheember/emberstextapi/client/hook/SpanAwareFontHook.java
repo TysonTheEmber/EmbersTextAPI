@@ -44,6 +44,7 @@ public final class SpanAwareFontHook {
         }
 
         TextLayoutCache.Key key = new TextLayoutCache.Key(
+            raw,
             bundle.plainText(),
             -1,
             1.0f,
@@ -74,7 +75,7 @@ public final class SpanAwareFontHook {
         return builder.toString();
     }
 
-    private static boolean looksLikeMarkup(String raw) {
+    public static boolean looksLikeMarkup(String raw) {
         if (raw == null || raw.isEmpty()) {
             return false;
         }

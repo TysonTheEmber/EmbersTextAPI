@@ -24,7 +24,7 @@ class TextLayoutCacheTest {
     void returnsSameLayoutOnRepeatedLookups() {
         TextLayoutCache cache = TextLayoutCache.getInstance();
         SpanBundle bundle = emptyBundle("Hello");
-        TextLayoutCache.Key key = new TextLayoutCache.Key(bundle.plainText(), 120, 1.0f, Locale.ROOT, 0L, 1);
+        TextLayoutCache.Key key = new TextLayoutCache.Key(bundle.plainText(), bundle.plainText(), 120, 1.0f, Locale.ROOT, 0L, 1);
         FormattedCharSequence sequence = Component.literal(bundle.plainText()).getVisualOrderText();
 
         TextLayoutCache.CachedLayout layout = TextLayoutCache.CachedLayout.eager(bundle, sequence);
@@ -43,7 +43,7 @@ class TextLayoutCacheTest {
     void deferredSequenceFactoryInvokedOnce() {
         TextLayoutCache cache = TextLayoutCache.getInstance();
         SpanBundle bundle = emptyBundle("Spans");
-        TextLayoutCache.Key key = new TextLayoutCache.Key(bundle.plainText(), 200, 0.75f, Locale.ROOT, 42L, 2);
+        TextLayoutCache.Key key = new TextLayoutCache.Key(bundle.plainText(), bundle.plainText(), 200, 0.75f, Locale.ROOT, 42L, 2);
 
         AtomicInteger invocations = new AtomicInteger();
         TextLayoutCache.CachedLayout layout = TextLayoutCache.CachedLayout.deferred(bundle, () -> {
@@ -63,7 +63,7 @@ class TextLayoutCacheTest {
     void clearRemovesEntriesAndStats() {
         TextLayoutCache cache = TextLayoutCache.getInstance();
         SpanBundle bundle = emptyBundle("Reset");
-        TextLayoutCache.Key key = new TextLayoutCache.Key(bundle.plainText(), 50, 1.0f, Locale.ROOT, 1L, 0);
+        TextLayoutCache.Key key = new TextLayoutCache.Key(bundle.plainText(), bundle.plainText(), 50, 1.0f, Locale.ROOT, 1L, 0);
 
         cache.put(key, TextLayoutCache.CachedLayout.eager(bundle,
             FormattedCharSequence.forward(bundle.plainText(), Style.EMPTY)));

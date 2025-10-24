@@ -3,7 +3,8 @@
   "package": "net.tysontheember.emberstextapi.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
-    "client.FontMixin"
+    "client.FontMixin",
+    "client.StringSplitterMixin"
   ],
   "injectors": {
     "defaultRequire": 1
