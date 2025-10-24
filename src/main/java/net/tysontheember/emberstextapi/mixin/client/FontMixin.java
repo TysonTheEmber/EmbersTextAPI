@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 @Mixin(Font.class)
 public abstract class FontMixin {
     @ModifyVariable(
-        method = "drawInBatch(Lnet/minecraft/util/FormattedCharSequence;FFIZLorg/joml/Matrix4f;Lnet/minecraft/client/renderer/MultiBufferSource;Lnet/minecraft/client/gui/Font$DisplayMode;III)F",
+        method = "drawInBatch(Lnet/minecraft/util/FormattedCharSequence;FFIZLorg/joml/Matrix4f;Lnet/minecraft/client/renderer/MultiBufferSource;Lnet/minecraft/client/gui/Font$DisplayMode;II)I",
         at = @At("HEAD"),
         argsOnly = true
     )
