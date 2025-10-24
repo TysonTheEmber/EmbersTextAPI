@@ -9,6 +9,7 @@ import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
+import net.tysontheember.emberstextapi.client.cache.SpanCacheInvalidation;
 
 @OnlyIn(Dist.CLIENT)
 @Mod.EventBusSubscriber(modid = EmbersTextAPI.MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
@@ -26,7 +27,7 @@ public final class ReloadHook {
 
             @Override
             protected void apply(Void object, ResourceManager resourceManager, ProfilerFiller profiler) {
-                TextLayoutCache.clear();
+                SpanCacheInvalidation.clearSpanCaches("resource reload");
             }
         });
     }
