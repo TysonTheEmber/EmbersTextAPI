@@ -10,6 +10,7 @@ import net.tysontheember.emberstextapi.client.hook.SpanAwareFontHook;
 import net.tysontheember.emberstextapi.client.markup.MarkupService;
 import net.tysontheember.emberstextapi.client.spans.SpanBundle;
 import net.tysontheember.emberstextapi.client.spans.SpanifiedSequence;
+import net.tysontheember.emberstextapi.config.ClientSettings;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -25,6 +26,10 @@ public final class SplitterHook {
     public static FormattedText preprocess(FormattedText text, Style baseStyle, int width) {
         if (text == null) {
             return null;
+        }
+
+        if (ClientSettings.shouldBypassCurrentScreen()) {
+            return text;
         }
 
         String raw = text.getString();
@@ -43,6 +48,14 @@ public final class SplitterHook {
             return text;
         }
 
+        if (bundle.maxSpanDepth() > ClientSettings.maxSpanDepth()) {
+            return text;
+        }
+
+        if (bundle.maxEffectLayers() > ClientSettings.maxEffectsPerGlyph()) {
+            return text;
+        }
+
         Style effectiveStyle = baseStyle != null ? baseStyle : Style.EMPTY;
         TextLayoutCache.Key key = new TextLayoutCache.Key(
             raw,
@@ -51,7 +64,7 @@ public final class SplitterHook {
             1.0f,
             locale,
             0L,
-            0
+            ClientSettings.effectsVersion()
         );
 
         TextLayoutCache cache = TextLayoutCache.getInstance();

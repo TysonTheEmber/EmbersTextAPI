@@ -4,6 +4,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.tysontheember.emberstextapi.client.cache.TextLayoutCache;
+import net.tysontheember.emberstextapi.config.ClientSettings;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -18,6 +19,7 @@ class SplitterHookTest {
     @BeforeEach
     void clearCache() {
         TextLayoutCache.getInstance().clear();
+        ClientSettings.resetToDefaults();
     }
 
     @Test
@@ -27,7 +29,15 @@ class SplitterHookTest {
         assertNotNull(result);
         assertEquals("Hello world", result.getString());
 
-        TextLayoutCache.Key key = new TextLayoutCache.Key("<bold>Hello</bold> world", "Hello world", 80, 1.0f, Locale.ROOT, 0L, 0);
+        TextLayoutCache.Key key = new TextLayoutCache.Key(
+            "<bold>Hello</bold> world",
+            "Hello world",
+            80,
+            1.0f,
+            Locale.ROOT,
+            0L,
+            ClientSettings.effectsVersion()
+        );
         assertTrue(TextLayoutCache.getInstance().get(key).isPresent(), "Expected cached layout for parsed markup");
     }
 
@@ -37,7 +47,25 @@ class SplitterHookTest {
         FormattedText processed = SplitterHook.preprocess(text, Style.EMPTY, 120);
 
         assertSame(text, processed);
-        TextLayoutCache.Key key = new TextLayoutCache.Key("No markup here", "No markup here", 120, 1.0f, Locale.ROOT, 0L, 0);
+        TextLayoutCache.Key key = new TextLayoutCache.Key(
+            "No markup here",
+            "No markup here",
+            120,
+            1.0f,
+            Locale.ROOT,
+            0L,
+            ClientSettings.effectsVersion()
+        );
         assertTrue(TextLayoutCache.getInstance().get(key).isEmpty(), "Plain text should not populate the cache");
+    }
+
+    @Test
+    void respectsDisableToggle() {
+        ClientSettings.setStyledRenderingEnabled(false);
+
+        FormattedText text = Component.literal("<bold>Disabled</bold>");
+        FormattedText processed = SplitterHook.preprocess(text, Style.EMPTY, 42);
+
+        assertSame(text, processed, "Disabled toggle should bypass preprocessing");
     }
 }

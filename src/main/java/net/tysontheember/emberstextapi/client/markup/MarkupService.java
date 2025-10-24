@@ -65,7 +65,15 @@ public final class MarkupService {
         }
 
         ParseResult result = parseInternal(preprocessEscapes(rawText));
-        SpanBundle bundle = new SpanBundle(result.plainText(), result.views(), result.legacySpans(), result.warnings(), result.errors());
+        SpanBundle bundle = new SpanBundle(
+            result.plainText(),
+            result.views(),
+            result.legacySpans(),
+            result.warnings(),
+            result.errors(),
+            result.maxDepth(),
+            result.maxEffectLayers()
+        );
         if (allowCache && !bundle.hasErrors()) {
             cache.put(key, bundle);
         }
@@ -77,6 +85,8 @@ public final class MarkupService {
         List<TextSpan> styleStack = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         List<String> errors = new ArrayList<>();
+        int maxDepth = 0;
+        int maxEffectLayers = 0;
         Matcher matcher = TAG_PATTERN.matcher(markup);
         int lastEnd = 0;
         StringBuilder plain = new StringBuilder();
@@ -91,6 +101,7 @@ public final class MarkupService {
                     TextSpan span = createSpanWithCurrentStyles(content, styleStack);
                     int endIndex = plain.length();
                     segments.add(new SpanSegment(startIndex, endIndex, span));
+                    maxEffectLayers = Math.max(maxEffectLayers, countEffectLayers(styleStack));
                 }
             }
 
@@ -147,6 +158,8 @@ public final class MarkupService {
                 TextSpan currentStyle = styleStack.isEmpty() ? new TextSpan("") : styleStack.get(styleStack.size() - 1).inherit();
                 applyTagToSpan(currentStyle, tagName, attributes, warnings, errors);
                 styleStack.add(currentStyle);
+                maxDepth = Math.max(maxDepth, styleStack.size());
+                maxEffectLayers = Math.max(maxEffectLayers, countEffectLayers(styleStack));
             }
 
             lastEnd = matcher.end();
@@ -161,6 +174,7 @@ public final class MarkupService {
                 TextSpan span = createSpanWithCurrentStyles(content, styleStack);
                 int endIndex = plain.length();
                 segments.add(new SpanSegment(startIndex, endIndex, span));
+                maxEffectLayers = Math.max(maxEffectLayers, countEffectLayers(styleStack));
             }
         }
 
@@ -176,7 +190,7 @@ public final class MarkupService {
             views.add(new TextSpanView(segment.start(), segment.end(), SpanAttr.fromTextSpan(span)));
         }
 
-        return new ParseResult(views, legacy, plain.toString(), warnings, errors);
+        return new ParseResult(views, legacy, plain.toString(), warnings, errors, maxDepth, maxEffectLayers);
     }
 
     private TextSpan createSpanWithCurrentStyles(String content, List<TextSpan> styleStack) {
@@ -678,11 +692,35 @@ public final class MarkupService {
         return builder.toString();
     }
 
+    private int countEffectLayers(List<TextSpan> styleStack) {
+        if (styleStack.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (TextSpan span : styleStack) {
+            if (span == null) {
+                continue;
+            }
+            if (span.getShakeType() != null && span.getShakeAmplitude() != null) {
+                count++;
+            } else if (span.getCharShakeType() != null && span.getCharShakeAmplitude() != null) {
+                count++;
+            } else if (span.getTypewriterSpeed() != null) {
+                count++;
+            } else if (span.getObfuscateMode() != null) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private record ParseResult(List<TextSpanView> views,
                                List<TextSpan> legacySpans,
                                String plainText,
                                List<String> warnings,
-                               List<String> errors) {}
+                               List<String> errors,
+                               int maxDepth,
+                               int maxEffectLayers) {}
 
     private record SpanSegment(int start, int end, TextSpan span) {}
 

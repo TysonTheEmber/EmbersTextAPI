@@ -8,6 +8,7 @@ import net.tysontheember.emberstextapi.client.cache.TextLayoutCache;
 import net.tysontheember.emberstextapi.client.markup.MarkupService;
 import net.tysontheember.emberstextapi.client.spans.SpanBundle;
 import net.tysontheember.emberstextapi.client.spans.SpanifiedSequence;
+import net.tysontheember.emberstextapi.config.ClientSettings;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -27,6 +28,10 @@ public final class SpanAwareFontHook {
             return sequence;
         }
 
+        if (ClientSettings.shouldBypassCurrentScreen()) {
+            return sequence;
+        }
+
         String raw = extractText(sequence);
         if (!looksLikeMarkup(raw)) {
             return sequence;
@@ -43,6 +48,14 @@ public final class SpanAwareFontHook {
             return sequence;
         }
 
+        if (bundle.maxSpanDepth() > ClientSettings.maxSpanDepth()) {
+            return sequence;
+        }
+
+        if (bundle.maxEffectLayers() > ClientSettings.maxEffectsPerGlyph()) {
+            return sequence;
+        }
+
         TextLayoutCache.Key key = new TextLayoutCache.Key(
             raw,
             bundle.plainText(),
@@ -50,7 +63,7 @@ public final class SpanAwareFontHook {
             1.0f,
             locale,
             0L,
-            0
+            ClientSettings.effectsVersion()
         );
 
         TextLayoutCache cache = TextLayoutCache.getInstance();

@@ -46,6 +46,9 @@ class MarkupServiceTest {
         assertEquals(11, secondView.end());
         assertTrue(secondView.attr().style().bold());
         assertTrue(secondView.attr().style().italic());
+
+        assertEquals(2, bundle.maxSpanDepth());
+        assertEquals(0, bundle.maxEffectLayers());
     }
 
     @Test
@@ -73,6 +76,9 @@ class MarkupServiceTest {
         assertEquals(2, gradient.length);
         assertEquals(TextColor.fromLegacyFormat(ChatFormatting.RED).getValue(), gradient[0].getValue());
         assertEquals(TextColor.parseColor("#00ff00").getValue(), gradient[1].getValue());
+
+        assertEquals(1, bundle.maxSpanDepth());
+        assertEquals(0, bundle.maxEffectLayers());
     }
 
     @Test
@@ -105,5 +111,20 @@ class MarkupServiceTest {
         assertEquals(first.getContent().length(), secondView.start());
         assertEquals(bundle.plainText().length(), secondView.end());
         assertTrue(secondView.attr().style().bold());
+
+        assertEquals(1, bundle.maxSpanDepth());
+        assertEquals(0, bundle.maxEffectLayers());
+    }
+
+    @Test
+    void countsEffectLayers() {
+        String markup = "<shake amplitude=\"1\">Wave</shake>";
+        SpanBundle bundle = MarkupService.getInstance()
+            .parse(markup, Locale.ROOT, false)
+            .orElseThrow();
+
+        assertEquals("Wave", bundle.plainText());
+        assertEquals(1, bundle.maxSpanDepth());
+        assertEquals(1, bundle.maxEffectLayers());
     }
 }
