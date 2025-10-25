@@ -134,10 +134,7 @@ public final class SpanEffectRegistry {
         }
 
         if (perGlyph && glyphInfo != null) {
-            float italicShear = glyphInfo.getItalicShear();
-            if (italicShear != 0.0F) {
-                settings.setX(settings.getX() + italicShear * amplitude * 0.1F);
-            }
+            settings.setX(settings.getX() + amplitude * 0.1F);
         }
     }
 
