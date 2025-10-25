@@ -76,6 +76,9 @@ minecraft {
             // Please read: https://stackoverflow.com/questions/2031163/when-to-use-the-different-log-levels
             property 'forge.logging.console.level', 'debug'
 
+            // Ensure the mixin configuration is available before target classes load in dev runs.
+            args '-mixin.config=META-INF/mixins.emberstextapi.json'
+
             mods {
                 "${mod_id}" {
                     source sourceSets.main
