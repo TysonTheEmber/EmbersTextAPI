@@ -40,6 +40,10 @@ public final class MarkupAdapter {
     }
 
     public static boolean visitFormatted(String text, Style baseStyle, FormattedCharSink sink) {
+        if (!GlobalTextConfig.isMarkupEnabled()) {
+            return StringDecomposer.iterateFormatted(text, baseStyle, sink);
+        }
+
         List<TextSpan> spans = MarkupParser.parse(text);
         if (spans.isEmpty()) {
             return StringDecomposer.iterateFormatted(text, baseStyle, sink);
@@ -68,6 +72,10 @@ public final class MarkupAdapter {
     }
 
     public static <T> Optional<T> visitLiteral(String text, Style baseStyle, FormattedText.StyledContentConsumer<T> consumer) {
+        if (!GlobalTextConfig.isMarkupEnabled()) {
+            return consumer.accept(baseStyle, text);
+        }
+
         List<TextSpan> spans = MarkupParser.parse(text);
         if (spans.isEmpty()) {
             return consumer.accept(baseStyle, text);
@@ -95,6 +103,17 @@ public final class MarkupAdapter {
             }
         }
         return result;
+    }
+
+    public static FormattedText toFormattedText(String text) {
+        if (!hasMarkup(text)) {
+            return new LiteralFormattedText(text);
+        }
+        return new MarkupFormattedText(text);
+    }
+
+    public static FormattedText literalFormattedText(String text) {
+        return new LiteralFormattedText(text);
     }
 
     public static Style applyToStyle(Style baseStyle, SpanStylePayload payload) {
@@ -353,6 +372,36 @@ public final class MarkupAdapter {
                     && this.strikethrough == null && this.obfuscated == null && this.font == null && !this.hasEffects
                     && !this.hasTrack && this.typewriterIndex == null && this.neonIntensity == null
                     && this.wobbleAmplitude == null && this.wobbleSpeed == null && this.gradientFlow == null;
+        }
+    }
+
+    private record LiteralFormattedText(String literal) implements FormattedText {
+        @Override
+        public <T> Optional<T> visit(FormattedText.StyledContentConsumer<T> consumer, Style style) {
+            return consumer.accept(style, literal);
+        }
+
+        @Override
+        public <T> Optional<T> visit(FormattedText.ContentConsumer<T> consumer) {
+            return consumer.accept(literal);
+        }
+    }
+
+    private static final class MarkupFormattedText implements FormattedText {
+        private final String literal;
+
+        private MarkupFormattedText(String literal) {
+            this.literal = literal;
+        }
+
+        @Override
+        public <T> Optional<T> visit(FormattedText.StyledContentConsumer<T> consumer, Style style) {
+            return visitLiteral(literal, style, consumer);
+        }
+
+        @Override
+        public <T> Optional<T> visit(FormattedText.ContentConsumer<T> consumer) {
+            return consumer.accept(literal);
         }
     }
 }
