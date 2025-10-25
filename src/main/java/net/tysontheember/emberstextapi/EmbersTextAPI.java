@@ -28,6 +28,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
 import net.minecraftforge.network.PacketDistributor;
+import org.spongepowered.asm.mixin.Mixins;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.network.TooltipPacket;
 import net.tysontheember.emberstextapi.network.Network;
@@ -85,6 +86,8 @@ public class EmbersTextAPI
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event)
         {
+            Mixins.addConfiguration("META-INF/emberstextapi.mixins.json");
+            LOGGER.debug("Registered EmbersTextAPI mixin config");
         }
     }
 }
