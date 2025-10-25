@@ -1,7 +1,6 @@
 package net.tysontheember.emberstextapi.mixin.common;
 
 import java.util.List;
-import java.util.OptionalInt;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.Style;
@@ -105,67 +104,67 @@ public abstract class StyleMixin implements ETAStyle {
         this.eta$gradientFlow = flow;
     }
 
-    @Inject(method = "withColor", at = @At("RETURN"), cancellable = true)
-    private void emberstextapi$carryEtaColor(TextColor color, CallbackInfoReturnable<Style> cir) {
+    @Inject(method = "withColor(Lnet/minecraft/network/chat/TextColor;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
+    private void emberstextapi$carryEtaColorText(TextColor color, CallbackInfoReturnable<Style> cir) {
         cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
     }
 
-    @Inject(method = "withBold", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "withColor(Lnet/minecraft/ChatFormatting;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
+    private void emberstextapi$carryEtaColorFormatting(net.minecraft.ChatFormatting formatting, CallbackInfoReturnable<Style> cir) {
+        cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
+    }
+
+    @Inject(method = "withColor(I)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
+    private void emberstextapi$carryEtaColorInt(int colorValue, CallbackInfoReturnable<Style> cir) {
+        cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
+    }
+
+    @Inject(method = "withBold(Ljava/lang/Boolean;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
     private void emberstextapi$carryEtaBold(Boolean bold, CallbackInfoReturnable<Style> cir) {
         cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
     }
 
-    @Inject(method = "withItalic", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "withItalic(Ljava/lang/Boolean;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
     private void emberstextapi$carryEtaItalic(Boolean italic, CallbackInfoReturnable<Style> cir) {
         cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
     }
 
-    @Inject(method = "withUnderlined", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "withUnderlined(Ljava/lang/Boolean;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
     private void emberstextapi$carryEtaUnderlined(Boolean underlined, CallbackInfoReturnable<Style> cir) {
         cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
     }
 
-    @Inject(method = "withStrikethrough", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "withStrikethrough(Ljava/lang/Boolean;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
     private void emberstextapi$carryEtaStrikethrough(Boolean strikethrough, CallbackInfoReturnable<Style> cir) {
         cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
     }
 
-    @Inject(method = "withObfuscated", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "withObfuscated(Ljava/lang/Boolean;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
     private void emberstextapi$carryEtaObfuscated(Boolean obfuscated, CallbackInfoReturnable<Style> cir) {
         cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
     }
 
-    @Inject(method = "withClickEvent", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "withClickEvent(Lnet/minecraft/network/chat/ClickEvent;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
     private void emberstextapi$carryEtaClick(@Nullable ClickEvent event, CallbackInfoReturnable<Style> cir) {
         cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
     }
 
-    @Inject(method = "withHoverEvent", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "withHoverEvent(Lnet/minecraft/network/chat/HoverEvent;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
     private void emberstextapi$carryEtaHover(@Nullable HoverEvent event, CallbackInfoReturnable<Style> cir) {
         cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
     }
 
-    @Inject(method = "withInsertion", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "withInsertion(Ljava/lang/String;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
     private void emberstextapi$carryEtaInsertion(@Nullable String insertion, CallbackInfoReturnable<Style> cir) {
         cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
     }
 
-    @Inject(method = "withFont", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "withFont(Lnet/minecraft/resources/ResourceLocation;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
     private void emberstextapi$carryEtaFont(ResourceLocation font, CallbackInfoReturnable<Style> cir) {
         cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
     }
 
-    @Inject(method = "withShadowColor", at = @At("RETURN"), cancellable = true)
-    private void emberstextapi$carryEtaShadow(OptionalInt shadow, CallbackInfoReturnable<Style> cir) {
-        cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
-    }
-
-    @Inject(method = "withBackgroundColor", at = @At("RETURN"), cancellable = true)
-    private void emberstextapi$carryEtaBackground(@Nullable TextColor background, CallbackInfoReturnable<Style> cir) {
-        cir.setReturnValue(ETAStyleOps.copyEtaPayload((Style) (Object) this, cir.getReturnValue()));
-    }
-
-    @Inject(method = "applyTo", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "applyTo(Lnet/minecraft/network/chat/Style;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"), cancellable = true)
     private void emberstextapi$mergeEta(Style other, CallbackInfoReturnable<Style> cir) {
         Style result = cir.getReturnValue();
         if (result != null) {
