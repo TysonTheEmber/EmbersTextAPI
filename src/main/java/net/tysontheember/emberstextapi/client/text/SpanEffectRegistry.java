@@ -22,6 +22,14 @@ public final class SpanEffectRegistry {
         return Optional.ofNullable(node);
     }
 
+    public static Optional<SpanNode> findTypewriter(SpanGraph graph, int logicalIndex) {
+        if (graph == null || graph.isEmpty()) {
+            return Optional.empty();
+        }
+        SpanNode node = findTypewriter(graph.getRoots(), logicalIndex);
+        return Optional.ofNullable(node);
+    }
+
     private static SpanNode findGradient(List<SpanNode> nodes, int logicalIndex) {
         for (SpanNode node : nodes) {
             SpanNode result = findGradient(node, logicalIndex);
@@ -43,5 +51,28 @@ public final class SpanEffectRegistry {
             }
         }
         return "grad".equals(node.getName()) ? node : null;
+    }
+
+    private static SpanNode findTypewriter(List<SpanNode> nodes, int logicalIndex) {
+        for (SpanNode node : nodes) {
+            SpanNode result = findTypewriter(node, logicalIndex);
+            if (result != null) {
+                return result;
+            }
+        }
+        return null;
+    }
+
+    private static SpanNode findTypewriter(SpanNode node, int logicalIndex) {
+        if (logicalIndex < node.getStart() || logicalIndex >= node.getEnd()) {
+            return null;
+        }
+        for (SpanNode child : node.getChildren()) {
+            SpanNode match = findTypewriter(child, logicalIndex);
+            if (match != null) {
+                return match;
+            }
+        }
+        return "typewriter".equals(node.getName()) ? node : null;
     }
 }

@@ -107,7 +107,8 @@ public final class MarkupAdapter {
             return new ParseResult(sanitizedText, null, null);
         }
 
-        SpanGraph graph = new SpanGraph(new ArrayList<>(roots), sanitizedText, codePointIndex, null);
+        List<SpanNode> finalizedRoots = finalizeTypewriterNodes(new ArrayList<>(roots), sanitizedText);
+        SpanGraph graph = new SpanGraph(finalizedRoots, sanitizedText, codePointIndex, null);
         String signature = computeSignature(sanitizedText, graph);
         graph = new SpanGraph(graph.getRoots(), sanitizedText, graph.getSanitizedLength(), signature);
         return new ParseResult(sanitizedText, graph, signature);
@@ -201,6 +202,90 @@ public final class MarkupAdapter {
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("Missing SHA-1 implementation", ex);
         }
+    }
+
+    private static List<SpanNode> finalizeTypewriterNodes(List<SpanNode> nodes, String sanitizedText) {
+        boolean changed = false;
+        List<SpanNode> result = new ArrayList<>(nodes.size());
+        for (SpanNode node : nodes) {
+            List<SpanNode> children = node.getChildren();
+            List<SpanNode> updatedChildren = children.isEmpty() ? children : finalizeTypewriterNodes(children, sanitizedText);
+            SpanNode current = updatedChildren == children ? node : node.withChildren(updatedChildren);
+            if (isTypewriterNode(current)) {
+                int[] boundaries = computeWordBoundariesIfNeeded(current, sanitizedText);
+                SpanNode updated = current.withWordBoundaries(boundaries);
+                if (updated != current) {
+                    current = updated;
+                    changed = true;
+                }
+            }
+            if (current != node) {
+                changed = true;
+            }
+            result.add(current);
+        }
+        return changed ? result : nodes;
+    }
+
+    private static boolean isTypewriterNode(SpanNode node) {
+        return "typewriter".equals(node.getName());
+    }
+
+    private static int[] computeWordBoundariesIfNeeded(SpanNode node, String sanitizedText) {
+        String mode = node.getParameter("mode");
+        if (mode == null || !mode.equalsIgnoreCase("word")) {
+            return new int[0];
+        }
+        int start = node.getStart();
+        int end = node.getEnd();
+        if (end <= start) {
+            return new int[] { end };
+        }
+        int startChar = toCharIndex(sanitizedText, start);
+        int endChar = toCharIndex(sanitizedText, end);
+        if (startChar < 0 || endChar < startChar || endChar > sanitizedText.length()) {
+            return new int[] { end };
+        }
+        int cpIndex = start;
+        int charIndex = startChar;
+        boolean inWord = false;
+        int boundary = start;
+        List<Integer> boundaries = new ArrayList<>();
+        while (cpIndex < end && charIndex < endChar) {
+            int codePoint = sanitizedText.codePointAt(charIndex);
+            boolean whitespace = Character.isWhitespace(codePoint);
+            if (!whitespace) {
+                inWord = true;
+                boundary = cpIndex + 1;
+            } else if (inWord) {
+                boundary = cpIndex + 1;
+                boundaries.add(boundary);
+                inWord = false;
+            }
+            cpIndex++;
+            charIndex += Character.charCount(codePoint);
+        }
+        if (inWord) {
+            boundaries.add(boundary);
+        }
+        if (boundaries.isEmpty() || boundaries.get(boundaries.size() - 1) < end) {
+            boundaries.add(end);
+        }
+        int[] result = new int[boundaries.size()];
+        for (int i = 0; i < boundaries.size(); i++) {
+            result[i] = boundaries.get(i);
+        }
+        return result;
+    }
+
+    private static int toCharIndex(String text, int codePointIndex) {
+        if (codePointIndex <= 0) {
+            return 0;
+        }
+        if (codePointIndex >= text.codePointCount(0, text.length())) {
+            return text.length();
+        }
+        return text.offsetByCodePoints(0, codePointIndex);
     }
 
     private static void appendNodes(StringBuilder builder, List<SpanNode> nodes) {
