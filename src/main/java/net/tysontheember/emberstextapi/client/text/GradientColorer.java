@@ -34,10 +34,9 @@ public final class GradientColorer {
     }
 
     public static float tFor(SpanNode node, int logicalIndex) {
-        int span = Math.max(1, node.getEnd() - node.getStart());
-        int denom = Math.max(1, span - 1);
+        int length = Math.max(1, node.getEnd() - node.getStart() - 1);
         float numerator = logicalIndex - node.getStart();
-        return clamp(numerator / denom);
+        return clamp(numerator / (float) length);
     }
 
     public static int sample(SpanNode node, int fromRgb, int toRgb, boolean hsv, int logicalIndex, float tHint) {
