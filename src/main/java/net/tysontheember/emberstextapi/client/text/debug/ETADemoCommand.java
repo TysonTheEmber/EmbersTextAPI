@@ -23,8 +23,12 @@ import net.tysontheember.emberstextapi.client.text.GlobalTextConfig;
 public final class ETADemoCommand {
     private static final String GRADIENT_SAMPLE = "<grad from=#ff6a00 to=#ffd500><bold>EMBERCRAFT</bold></grad> <grad from=#ffd500 to=#ff6a00>global styling demo</grad>";
     private static final String WRAP_SAMPLE = "<grad from=#51cf66 to=#20c997>This tooltip-length sentence intentionally runs quite long to verify wrapping, gradients, and other per-span styling survive vanilla layout.</grad>";
+    private static final String SHAKE_SAMPLE = "<grad from=#00d8ff to=#845ef7><shake type=wave amplitude=0.7 speed=8>Shake effect showcase — flowing motion with gradient tint.</shake></grad>";
+    private static final String CHAR_SHAKE_SAMPLE = "<charshake type=circle amplitude=1.1 speed=10><grad from=#ff922b to=#f03e3e>Character shake per glyph keeps each letter dancing.</grad></charshake>";
+    private static final String OBFUSCATE_SAMPLE = "<obfuscate mode=random speed=2.5><grad from=#c0eb75 to=#82c91e>Obfuscated shimmer mixed with gradients.</grad></obfuscate>";
     private static final String TYPEWRITER_CHAR_SAMPLE = "<typewriter mode=char speed=1.0><grad from=#4dabf7 to=#9775fa>Typewriter (char) reveal — watch me appear one glyph at a time.</grad></typewriter>";
     private static final String TYPEWRITER_WORD_SAMPLE = "<typewriter mode=word speed=0.7><grad from=#ff8787 to=#f06595>Typewriter (word) reveal — this currently shares BY_CHAR timing but checks track plumbing.</grad></typewriter>";
+    private static final String TYPEWRITER_SHAKE_SAMPLE = "<typewriter mode=char speed=0.8><shake type=random amplitude=0.5 speed=12><grad from=#ff6b6b to=#fcc419>Typewriter + shake combo demonstrates layered effects.</grad></shake></typewriter>";
 
     private ETADemoCommand() {
     }
@@ -60,8 +64,24 @@ public final class ETADemoCommand {
                 Component.literal(WRAP_SAMPLE));
         send(player, wrapLine);
 
+        Component shakeLine = Component.translatable(
+                "commands.emberstextapi.eta_demo.shake",
+                Component.literal(SHAKE_SAMPLE));
+        send(player, shakeLine);
+
+        Component charShakeLine = Component.translatable(
+                "commands.emberstextapi.eta_demo.charshake",
+                Component.literal(CHAR_SHAKE_SAMPLE));
+        send(player, charShakeLine);
+
+        Component obfuscateLine = Component.translatable(
+                "commands.emberstextapi.eta_demo.obfuscate",
+                Component.literal(OBFUSCATE_SAMPLE));
+        send(player, obfuscateLine);
+
         send(player, Component.literal(TYPEWRITER_CHAR_SAMPLE));
         send(player, Component.literal(TYPEWRITER_WORD_SAMPLE));
+        send(player, Component.literal(TYPEWRITER_SHAKE_SAMPLE));
 
         boolean animationsEnabled = GlobalTextConfig.getOptions().animationEnabled();
         MutableComponent animationState = Component.translatable(

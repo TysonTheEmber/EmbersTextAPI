@@ -12,6 +12,9 @@
   "commands.emberstextapi.eta_demo.header": "Running Embers Text API showcase…",
   "commands.emberstextapi.eta_demo.translatable": "Translatable sample: %1$s meets %2$s.",
   "commands.emberstextapi.eta_demo.wrap": "Tooltip-style wrap: %s",
+  "commands.emberstextapi.eta_demo.shake": "Shake span: %s",
+  "commands.emberstextapi.eta_demo.charshake": "Character shake span: %s",
+  "commands.emberstextapi.eta_demo.obfuscate": "Obfuscate span: %s",
   "commands.emberstextapi.eta_demo.animation.on": "Animations are currently enabled. Disable them in Chat Settings to compare.",
   "commands.emberstextapi.eta_demo.animation.off": "Animations are currently disabled. Enable them in Chat Settings to compare.",
   "commands.emberstextapi.eta_demo.overlay": "Overlay demo: %s"
