@@ -59,8 +59,8 @@ public final class TypewriterController {
         long now = Math.max(0L, timeNanosOrTicks);
         long start = resolveStartTime(track, duck, now);
         long elapsed = Math.max(0L, now - start);
-        double seconds = elapsed / 1_000_000_000.0;
-        long revealed = (long) Math.floor(seconds * effectiveSpeed);
+        double ticks = elapsed / 50_000_000.0; // 1 tick = 50ms
+        long revealed = (long) Math.floor(ticks * effectiveSpeed);
         if (mode == Mode.BY_WORD) {
             // Placeholder: treat BY_WORD the same as BY_CHAR until word logic lands.
         }

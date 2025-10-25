@@ -57,6 +57,7 @@ public final class MarkupAdapter {
             }
         }
 
+        int glyphCursor = 0;
         for (int i = 0; i < spans.size(); i++) {
             TextSpan span = spans.get(i);
             String chunk = span.getContent();
@@ -65,9 +66,18 @@ public final class MarkupAdapter {
             }
             SpanStylePayload payload = payloadFromSpan(span, i, text);
             Style style = payload.isEmpty() ? baseStyle : applyToStyle(baseStyle, payload);
+            if (style == baseStyle && hasActiveTrack(style)) {
+                style = ETAStyleOps.copyOf(baseStyle);
+            }
+            if (style instanceof ETAStyle etaStyle) {
+                if (etaStyle.eta$getTrack() != null && etaStyle.eta$getTrack().isActive()) {
+                    etaStyle.eta$setTypewriterIndex(glyphCursor);
+                }
+            }
             if (!StringDecomposer.iterateFormatted(chunk, style, sink)) {
                 return false;
             }
+            glyphCursor += chunk.codePointCount(0, chunk.length());
         }
         return true;
     }
@@ -91,6 +101,7 @@ public final class MarkupAdapter {
         }
 
         Optional<T> result = Optional.empty();
+        int glyphCursor = 0;
         for (int i = 0; i < spans.size(); i++) {
             TextSpan span = spans.get(i);
             String chunk = span.getContent();
@@ -99,12 +110,29 @@ public final class MarkupAdapter {
             }
             SpanStylePayload payload = payloadFromSpan(span, i, text);
             Style style = payload.isEmpty() ? baseStyle : applyToStyle(baseStyle, payload);
+            if (style == baseStyle && hasActiveTrack(style)) {
+                style = ETAStyleOps.copyOf(baseStyle);
+            }
+            if (style instanceof ETAStyle etaStyle) {
+                if (etaStyle.eta$getTrack() != null && etaStyle.eta$getTrack().isActive()) {
+                    etaStyle.eta$setTypewriterIndex(glyphCursor);
+                }
+            }
             result = consumer.accept(style, chunk);
             if (result.isPresent()) {
                 return result;
             }
+            glyphCursor += chunk.codePointCount(0, chunk.length());
         }
         return result;
+    }
+
+    private static boolean hasActiveTrack(Style style) {
+        if (!(style instanceof ETAStyle etaStyle)) {
+            return false;
+        }
+        TypewriterTrack track = etaStyle.eta$getTrack();
+        return track != null && track.isActive();
     }
 
     public static FormattedText toFormattedText(String text) {
@@ -208,10 +236,8 @@ public final class MarkupAdapter {
 
     private static String buildTrackId(String sourceKey, int spanIndex, TextSpan span) {
         int sourceHash = sourceKey != null ? sourceKey.hashCode() : 0;
-        int identityHash = sourceKey != null ? System.identityHashCode(sourceKey) : 0;
         int contentHash = span.getContent() != null ? span.getContent().hashCode() : 0;
-        return "eta/track/" + Integer.toUnsignedString(sourceHash) + '/'
-                + Integer.toUnsignedString(identityHash) + '/' + spanIndex + '/'
+        return "eta/track/" + Integer.toUnsignedString(sourceHash) + '/' + spanIndex + '/'
                 + Integer.toUnsignedString(contentHash);
     }
 
@@ -221,6 +247,7 @@ public final class MarkupAdapter {
         if (gradient != null && gradient.length > 1) {
             Map<String, String> params = new LinkedHashMap<>();
             params.put("colors", joinColors(gradient));
+            params.put("span", Integer.toString(codePointLength(span.getContent())));
             effects.add(new SpanEffect("emberstextapi:gradient", params));
         }
 
@@ -261,6 +288,10 @@ public final class MarkupAdapter {
         }
 
         return effects;
+    }
+
+    private static int codePointLength(String text) {
+        return text == null ? 0 : text.codePointCount(0, text.length());
     }
 
     private static String joinColors(TextColor[] colors) {
