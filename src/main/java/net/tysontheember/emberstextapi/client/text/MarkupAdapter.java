@@ -27,17 +27,18 @@ public final class MarkupAdapter {
         Deque<MutableSpan> stack = new ArrayDeque<>();
         boolean sawTag = false;
         int index = 0;
+        int codePointIndex = 0;
         while (index < raw.length()) {
             char c = raw.charAt(index);
             if (c == '<') {
                 int close = raw.indexOf('>', index + 1);
                 if (close == -1) {
-                    sanitized.append(raw.substring(index));
+                    codePointIndex += appendLiteral(raw, index, raw.length(), sanitized);
                     break;
                 }
                 String body = raw.substring(index + 1, close).trim();
                 if (body.isEmpty()) {
-                    sanitized.append(raw, index, close + 1);
+                    codePointIndex += appendLiteral(raw, index, close + 1, sanitized);
                     index = close + 1;
                     continue;
                 }
@@ -49,7 +50,7 @@ public final class MarkupAdapter {
                         MutableSpan current = stack.peek();
                         if (current != null && current.name.equals(name)) {
                             stack.pop();
-                            current.finish(sanitized.length());
+                            current.finish(codePointIndex);
                             SpanNode node = current.toImmutable();
                             if (stack.isEmpty()) {
                                 roots.add(node);
@@ -68,7 +69,7 @@ public final class MarkupAdapter {
                         if (!name.isEmpty()) {
                             sawTag = true;
                             if (selfClosing) {
-                                MutableSpan span = new MutableSpan(name, sanitized.length(), params);
+                                MutableSpan span = new MutableSpan(name, codePointIndex, params);
                                 SpanNode node = span.finishImmediate();
                                 if (stack.isEmpty()) {
                                     roots.add(node);
@@ -76,7 +77,7 @@ public final class MarkupAdapter {
                                     stack.peek().children.add(node);
                                 }
                             } else {
-                                stack.push(new MutableSpan(name, sanitized.length(), params));
+                                stack.push(new MutableSpan(name, codePointIndex, params));
                             }
                         }
                     }
@@ -84,13 +85,15 @@ public final class MarkupAdapter {
                 index = close + 1;
                 continue;
             }
-            sanitized.append(c);
-            index++;
+            int codePoint = raw.codePointAt(index);
+            sanitized.appendCodePoint(codePoint);
+            codePointIndex++;
+            index += Character.charCount(codePoint);
         }
 
         while (!stack.isEmpty()) {
             MutableSpan span = stack.pop();
-            span.finish(sanitized.length());
+            span.finish(codePointIndex);
             SpanNode node = span.toImmutable();
             if (stack.isEmpty()) {
                 roots.add(node);
@@ -104,7 +107,7 @@ public final class MarkupAdapter {
             return new ParseResult(sanitizedText, null, null);
         }
 
-        SpanGraph graph = new SpanGraph(new ArrayList<>(roots), sanitizedText.length(), null);
+        SpanGraph graph = new SpanGraph(new ArrayList<>(roots), codePointIndex, null);
         String signature = computeSignature(sanitizedText, graph);
         graph = new SpanGraph(graph.getRoots(), graph.getSanitizedLength(), signature);
         return new ParseResult(sanitizedText, graph, signature);
@@ -238,14 +241,26 @@ public final class MarkupAdapter {
             this.end = endIndex;
         }
 
+        private SpanNode toImmutable() {
+            return new SpanNode(this.name, this.start, this.end, this.params, new ArrayList<>(this.children));
+        }
+
         private SpanNode finishImmediate() {
             this.end = this.start;
             return toImmutable();
         }
+    }
 
-        private SpanNode toImmutable() {
-            return new SpanNode(this.name, this.start, this.end, this.params, new ArrayList<>(this.children));
+    private static int appendLiteral(String text, int start, int end, StringBuilder output) {
+        int count = 0;
+        int index = start;
+        while (index < end) {
+            int codePoint = text.codePointAt(index);
+            output.appendCodePoint(codePoint);
+            count++;
+            index += Character.charCount(codePoint);
         }
+        return count;
     }
 
     public static final class ParseResult {

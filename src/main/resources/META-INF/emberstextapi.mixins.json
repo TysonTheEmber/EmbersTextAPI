@@ -5,6 +5,7 @@
   "refmap": "emberstextapi.refmap.json",
   "client": [
     "client.FontNoopSmokeMixin",
+    "client.FontStringRenderOutputMixin",
     "client.StyleMixin",
     "client.StyleCarryMixin",
     "client.StyleSerializerMixin",
