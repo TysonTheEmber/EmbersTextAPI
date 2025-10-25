@@ -51,18 +51,19 @@ public final class MarkupAdapter {
 
         if (spans.size() == 1) {
             TextSpan span = spans.get(0);
-            SpanStylePayload payload = payloadFromSpan(span);
+            SpanStylePayload payload = payloadFromSpan(span, 0, text);
             if (span.getContent().equals(text) && payload.isEmpty()) {
                 return StringDecomposer.iterateFormatted(text, baseStyle, sink);
             }
         }
 
-        for (TextSpan span : spans) {
+        for (int i = 0; i < spans.size(); i++) {
+            TextSpan span = spans.get(i);
             String chunk = span.getContent();
             if (chunk.isEmpty()) {
                 continue;
             }
-            SpanStylePayload payload = payloadFromSpan(span);
+            SpanStylePayload payload = payloadFromSpan(span, i, text);
             Style style = payload.isEmpty() ? baseStyle : applyToStyle(baseStyle, payload);
             if (!StringDecomposer.iterateFormatted(chunk, style, sink)) {
                 return false;
@@ -83,19 +84,20 @@ public final class MarkupAdapter {
 
         if (spans.size() == 1) {
             TextSpan span = spans.get(0);
-            SpanStylePayload payload = payloadFromSpan(span);
+            SpanStylePayload payload = payloadFromSpan(span, 0, text);
             if (span.getContent().equals(text) && payload.isEmpty()) {
                 return consumer.accept(baseStyle, text);
             }
         }
 
         Optional<T> result = Optional.empty();
-        for (TextSpan span : spans) {
+        for (int i = 0; i < spans.size(); i++) {
+            TextSpan span = spans.get(i);
             String chunk = span.getContent();
             if (chunk.isEmpty()) {
                 continue;
             }
-            SpanStylePayload payload = payloadFromSpan(span);
+            SpanStylePayload payload = payloadFromSpan(span, i, text);
             Style style = payload.isEmpty() ? baseStyle : applyToStyle(baseStyle, payload);
             result = consumer.accept(style, chunk);
             if (result.isPresent()) {
@@ -169,7 +171,7 @@ public final class MarkupAdapter {
         return style;
     }
 
-    public static SpanStylePayload payloadFromSpan(TextSpan span) {
+    public static SpanStylePayload payloadFromSpan(TextSpan span, int spanIndex, String sourceKey) {
         TextColor color = span.getColor();
         Boolean bold = span.getBold();
         Boolean italic = span.getItalic();
@@ -188,7 +190,8 @@ public final class MarkupAdapter {
             typewriterSpeed = span.getGlobalTypewriterSpeed();
         }
         if (typewriterSpeed != null) {
-            track = new TypewriterTrack(TypewriterTrack.Mode.CHAR, typewriterSpeed, null);
+            String trackId = buildTrackId(sourceKey, spanIndex, span);
+            track = new TypewriterTrack(TypewriterTrack.Mode.CHAR, typewriterSpeed, trackId);
             hasTrack = true;
         }
 
@@ -201,6 +204,15 @@ public final class MarkupAdapter {
         return new SpanStylePayload(color, bold, italic, underline, strikethrough, obfuscated, font,
                 hasEffects ? List.copyOf(effects) : List.of(), hasEffects, track, hasTrack, typewriterIndex, neonIntensity,
                 wobbleAmplitude, wobbleSpeed, gradientFlow);
+    }
+
+    private static String buildTrackId(String sourceKey, int spanIndex, TextSpan span) {
+        int sourceHash = sourceKey != null ? sourceKey.hashCode() : 0;
+        int identityHash = sourceKey != null ? System.identityHashCode(sourceKey) : 0;
+        int contentHash = span.getContent() != null ? span.getContent().hashCode() : 0;
+        return "eta/track/" + Integer.toUnsignedString(sourceHash) + '/'
+                + Integer.toUnsignedString(identityHash) + '/' + spanIndex + '/'
+                + Integer.toUnsignedString(contentHash);
     }
 
     private static List<SpanEffect> collectEffects(TextSpan span) {
