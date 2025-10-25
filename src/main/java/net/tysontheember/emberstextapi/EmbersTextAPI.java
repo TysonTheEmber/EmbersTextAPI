@@ -31,11 +31,6 @@ import net.minecraftforge.network.PacketDistributor;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.network.TooltipPacket;
 import net.tysontheember.emberstextapi.network.Network;
-import org.spongepowered.asm.launch.MixinBootstrap;
-import org.spongepowered.asm.mixin.Mixins;
-
-import java.util.concurrent.atomic.AtomicBoolean;
-
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(EmbersTextAPI.MODID)
 public class EmbersTextAPI
@@ -44,12 +39,9 @@ public class EmbersTextAPI
     public static final String MODID = "emberstextapi";
     // Directly reference a slf4j logger
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final AtomicBoolean MIXINS_REGISTERED = new AtomicBoolean(false);
-    private static final String MIXIN_CONFIG = "emberstextapi.mixins.json";
 
     public EmbersTextAPI(FMLJavaModLoadingContext context)
     {
-        ensureMixinsRegistered();
         IEventBus modEventBus = context.getModEventBus();
 
         // Register the commonSetup method for modloading
@@ -96,36 +88,4 @@ public class EmbersTextAPI
         }
     }
 
-    private static void ensureMixinsRegistered()
-    {
-        if (MIXINS_REGISTERED.get())
-        {
-            return;
-        }
-
-        if (MIXINS_REGISTERED.compareAndSet(false, true))
-        {
-            try
-            {
-                MixinBootstrap.init();
-            }
-            catch (Throwable throwable)
-            {
-                LOGGER.trace("Mixin bootstrap already initialized or unavailable", throwable);
-            }
-
-            try
-            {
-                Mixins.addConfiguration(MIXIN_CONFIG);
-            }
-            catch (IllegalArgumentException ignored)
-            {
-                // Configuration already added, ignore.
-            }
-            catch (Throwable throwable)
-            {
-                LOGGER.warn("Failed to register mixin configuration {}", MIXIN_CONFIG, throwable);
-            }
-        }
-    }
 }
