@@ -4,6 +4,9 @@
   "package": "net.tysontheember.emberstextapi.mixin",
   "refmap": "emberstextapi.refmap.json",
   "client": [
-    "client.FontNoopSmokeMixin"
+    "client.FontNoopSmokeMixin",
+    "client.StyleMixin",
+    "client.StyleCarryMixin",
+    "client.StyleSerializerMixin"
   ]
 }

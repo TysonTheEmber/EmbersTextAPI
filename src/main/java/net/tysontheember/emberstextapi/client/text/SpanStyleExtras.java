@@ -1,25 +1,28 @@
 package net.tysontheember.emberstextapi.client.text;
 
+import java.util.List;
+
 /**
- * Marker interface that will be implemented by styles carrying additional data.
+ * Bridge interface implemented by styles that carry EmbersTextAPI span extras.
  */
 public interface SpanStyleExtras {
-    /**
-     * Returns the associated span graph if present.
-     *
-     * @return span graph stub or {@code null}
-     */
-    default SpanGraph eta$getSpanGraph() {
-        return null;
-    }
+    SpanGraph eta$getSpanGraph();
 
-    /**
-     * Factory producing a stub extras implementation.
-     *
-     * @return stub extras instance
-     */
-    static SpanStyleExtras empty() {
-        return new SpanStyleExtras() {
-        };
-    }
+    void eta$setSpanGraph(SpanGraph graph);
+
+    List<SpanEffect> eta$getActiveEffects();
+
+    void eta$setActiveEffects(List<SpanEffect> effects);
+
+    TypewriterTrack eta$getTypewriterTrack();
+
+    void eta$setTypewriterTrack(TypewriterTrack track);
+
+    int eta$getTypewriterIndex();
+
+    void eta$setTypewriterIndex(int index);
+
+    String eta$getSpanSignature();
+
+    void eta$setSpanSignature(String signature);
 }
