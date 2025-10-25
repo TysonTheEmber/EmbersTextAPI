@@ -163,7 +163,7 @@ dependencies {
 
 mixin {
     add sourceSets.main, "emberstextapi.refmap.json"
-    config "emberstextapi.mixins.json"
+    config "META-INF/mixins.emberstextapi.json"
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.
