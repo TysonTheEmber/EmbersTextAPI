@@ -47,7 +47,7 @@ public final class MarkupAdapter {
 
         if (spans.size() == 1) {
             TextSpan span = spans.get(0);
-            SpanStylePayload payload = fromSpan(span);
+            SpanStylePayload payload = payloadFromSpan(span);
             if (span.getContent().equals(text) && payload.isEmpty()) {
                 return StringDecomposer.iterateFormatted(text, baseStyle, sink);
             }
@@ -58,7 +58,7 @@ public final class MarkupAdapter {
             if (chunk.isEmpty()) {
                 continue;
             }
-            SpanStylePayload payload = fromSpan(span);
+            SpanStylePayload payload = payloadFromSpan(span);
             Style style = payload.isEmpty() ? baseStyle : applyToStyle(baseStyle, payload);
             if (!StringDecomposer.iterateFormatted(chunk, style, sink)) {
                 return false;
@@ -75,7 +75,7 @@ public final class MarkupAdapter {
 
         if (spans.size() == 1) {
             TextSpan span = spans.get(0);
-            SpanStylePayload payload = fromSpan(span);
+            SpanStylePayload payload = payloadFromSpan(span);
             if (span.getContent().equals(text) && payload.isEmpty()) {
                 return consumer.accept(baseStyle, text);
             }
@@ -87,7 +87,7 @@ public final class MarkupAdapter {
             if (chunk.isEmpty()) {
                 continue;
             }
-            SpanStylePayload payload = fromSpan(span);
+            SpanStylePayload payload = payloadFromSpan(span);
             Style style = payload.isEmpty() ? baseStyle : applyToStyle(baseStyle, payload);
             result = consumer.accept(style, chunk);
             if (result.isPresent()) {
@@ -150,7 +150,7 @@ public final class MarkupAdapter {
         return style;
     }
 
-    private static SpanStylePayload fromSpan(TextSpan span) {
+    public static SpanStylePayload payloadFromSpan(TextSpan span) {
         TextColor color = span.getColor();
         Boolean bold = span.getBold();
         Boolean italic = span.getItalic();

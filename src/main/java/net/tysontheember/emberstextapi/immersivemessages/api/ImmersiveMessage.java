@@ -11,14 +11,20 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.tysontheember.emberstextapi.client.TextLayoutCache;
+import net.tysontheember.emberstextapi.client.text.ETAStyleOps;
+import net.tysontheember.emberstextapi.client.text.MarkupAdapter;
+import net.tysontheember.emberstextapi.client.text.MarkupAdapter.SpanStylePayload;
+import net.tysontheember.emberstextapi.client.text.TypewriterTrack;
 import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
+import net.tysontheember.emberstextapi.duck.ETAStyle;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,6 +40,8 @@ import java.util.Random;
  * Version 2.0.0: Added span-based text rendering with markup parser support.
  */
 public class ImmersiveMessage {
+    private static volatile boolean globalSpanBridgeEnabled = true;
+
     private final Component text;
     private final float duration;
     private float age;
@@ -80,6 +88,7 @@ public class ImmersiveMessage {
     private float typewriterSpeed = 0.5f; // characters per tick
     private boolean typewriterCenter = false;
     private int typewriterIndex = 0;
+    private transient String spanBridgeTrackId;
 
     // Current rendered text (may be typewritten or obfuscated)
     private MutableComponent current = Component.literal("");
@@ -223,6 +232,14 @@ public class ImmersiveMessage {
                 break; // Use first span with global attributes
             }
         }
+    }
+
+    public static void setGlobalSpanBridgeEnabled(boolean enabled) {
+        globalSpanBridgeEnabled = enabled;
+    }
+
+    public static boolean isGlobalSpanBridgeEnabled() {
+        return globalSpanBridgeEnabled;
     }
 
     /** Builder entry point. */
@@ -1186,6 +1203,85 @@ public class ImmersiveMessage {
      * Builds a styled Component from the current spans.
      */
     private Component buildComponentFromSpans() {
+        if (spans == null || spans.isEmpty()) {
+            return Component.literal("");
+        }
+        if (shouldUseGlobalSpanStyles()) {
+            Component bridged = buildComponentFromSpansEtaAware();
+            if (bridged != null) {
+                return bridged;
+            }
+        }
+        return buildComponentFromSpansLegacy();
+    }
+
+    private boolean shouldUseGlobalSpanStyles() {
+        return globalSpanBridgeEnabled && !hasItemSpans();
+    }
+
+    private Component buildComponentFromSpansEtaAware() {
+        MutableComponent result = Component.literal("");
+        Style baseStyle = text.getStyle();
+        int[] indices = spanTypewriterIndices;
+        int totalChars = 0;
+        boolean appended = false;
+        TypewriterTrack messageTrack = null;
+        if (typewriter) {
+            float speed = this.typewriterSpeed <= 0.0f ? 1.0f : this.typewriterSpeed;
+            messageTrack = new TypewriterTrack(TypewriterTrack.Mode.CHAR, speed, ensureSpanBridgeTrackId());
+        }
+
+        for (int i = 0; i < spans.size(); i++) {
+            TextSpan span = spans.get(i);
+            if (span.getItemId() != null || span.getEntityId() != null) {
+                return null;
+            }
+
+            String originalContent = span.getContent();
+            if (originalContent.isEmpty()) {
+                totalChars += originalContent.length();
+                continue;
+            }
+
+            String content = originalContent;
+            if (indices != null && i < indices.length) {
+                int limit = Math.max(0, Math.min(indices[i], originalContent.length()));
+                if (limit < content.length()) {
+                    content = content.substring(0, limit);
+                }
+            }
+
+            MutableComponent spanComponent = Component.literal(content);
+            SpanStylePayload payload = MarkupAdapter.payloadFromSpan(span);
+            Style spanStyle = payload.isEmpty() ? ETAStyleOps.copyOf(baseStyle)
+                    : MarkupAdapter.applyToStyle(baseStyle, payload);
+            ETAStyle duck = (ETAStyle) spanStyle;
+            TypewriterTrack track = duck.eta$getTrack();
+            if ((track == null || !track.isActive()) && messageTrack != null) {
+                duck.eta$setTrack(messageTrack);
+            }
+            track = duck.eta$getTrack();
+            if (track != null && track.isActive()) {
+                duck.eta$setTypewriterIndex(totalChars);
+            }
+
+            spanComponent = spanComponent.withStyle(spanStyle);
+            result.append(spanComponent);
+            appended = true;
+            totalChars += originalContent.length();
+        }
+
+        return appended ? result : Component.literal("");
+    }
+
+    private String ensureSpanBridgeTrackId() {
+        if (this.spanBridgeTrackId == null) {
+            this.spanBridgeTrackId = "immersive/" + Integer.toUnsignedString(System.identityHashCode(this));
+        }
+        return this.spanBridgeTrackId;
+    }
+
+    private Component buildComponentFromSpansLegacy() {
         if (spans == null || spans.isEmpty()) {
             return Component.literal("");
         }
