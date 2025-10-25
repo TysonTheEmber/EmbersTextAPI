@@ -29,7 +29,7 @@ import net.tysontheember.emberstextapi.client.text.SpanEffectRegistry;
 import net.tysontheember.emberstextapi.client.text.options.ETAOptions;
 import net.tysontheember.emberstextapi.duck.ETAStyle;
 
-@Mixin(value = Font.StringRenderOutput.class, priority = 1200)
+@Mixin(targets = "net.minecraft.client.gui.Font$StringRenderOutput", priority = 1200)
 public abstract class FontStringRenderOutputMixin {
     @Shadow
     @Final
