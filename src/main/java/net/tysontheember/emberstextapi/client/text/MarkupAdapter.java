@@ -184,6 +184,9 @@ public final class MarkupAdapter {
         TypewriterTrack track = null;
         boolean hasTrack = false;
         Float typewriterSpeed = span.getTypewriterSpeed();
+        if (typewriterSpeed == null) {
+            typewriterSpeed = span.getGlobalTypewriterSpeed();
+        }
         if (typewriterSpeed != null) {
             track = new TypewriterTrack(TypewriterTrack.Mode.CHAR, typewriterSpeed, null);
             hasTrack = true;

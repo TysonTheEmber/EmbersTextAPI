@@ -134,12 +134,14 @@ public class MarkupParser {
         if (source.getObfuscated() != null) target.obfuscated(source.getObfuscated());
         if (source.getFont() != null) target.font(source.getFont());
         if (source.getGradientColors() != null) target.gradient(source.getGradientColors());
-        // DON'T inherit typewriter - it should be a container effect, not per-span
-        // Typewriter will be handled at the message level via ImmersiveMessage.typewriter flag
-        // if (source.getTypewriterSpeed() != null) {
-        //     target.typewriter(source.getTypewriterSpeed(), 
-        //         source.getTypewriterCenter() != null ? source.getTypewriterCenter() : false);
-        // }
+        if (source.getTypewriterSpeed() != null) {
+            target.typewriter(source.getTypewriterSpeed(),
+                source.getTypewriterCenter() != null ? source.getTypewriterCenter() : false);
+        }
+        if (source.getGlobalTypewriterSpeed() != null) {
+            target.globalTypewriter(source.getGlobalTypewriterSpeed(),
+                source.getGlobalTypewriterCenter() != null ? source.getGlobalTypewriterCenter() : false);
+        }
         if (source.getShakeType() != null && source.getShakeAmplitude() != null) {
             if (source.getShakeSpeed() != null && source.getShakeWavelength() != null) {
                 target.shake(source.getShakeType(), source.getShakeAmplitude(), source.getShakeSpeed(), source.getShakeWavelength());
@@ -269,12 +271,14 @@ public class MarkupParser {
             }
             
             case "typewriter", "type" -> {
-                // Typewriter is a GLOBAL message attribute (container effect)
+                // Typewriter behaves as a container effect but we also stamp it onto
+                // the working span so inner text inherits the playback metadata.
                 String speedStr = attrs.getOrDefault("speed", "1.0");
                 String centerStr = attrs.get("center");
                 try {
                     float speed = Float.parseFloat(speedStr);
                     boolean center = "true".equalsIgnoreCase(centerStr);
+                    span.typewriter(speed, center);
                     span.globalTypewriter(speed, center);
                 } catch (NumberFormatException ignored) {}
             }
