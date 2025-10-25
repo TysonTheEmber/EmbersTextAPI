@@ -9,6 +9,7 @@
     "client.StyleCarryMixin",
     "client.StyleSerializerMixin",
     "client.LiteralContentsMixin",
-    "client.TranslatableContentsMixin"
+    "client.TranslatableContentsMixin",
+    "client.StringDecomposerMixin"
   ]
 }
