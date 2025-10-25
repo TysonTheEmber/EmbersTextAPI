@@ -67,7 +67,10 @@ public final class SpanEffectRegistry {
         }
     }
 
-    public static int applyTint(Style style, int index, int codePoint) {
+    public static int applyTint(Style style, int index, int codePoint, boolean allowAnimatedColor) {
+        if (!allowAnimatedColor) {
+            return -1;
+        }
         if (!(style instanceof ETAStyle etaStyle)) {
             return -1;
         }

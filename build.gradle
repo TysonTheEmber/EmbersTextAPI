@@ -86,6 +86,8 @@ minecraft {
         client {
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             property 'forge.enabledGameTestNamespaces', mod_id
+            property 'mixin.debug', 'true'
+            property 'mixin.debug.export', 'true'
             jvmArgs(
                     "-Dmixin.env.remapRefMap=true",
                     "-Dmixin.env.refMapRemappingFile=${projectDir}/build/createSrgToMcp/output.srg"
@@ -130,6 +132,7 @@ repositories {
     maven { url = "https://maven.moddingx.org" }
     maven { url = "https://api.modrinth.com/maven" }
     maven { url = 'https://repo.spongepowered.org/maven' }
+    maven { url = 'https://maven.terraformersmc.com/releases' }
 
 }
 
@@ -157,8 +160,10 @@ dependencies {
     implementation fg.deobf("curse.maven:ftb-library-forge-404465:6807424")
     implementation fg.deobf("curse.maven:ftb-teams-forge-404468:6130786")
     implementation fg.deobf("curse.maven:ftb-quests-forge-289412:6829212")
+    implementation "io.github.llamalad7:mixinextras-forge:0.5.0"
 
     annotationProcessor "org.spongepowered:mixin:0.8.5:processor"
+    annotationProcessor "io.github.llamalad7:mixinextras-forge:0.5.0"
 }
 
 mixin {

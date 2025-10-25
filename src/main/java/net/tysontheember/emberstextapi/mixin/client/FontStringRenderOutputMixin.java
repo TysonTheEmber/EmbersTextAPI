@@ -144,7 +144,8 @@ public abstract class FontStringRenderOutputMixin {
         settings.setPartialTicks(0.0F);
         settings.setColor(baseRed, baseGreen, baseBlue, baseAlpha);
 
-        int gradientColor = SpanEffectRegistry.applyTint(style, settings.getGlyphIndex(), settings.getCodePoint());
+        boolean allowTint = this.mode == Font.DisplayMode.NORMAL;
+        int gradientColor = SpanEffectRegistry.applyTint(style, settings.getGlyphIndex(), settings.getCodePoint(), allowTint);
         if (gradientColor != -1) {
             float tintedRed = ((gradientColor >> 16) & 0xFF) / 255.0F;
             float tintedGreen = ((gradientColor >> 8) & 0xFF) / 255.0F;

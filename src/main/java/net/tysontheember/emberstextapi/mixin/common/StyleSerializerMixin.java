@@ -46,9 +46,14 @@ public abstract class StyleSerializerMixin {
         }
 
         JsonElement element = cir.getReturnValue();
-        JsonObject object = element instanceof JsonObject jsonObject ? jsonObject : new JsonObject();
+        JsonObject object;
         if (element == null || element.isJsonNull()) {
             object = new JsonObject();
+            cir.setReturnValue(object);
+        } else if (element instanceof JsonObject jsonObject) {
+            object = jsonObject;
+        } else {
+            return;
         }
 
         ETAStyle duck = (ETAStyle) style;
@@ -58,16 +63,15 @@ public abstract class StyleSerializerMixin {
         }
 
         TypewriterTrack track = duck.eta$getTrack();
+        int typewriterIndex = duck.eta$getTypewriterIndex();
         if (track != null && track.isActive()) {
             JsonObject trackJson = serializeTrack(track);
-            if (duck.eta$getTypewriterIndex() != 0) {
-                trackJson.addProperty("index", duck.eta$getTypewriterIndex());
+            if (typewriterIndex != 0) {
+                trackJson.addProperty("index", typewriterIndex);
             }
             object.add(TYPEWRITER_KEY, trackJson);
-        }
-
-        if (duck.eta$getTypewriterIndex() != 0) {
-            object.addProperty(TYPEWRITER_INDEX_KEY, duck.eta$getTypewriterIndex());
+        } else if (typewriterIndex != 0) {
+            object.addProperty(TYPEWRITER_INDEX_KEY, typewriterIndex);
         }
         if (duck.eta$getNeonIntensity() != 0.0f) {
             object.addProperty(NEON_INTENSITY_KEY, duck.eta$getNeonIntensity());
@@ -92,10 +96,10 @@ public abstract class StyleSerializerMixin {
             cancellable = true)
     private void emberstextapi$deserializeEta(@Nullable JsonElement element, Type type,
             JsonDeserializationContext context, CallbackInfoReturnable<Style> cir) {
-        if (element == null || element.isJsonNull()) {
+        if (element == null || element.isJsonNull() || !element.isJsonObject()) {
             return;
         }
-        JsonObject object = GsonHelper.convertToJsonObject(element, "style");
+        JsonObject object = element.getAsJsonObject();
         if (!object.has(EFFECTS_KEY) && !object.has(TYPEWRITER_KEY) && !object.has(TYPEWRITER_INDEX_KEY)
                 && !object.has(NEON_INTENSITY_KEY) && !object.has(WOBBLE_AMPLITUDE_KEY)
                 && !object.has(WOBBLE_SPEED_KEY) && !object.has(GRADIENT_FLOW_KEY)) {
@@ -104,25 +108,33 @@ public abstract class StyleSerializerMixin {
 
         Style style = ETAStyleOps.ensureStandalone(cir.getReturnValue());
         ETAStyle duck = (ETAStyle) style;
+        duck.eta$setEffects(List.of());
+        duck.eta$setTrack(null);
+        duck.eta$setTypewriterIndex(0);
+        duck.eta$setNeonIntensity(0.0f);
+        duck.eta$setWobbleAmplitude(0.0f);
+        duck.eta$setWobbleSpeed(0.0f);
+        duck.eta$setGradientFlow(0.0f);
 
-        if (object.has(EFFECTS_KEY)) {
-            List<SpanEffect> effects = deserializeEffects(GsonHelper.getAsJsonArray(object, EFFECTS_KEY));
+        if (object.has(EFFECTS_KEY) && object.get(EFFECTS_KEY).isJsonArray()) {
+            List<SpanEffect> effects = deserializeEffects(object.getAsJsonArray(EFFECTS_KEY));
             duck.eta$setEffects(effects);
-        } else {
-            duck.eta$setEffects(List.of());
         }
 
         boolean indexHandled = false;
         if (object.has(TYPEWRITER_KEY)) {
-            JsonObject trackObject = GsonHelper.getAsJsonObject(object, TYPEWRITER_KEY);
-            TypewriterTrack track = deserializeTrack(trackObject);
-            duck.eta$setTrack(track);
-            if (trackObject.has("index")) {
-                duck.eta$setTypewriterIndex(GsonHelper.getAsInt(trackObject, "index", duck.eta$getTypewriterIndex()));
-                indexHandled = true;
+            JsonElement trackElement = object.get(TYPEWRITER_KEY);
+            if (trackElement.isJsonObject()) {
+                JsonObject trackObject = trackElement.getAsJsonObject();
+                TypewriterTrack track = deserializeTrack(trackObject);
+                if (track != null && track.isActive()) {
+                    duck.eta$setTrack(track);
+                }
+                if (trackObject.has("index")) {
+                    duck.eta$setTypewriterIndex(GsonHelper.getAsInt(trackObject, "index", duck.eta$getTypewriterIndex()));
+                    indexHandled = true;
+                }
             }
-        } else {
-            duck.eta$setTrack(null);
         }
 
         if (!indexHandled) {
