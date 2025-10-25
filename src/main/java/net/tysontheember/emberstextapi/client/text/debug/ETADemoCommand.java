@@ -83,7 +83,7 @@ public final class ETADemoCommand {
         send(player, Component.literal(TYPEWRITER_WORD_SAMPLE));
         send(player, Component.literal(TYPEWRITER_SHAKE_SAMPLE));
 
-        boolean animationsEnabled = GlobalTextConfig.getOptions().animationEnabled();
+        boolean animationsEnabled = GlobalTextConfig.isAnimationsEnabled();
         MutableComponent animationState = Component.translatable(
                 animationsEnabled
                         ? "commands.emberstextapi.eta_demo.animation.on"

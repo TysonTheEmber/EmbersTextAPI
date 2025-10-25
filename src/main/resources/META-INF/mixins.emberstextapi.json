@@ -13,9 +13,7 @@
     "client.LiteralContentsMixin",
     "client.TranslatableContentsMixin",
     "client.FontAccessor",
-    "client.FontStringRenderOutputMixin",
-    "client.OptionsMixin",
-    "client.SimpleOptionsSubScreenMixin"
+    "client.FontStringRenderOutputMixin"
   ],
   "server": []
 }

@@ -22,11 +22,9 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.tysontheember.emberstextapi.client.text.EffectContext;
 import net.tysontheember.emberstextapi.client.text.EffectSettings;
-import net.tysontheember.emberstextapi.client.text.GlobalTextConfig;
 import net.tysontheember.emberstextapi.client.text.RenderFastPath;
 import net.tysontheember.emberstextapi.client.text.SpanEffect;
 import net.tysontheember.emberstextapi.client.text.SpanEffectRegistry;
-import net.tysontheember.emberstextapi.client.text.options.ETAOptions;
 import net.tysontheember.emberstextapi.duck.ETAStyle;
 
 @Mixin(targets = "net.minecraft.client.gui.Font$StringRenderOutput", priority = 1200)
@@ -159,8 +157,7 @@ public abstract class FontStringRenderOutputMixin {
             settings.setColor(tintedRed, tintedGreen, tintedBlue, tintedAlpha != 0.0F ? tintedAlpha : baseAlpha);
         }
 
-        ETAOptions.Snapshot options = GlobalTextConfig.getOptions();
-        SpanEffectRegistry.applyEffects(EffectContext.obtain(), settings, effects, etaStyle, glyphInfo, options);
+        SpanEffectRegistry.applyEffects(EffectContext.obtain(), settings, effects, etaStyle, glyphInfo);
 
         int effectiveCodePoint = settings.getCodePoint();
         if (effectiveCodePoint != codePoint) {

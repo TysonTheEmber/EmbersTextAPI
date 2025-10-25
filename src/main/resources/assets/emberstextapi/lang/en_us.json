@@ -1,21 +1,11 @@
 {
-  "options.emberstextapi.animation": "Embers Animations",
-  "options.emberstextapi.animation.tooltip": "Toggle global Embers Text API styling effects in vanilla UI text.",
-  "options.emberstextapi.typewriterMode": "Typewriter Mode",
-  "options.emberstextapi.typewriterMode.tooltip": "Choose how tagged text reveals itself when typewriter effects are active.",
-  "options.emberstextapi.typewriterMode.off": "Off",
-  "options.emberstextapi.typewriterMode.char": "By Character",
-  "options.emberstextapi.typewriterMode.word": "By Word",
-  "options.emberstextapi.typewriterSpeed": "Typewriter Speed",
-  "options.emberstextapi.typewriterSpeed.tooltip": "Adjust the playback speed multiplier for typewriter tags.",
-  "options.emberstextapi.typewriterSpeed.value": "%s",
   "commands.emberstextapi.eta_demo.header": "Running Embers Text API showcase…",
   "commands.emberstextapi.eta_demo.translatable": "Translatable sample: %1$s meets %2$s.",
   "commands.emberstextapi.eta_demo.wrap": "Tooltip-style wrap: %s",
   "commands.emberstextapi.eta_demo.shake": "Shake span: %s",
   "commands.emberstextapi.eta_demo.charshake": "Character shake span: %s",
   "commands.emberstextapi.eta_demo.obfuscate": "Obfuscate span: %s",
-  "commands.emberstextapi.eta_demo.animation.on": "Animations are currently enabled. Disable them in Chat Settings to compare.",
-  "commands.emberstextapi.eta_demo.animation.off": "Animations are currently disabled. Enable them in Chat Settings to compare.",
+  "commands.emberstextapi.eta_demo.animation.on": "Animations are currently enabled. Toggle them via the Embers Text API client config if needed.",
+  "commands.emberstextapi.eta_demo.animation.off": "Animations are currently disabled. Re-enable them via the Embers Text API client config if needed.",
   "commands.emberstextapi.eta_demo.overlay": "Overlay demo: %s"
 }

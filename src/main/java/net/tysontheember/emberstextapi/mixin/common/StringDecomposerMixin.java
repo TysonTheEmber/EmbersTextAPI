@@ -6,7 +6,6 @@ import net.minecraft.util.StringDecomposer;
 import net.tysontheember.emberstextapi.client.text.GlobalTextConfig;
 import net.tysontheember.emberstextapi.client.text.MarkupAdapter;
 import net.tysontheember.emberstextapi.client.text.TypewriterGate;
-import net.tysontheember.emberstextapi.client.text.options.ETAOptions;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -33,8 +32,7 @@ public abstract class StringDecomposerMixin {
             return;
         }
 
-        ETAOptions.Snapshot options = GlobalTextConfig.getOptions();
-        TypewriterGate gateContext = gatingEnabled ? new TypewriterGate(options) : null;
+        TypewriterGate gateContext = gatingEnabled ? new TypewriterGate() : null;
         FormattedCharSink effectiveSink = gateContext == null ? sink
                 : (index, styled, codePoint) -> {
                     if (!gateContext.allow(styled)) {

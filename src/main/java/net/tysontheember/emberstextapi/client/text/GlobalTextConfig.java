@@ -1,16 +1,12 @@
 package net.tysontheember.emberstextapi.client.text;
 
-import net.tysontheember.emberstextapi.client.text.options.ETAOptions;
-import net.tysontheember.emberstextapi.client.text.EffectContext;
-
 /**
  * Simple toggle to gate global markup parsing hooks.
  */
 public final class GlobalTextConfig {
     private static volatile boolean markupEnabled = true;
     private static volatile boolean typewriterGatingEnabled = true;
-    private static volatile ETAOptions.Snapshot options = ETAOptions.Snapshot.DEFAULT;
-    private static volatile ETAOptions clientOptions;
+    private static volatile boolean animationsEnabled = true;
 
     private GlobalTextConfig() {
     }
@@ -31,20 +27,12 @@ public final class GlobalTextConfig {
         typewriterGatingEnabled = enabled;
     }
 
-    public static ETAOptions.Snapshot getOptions() {
-        return options;
+    public static boolean isAnimationsEnabled() {
+        return animationsEnabled;
     }
 
-    public static void setOptions(ETAOptions.Snapshot newOptions) {
-        options = newOptions != null ? newOptions : ETAOptions.Snapshot.DEFAULT;
-        EffectContext.setAnimationsEnabled(options.animationEnabled());
-    }
-
-    public static ETAOptions getClientOptions() {
-        return clientOptions;
-    }
-
-    public static void setClientOptions(ETAOptions optionsInstance) {
-        clientOptions = optionsInstance;
+    public static void setAnimationsEnabled(boolean enabled) {
+        animationsEnabled = enabled;
+        EffectContext.setAnimationsEnabled(enabled);
     }
 }

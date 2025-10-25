@@ -10,7 +10,6 @@ import com.mojang.blaze3d.font.GlyphInfo;
 
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-import net.tysontheember.emberstextapi.client.text.options.ETAOptions;
 import net.tysontheember.emberstextapi.duck.ETAStyle;
 import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
 import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
@@ -35,12 +34,12 @@ public final class SpanEffectRegistry {
     }
 
     public static void applyEffects(EffectContext context, EffectSettings settings, List<SpanEffect> effects,
-            ETAStyle etaStyle, GlyphInfo glyphInfo, ETAOptions.Snapshot options) {
+            ETAStyle etaStyle, GlyphInfo glyphInfo) {
         if (effects.isEmpty()) {
             return;
         }
 
-        if (options != null && !options.animationEnabled()) {
+        if (!EffectContext.areAnimationsEnabled()) {
             return;
         }
 

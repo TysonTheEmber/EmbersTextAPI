@@ -4,37 +4,31 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 import net.minecraft.network.chat.Style;
-import net.tysontheember.emberstextapi.client.text.options.ETAOptions;
 import net.tysontheember.emberstextapi.duck.ETAStyle;
-import net.tysontheember.emberstextapi.client.text.TypewriterController;
-import net.tysontheember.emberstextapi.client.text.EffectContext;
-import net.tysontheember.emberstextapi.client.text.TypewriterTrack;
 
 /**
  * Maintains per-track reveal accounting when typewriter gating is active.
  */
 public final class TypewriterGate {
     private final long timestamp;
-    private final ETAOptions.Snapshot options;
     private final Map<Object, TrackState> tracks = new IdentityHashMap<>();
 
-    public TypewriterGate(ETAOptions.Snapshot options) {
+    public TypewriterGate() {
         this.timestamp = EffectContext.nowNanos();
-        this.options = options;
     }
 
     public boolean allow(Style style) {
         if (!(style instanceof ETAStyle duck)) {
             return true;
         }
-        if (!TypewriterController.isActive(duck, this.options)) {
+        if (!TypewriterController.isActive(duck)) {
             return true;
         }
 
         Object key = resolveKey(duck);
         TrackState state = this.tracks.get(key);
         if (state == null) {
-            int reveal = TypewriterController.revealCount(duck, this.timestamp, this.options);
+            int reveal = TypewriterController.revealCount(duck, this.timestamp);
             state = reveal >= Integer.MAX_VALUE ? TrackState.unbounded() : new TrackState(reveal);
             this.tracks.put(key, state);
         }

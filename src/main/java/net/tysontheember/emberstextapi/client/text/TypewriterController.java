@@ -8,7 +8,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.jetbrains.annotations.Nullable;
 
-import net.tysontheember.emberstextapi.client.text.options.ETAOptions;
 import net.tysontheember.emberstextapi.duck.ETAStyle;
 
 /**
@@ -27,7 +26,7 @@ public final class TypewriterController {
         BY_WORD;
     }
 
-    public static Mode resolve(@Nullable ETAStyle duck, @Nullable ETAOptions.Snapshot options) {
+    public static Mode resolve(@Nullable ETAStyle duck) {
         if (duck == null) {
             return Mode.OFF;
         }
@@ -35,26 +34,28 @@ public final class TypewriterController {
         if (track != null && track.isActive()) {
             return fromTrackMode(track.mode());
         }
-        if (options == null) {
-            return Mode.OFF;
-        }
-        Mode optionMode = options.typewriterMode();
-        return optionMode != null ? optionMode : Mode.OFF;
+        return Mode.OFF;
     }
 
-    public static int revealCount(@Nullable ETAStyle duck, long timeNanosOrTicks, @Nullable ETAOptions.Snapshot options) {
-        Mode mode = resolve(duck, options);
-        if (mode == Mode.OFF || duck == null) {
+    public static int revealCount(@Nullable ETAStyle duck, long timeNanosOrTicks) {
+        if (!EffectContext.areAnimationsEnabled()) {
+            return Integer.MAX_VALUE;
+        }
+        if (duck == null) {
             return Integer.MAX_VALUE;
         }
 
         TypewriterTrack track = duck.eta$getTrack();
-        float multiplier = track != null ? Math.max(track.speedMultiplier(), 0.0001f) : 1.0f;
-        float baseSpeed = options != null ? options.typewriterSpeed() : 1.0f;
-        if (!Float.isFinite(baseSpeed) || baseSpeed <= 0.0f) {
-            baseSpeed = 1.0f;
+        if (track == null || !track.isActive()) {
+            return Integer.MAX_VALUE;
         }
-        float effectiveSpeed = Math.max(0.0001f, baseSpeed * multiplier);
+
+        Mode mode = fromTrackMode(track.mode());
+        if (mode == Mode.OFF) {
+            return Integer.MAX_VALUE;
+        }
+
+        float effectiveSpeed = Math.max(0.0001f, track.speedMultiplier());
 
         long now = Math.max(0L, timeNanosOrTicks);
         long start = resolveStartTime(track, duck, now);
@@ -70,19 +71,15 @@ public final class TypewriterController {
         return (int) Math.max(0L, revealed);
     }
 
-    public static boolean isActive(@Nullable ETAStyle duck, @Nullable ETAOptions.Snapshot options) {
+    public static boolean isActive(@Nullable ETAStyle duck) {
+        if (!EffectContext.areAnimationsEnabled()) {
+            return false;
+        }
         if (duck == null) {
             return false;
         }
-        Mode mode = resolve(duck, options);
-        if (mode == Mode.OFF) {
-            return false;
-        }
         TypewriterTrack track = duck.eta$getTrack();
-        if (track != null && track.isActive()) {
-            return true;
-        }
-        return options != null && options.typewriterMode() != Mode.OFF;
+        return track != null && track.isActive() && resolve(duck) != Mode.OFF;
     }
 
     private static long resolveStartTime(@Nullable TypewriterTrack track, ETAStyle duck, long now) {
