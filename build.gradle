@@ -70,7 +70,7 @@ minecraft {
         configureEach {
             workingDirectory project.file('run')
 
-            args "-mixin.config=emberstextapi.mixins.json"
+            args "-mixin.config=META-INF/emberstextapi.mixins.json"
 
             // Recommended logging data for a userdev environment
             // The markers can be added/remove as needed separated by commas.
