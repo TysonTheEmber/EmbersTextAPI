@@ -7,6 +7,8 @@
     "client.FontNoopSmokeMixin",
     "client.StyleMixin",
     "client.StyleCarryMixin",
-    "client.StyleSerializerMixin"
+    "client.StyleSerializerMixin",
+    "client.LiteralContentsMixin",
+    "client.TranslatableContentsMixin"
   ]
 }

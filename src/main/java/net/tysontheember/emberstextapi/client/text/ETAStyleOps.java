@@ -1,7 +1,5 @@
 package net.tysontheember.emberstextapi.client.text;
 
-import java.util.List;
-
 import net.minecraft.network.chat.Style;
 
 /**
@@ -21,8 +19,22 @@ public final class ETAStyleOps {
     public static Style withGraph(Style style, SpanGraph graph) {
         if (style instanceof SpanStyleExtras extras) {
             extras.eta$setSpanGraph(graph);
+            extras.eta$setSpanSignature(graph == null ? null : graph.getSignature());
         }
         return style;
+    }
+
+    public static Style withGraphMerged(Style style, SpanGraph parent, SpanGraph child) {
+        if (!(style instanceof SpanStyleExtras)) {
+            return style;
+        }
+        if (child != null) {
+            return withGraph(style, child);
+        }
+        if (parent != null) {
+            return withGraph(style, parent);
+        }
+        return withGraph(style, null);
     }
 
     public static void copyExtras(Style from, Style to) {
@@ -33,9 +45,7 @@ public final class ETAStyleOps {
         target.eta$setSpanGraph(source.eta$getSpanGraph());
         target.eta$setSpanSignature(source.eta$getSpanSignature());
 
-        List<SpanEffect> effects = source.eta$getActiveEffects();
-        target.eta$setActiveEffects(effects);
-
+        target.eta$setActiveEffects(source.eta$getActiveEffects());
         target.eta$setTypewriterTrack(source.eta$getTypewriterTrack());
         target.eta$setTypewriterIndex(source.eta$getTypewriterIndex());
     }
