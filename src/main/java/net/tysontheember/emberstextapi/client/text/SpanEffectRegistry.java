@@ -2,29 +2,69 @@ package net.tysontheember.emberstextapi.client.text;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+
+import com.mojang.blaze3d.font.GlyphInfo;
 
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
+import net.tysontheember.emberstextapi.client.text.options.ETAOptions;
 import net.tysontheember.emberstextapi.duck.ETAStyle;
+import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
+import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
 
 /**
- * Placeholder registry that will run span effects in a later phase.
+ * Central location for evaluating span effects registered on {@link ETAStyle}.
  */
 public final class SpanEffectRegistry {
+    private static final String EFFECT_SHAKE = "emberstextapi:shake";
+    private static final String EFFECT_CHAR_SHAKE = "emberstextapi:charshake";
+    private static final String EFFECT_OBFUSCATE = "emberstextapi:obfuscate";
     private static final String[] GRADIENT_IDS = {
             "emberstextapi:gradient",
             "emberstextapi:grad",
             "gradient",
             "grad"
     };
+    private static final char[] OBFUSCATE_TABLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".toCharArray();
+    private static final float TWO_PI = (float) (Math.PI * 2.0);
 
     private SpanEffectRegistry() {
     }
 
     public static void applyEffects(EffectContext context, EffectSettings settings, List<SpanEffect> effects,
-            ETAStyle etaStyle) {
-        // Phase D1 stub: intentionally left blank. Later phases will mutate settings or render siblings.
+            ETAStyle etaStyle, GlyphInfo glyphInfo, ETAOptions.Snapshot options) {
+        if (effects.isEmpty()) {
+            return;
+        }
+
+        if (options != null && !options.animationEnabled()) {
+            return;
+        }
+
+        long nowNanos = EffectContext.nowNanos();
+        float seconds = nowNanos / 1_000_000_000.0F;
+
+        for (SpanEffect effect : effects) {
+            String id = effect.id();
+            Map<String, String> params = effect.parameters();
+            if (isGradient(id)) {
+                continue; // handled via applyTint
+            }
+            if (EFFECT_CHAR_SHAKE.equalsIgnoreCase(id)) {
+                applyShakeEffect(settings, params, seconds, glyphInfo, true);
+                continue;
+            }
+            if (EFFECT_SHAKE.equalsIgnoreCase(id)) {
+                applyShakeEffect(settings, params, seconds, glyphInfo, false);
+                continue;
+            }
+            if (EFFECT_OBFUSCATE.equalsIgnoreCase(id)) {
+                applyObfuscate(settings, params, seconds);
+            }
+        }
     }
 
     public static int applyTint(Style style, int index, int codePoint) {
@@ -52,6 +92,89 @@ public final class SpanEffectRegistry {
         }
 
         return -1;
+    }
+
+    private static void applyShakeEffect(EffectSettings settings, Map<String, String> params, float seconds,
+            GlyphInfo glyphInfo, boolean perGlyph) {
+        float amplitude = parseFloat(params, "amplitude", perGlyph ? 0.5F : 1.0F);
+        if (amplitude == 0.0F) {
+            return;
+        }
+        float speed = parseFloat(params, "speed", 8.0F);
+        float wavelength = parseFloat(params, "wavelength", 1.0F);
+        String typeKey = params != null ? params.getOrDefault("type", "random") : "random";
+        ShakeType type;
+        try {
+            type = ShakeType.valueOf(typeKey.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            type = ShakeType.RANDOM;
+        }
+
+        float basePhase = seconds * speed;
+        float glyphPhase = perGlyph ? settings.getGlyphIndex() / Math.max(0.0001F, wavelength) : 0.0F;
+        float phase = basePhase + glyphPhase;
+
+        switch (type) {
+            case WAVE -> {
+                float offset = (float) Math.sin(phase * TWO_PI);
+                settings.setY(settings.getY() + offset * amplitude);
+            }
+            case CIRCLE -> {
+                float angle = phase * TWO_PI;
+                settings.setX(settings.getX() + (float) Math.cos(angle) * amplitude);
+                settings.setY(settings.getY() + (float) Math.sin(angle) * amplitude);
+            }
+            case RANDOM -> {
+                float seed = phase + settings.getGlyphIndex() * 0.6180339F;
+                float offsetX = pseudoNoise(seed + 13.37F) * amplitude;
+                float offsetY = pseudoNoise(seed + 7.07F) * amplitude;
+                settings.setX(settings.getX() + offsetX);
+                settings.setY(settings.getY() + offsetY);
+            }
+        }
+
+        if (perGlyph && glyphInfo != null) {
+            float italicShear = glyphInfo.getItalicShear();
+            if (italicShear != 0.0F) {
+                settings.setX(settings.getX() + italicShear * amplitude * 0.1F);
+            }
+        }
+    }
+
+    private static void applyObfuscate(EffectSettings settings, Map<String, String> params, float seconds) {
+        if (Character.isWhitespace(settings.getCodePoint())) {
+            return;
+        }
+
+        float speed = parseFloat(params, "speed", 12.0F);
+        long frame = (long) Math.floor(seconds * Math.max(0.1F, speed));
+        if (frame <= 0L) {
+            frame = 1L;
+        }
+
+        String modeKey = params != null ? params.getOrDefault("mode", "random") : "random";
+        ObfuscateMode mode;
+        try {
+            mode = ObfuscateMode.valueOf(modeKey.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            mode = ObfuscateMode.RANDOM;
+        }
+
+        boolean revealOriginal = switch (mode) {
+            case NONE -> true;
+            case LEFT -> settings.getGlyphIndex() < frame;
+            case RIGHT -> false;
+            case CENTER -> (settings.getGlyphIndex() % Math.max(1L, frame)) == 0L;
+            case RANDOM -> ThreadLocalRandom.current().nextFloat() < 0.2F;
+        };
+
+        if (revealOriginal) {
+            return;
+        }
+
+        int randomIndex = (int) Math.floorMod(frame + settings.getGlyphIndex() * 37L, OBFUSCATE_TABLE.length);
+        char replacement = OBFUSCATE_TABLE[randomIndex];
+        settings.setCodePoint(replacement);
     }
 
     private static boolean isGradient(String id) {
@@ -171,5 +294,25 @@ public final class SpanEffectRegistry {
         int g = (int) (g1 + (g2 - g1) * clamped);
         int b = (int) (b1 + (b2 - b1) * clamped);
         return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    private static float parseFloat(Map<String, String> params, String key, float fallback) {
+        if (params == null) {
+            return fallback;
+        }
+        String raw = params.get(key);
+        if (raw == null || raw.isEmpty()) {
+            return fallback;
+        }
+        try {
+            return Float.parseFloat(raw);
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
+    private static float pseudoNoise(float value) {
+        float sine = (float) Math.sin(value * 12.9898F + 78.233F) * 43758.5453F;
+        return (sine - (float) Math.floor(sine)) * 2.0F - 1.0F;
     }
 }

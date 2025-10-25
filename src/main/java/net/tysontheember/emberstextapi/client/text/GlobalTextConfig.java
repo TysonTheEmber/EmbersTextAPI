@@ -1,6 +1,7 @@
 package net.tysontheember.emberstextapi.client.text;
 
 import net.tysontheember.emberstextapi.client.text.options.ETAOptions;
+import net.tysontheember.emberstextapi.client.text.EffectContext;
 
 /**
  * Simple toggle to gate global markup parsing hooks.
@@ -36,6 +37,7 @@ public final class GlobalTextConfig {
 
     public static void setOptions(ETAOptions.Snapshot newOptions) {
         options = newOptions != null ? newOptions : ETAOptions.Snapshot.DEFAULT;
+        EffectContext.setAnimationsEnabled(options.animationEnabled());
     }
 
     public static ETAOptions getClientOptions() {

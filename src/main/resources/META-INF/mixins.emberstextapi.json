@@ -12,8 +12,8 @@
   "client": [
     "client.LiteralContentsMixin",
     "client.TranslatableContentsMixin",
+    "client.FontAccessor",
     "client.FontStringRenderOutputMixin",
-    "client.BakedGlyphMixin",
     "client.OptionsMixin",
     "client.SimpleOptionsSubScreenMixin"
   ],
