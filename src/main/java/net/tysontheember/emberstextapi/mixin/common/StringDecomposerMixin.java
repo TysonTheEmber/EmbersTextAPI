@@ -6,12 +6,12 @@ import java.util.Map;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSink;
 import net.minecraft.util.StringDecomposer;
-import net.tysontheember.emberstextapi.client.text.ETAOptions;
 import net.tysontheember.emberstextapi.client.text.EffectContext;
 import net.tysontheember.emberstextapi.client.text.GlobalTextConfig;
 import net.tysontheember.emberstextapi.client.text.MarkupAdapter;
 import net.tysontheember.emberstextapi.client.text.TypewriterController;
 import net.tysontheember.emberstextapi.client.text.TypewriterTrack;
+import net.tysontheember.emberstextapi.client.text.options.ETAOptions;
 import net.tysontheember.emberstextapi.duck.ETAStyle;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -39,7 +39,7 @@ public abstract class StringDecomposerMixin {
             return;
         }
 
-        ETAOptions options = GlobalTextConfig.getOptions();
+        ETAOptions.Snapshot options = GlobalTextConfig.getOptions();
         TypewriterGateContext gateContext = gatingEnabled ? new TypewriterGateContext(options) : null;
         FormattedCharSink effectiveSink = gateContext == null ? sink
                 : (index, styled, codePoint) -> {
@@ -66,10 +66,10 @@ public abstract class StringDecomposerMixin {
     @Unique
     private static final class TypewriterGateContext {
         private final long timestamp;
-        private final ETAOptions options;
+        private final ETAOptions.Snapshot options;
         private final Map<Object, TrackState> tracks = new IdentityHashMap<>();
 
-        private TypewriterGateContext(ETAOptions options) {
+        private TypewriterGateContext(ETAOptions.Snapshot options) {
             this.timestamp = EffectContext.nowNanos();
             this.options = options;
         }

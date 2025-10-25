@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.jetbrains.annotations.Nullable;
 
+import net.tysontheember.emberstextapi.client.text.options.ETAOptions;
 import net.tysontheember.emberstextapi.duck.ETAStyle;
 
 /**
@@ -26,7 +27,7 @@ public final class TypewriterController {
         BY_WORD;
     }
 
-    public static Mode resolve(@Nullable ETAStyle duck, @Nullable ETAOptions options) {
+    public static Mode resolve(@Nullable ETAStyle duck, @Nullable ETAOptions.Snapshot options) {
         if (duck == null) {
             return Mode.OFF;
         }
@@ -41,7 +42,7 @@ public final class TypewriterController {
         return optionMode != null ? optionMode : Mode.OFF;
     }
 
-    public static int revealCount(@Nullable ETAStyle duck, long timeNanosOrTicks, @Nullable ETAOptions options) {
+    public static int revealCount(@Nullable ETAStyle duck, long timeNanosOrTicks, @Nullable ETAOptions.Snapshot options) {
         Mode mode = resolve(duck, options);
         if (mode == Mode.OFF || duck == null) {
             return Integer.MAX_VALUE;
@@ -69,7 +70,7 @@ public final class TypewriterController {
         return (int) Math.max(0L, revealed);
     }
 
-    public static boolean isActive(@Nullable ETAStyle duck, @Nullable ETAOptions options) {
+    public static boolean isActive(@Nullable ETAStyle duck, @Nullable ETAOptions.Snapshot options) {
         if (duck == null) {
             return false;
         }

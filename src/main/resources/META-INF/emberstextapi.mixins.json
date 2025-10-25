@@ -12,7 +12,9 @@
     "client.LiteralContentsMixin",
     "client.TranslatableContentsMixin",
     "client.FontStringRenderOutputMixin",
-    "client.BakedGlyphMixin"
+    "client.BakedGlyphMixin",
+    "client.OptionsMixin",
+    "client.SimpleOptionsSubScreenMixin"
   ],
   "server": []
 }
