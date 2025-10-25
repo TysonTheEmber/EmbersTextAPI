@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 public abstract class TranslatableContentsMixin {
     @Redirect(method = "decomposeTemplate(Ljava/lang/String;Ljava/util/function/Consumer;)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/network/chat/FormattedText;of(Ljava/lang/String;)Lnet/minecraft/network/chat/FormattedText;"))
-    private static FormattedText emberstextapi$wrapLiteral(String literal) {
+    private FormattedText emberstextapi$wrapLiteral(String literal) {
         return MarkupAdapter.toFormattedText(literal);
     }
 }
