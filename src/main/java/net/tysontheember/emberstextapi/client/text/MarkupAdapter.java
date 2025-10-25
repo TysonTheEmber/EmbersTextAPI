@@ -107,9 +107,9 @@ public final class MarkupAdapter {
             return new ParseResult(sanitizedText, null, null);
         }
 
-        SpanGraph graph = new SpanGraph(new ArrayList<>(roots), codePointIndex, null);
+        SpanGraph graph = new SpanGraph(new ArrayList<>(roots), sanitizedText, codePointIndex, null);
         String signature = computeSignature(sanitizedText, graph);
-        graph = new SpanGraph(graph.getRoots(), graph.getSanitizedLength(), signature);
+        graph = new SpanGraph(graph.getRoots(), sanitizedText, graph.getSanitizedLength(), signature);
         return new ParseResult(sanitizedText, graph, signature);
     }
 

@@ -35,7 +35,7 @@ public final class TextLayoutCache {
         CACHE.clear();
     }
 
-    public record Key(Component component, int colour, float scale, int wrapWidth, String fontKey) {
+    public record Key(Component component, String literal, String spanSignature, int colour, float scale, int wrapWidth, String fontKey) {
     }
 
     public record Layout(List<FormattedCharSequence> lines, FormattedCharSequence visualOrder, int width, int height) {

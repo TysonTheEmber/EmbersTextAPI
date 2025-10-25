@@ -7,14 +7,16 @@ import java.util.List;
  * Container representing the parsed span graph for a string.
  */
 public final class SpanGraph {
-    private static final SpanGraph EMPTY = new SpanGraph(Collections.emptyList(), 0, null);
+    private static final SpanGraph EMPTY = new SpanGraph(Collections.emptyList(), "", 0, null);
 
     private final List<SpanNode> roots;
+    private final String sanitizedText;
     private final int sanitizedLength;
     private final String signature;
 
-    public SpanGraph(List<SpanNode> roots, int sanitizedLength, String signature) {
+    public SpanGraph(List<SpanNode> roots, String sanitizedText, int sanitizedLength, String signature) {
         this.roots = roots == null ? Collections.emptyList() : Collections.unmodifiableList(roots);
+        this.sanitizedText = sanitizedText == null ? "" : sanitizedText;
         this.sanitizedLength = sanitizedLength;
         this.signature = signature;
     }
@@ -25,6 +27,10 @@ public final class SpanGraph {
 
     public List<SpanNode> getRoots() {
         return roots;
+    }
+
+    public String getSanitizedText() {
+        return sanitizedText;
     }
 
     public int getSanitizedLength() {

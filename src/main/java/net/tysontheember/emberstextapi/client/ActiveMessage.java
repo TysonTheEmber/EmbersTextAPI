@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.tysontheember.emberstextapi.client.text.SpanStyleExtras;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 
 import java.util.UUID;
@@ -41,7 +42,12 @@ public final class ActiveMessage {
         float scale = message.getTextScale();
         int wrap = message.getWrapWidth();
         String fontKey = message.fontKey();
-        TextLayoutCache.Key key = new TextLayoutCache.Key(draw, colour, scale, wrap, fontKey);
+        String literal = draw.getString();
+        String signature = null;
+        if (draw.getStyle() instanceof SpanStyleExtras extras) {
+            signature = extras.eta$getSpanSignature();
+        }
+        TextLayoutCache.Key key = new TextLayoutCache.Key(draw, literal, signature, colour, scale, wrap, fontKey);
         TextLayoutCache.Layout layout = TextLayoutCache.getOrCompute(key, () -> message.buildLayout(draw));
         int screenW = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         int screenH = Minecraft.getInstance().getWindow().getGuiScaledHeight();
