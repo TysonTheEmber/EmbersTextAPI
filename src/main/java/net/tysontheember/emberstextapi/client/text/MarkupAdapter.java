@@ -40,6 +40,10 @@ public final class MarkupAdapter {
     }
 
     public static boolean visitFormatted(String text, Style baseStyle, FormattedCharSink sink) {
+        return visitFormatted(text, baseStyle, sink, null);
+    }
+
+    public static boolean visitFormatted(String text, Style baseStyle, FormattedCharSink sink, Object owner) {
         if (!GlobalTextConfig.isMarkupEnabled()) {
             return StringDecomposer.iterateFormatted(text, baseStyle, sink);
         }
@@ -49,9 +53,10 @@ public final class MarkupAdapter {
             return StringDecomposer.iterateFormatted(text, baseStyle, sink);
         }
 
+        int ownerHash = computeOwnerHash(owner, text);
         if (spans.size() == 1) {
             TextSpan span = spans.get(0);
-            SpanStylePayload payload = payloadFromSpan(span, 0, text);
+            SpanStylePayload payload = payloadFromSpan(span, 0, ownerHash, text);
             if (span.getContent().equals(text) && payload.isEmpty()) {
                 return StringDecomposer.iterateFormatted(text, baseStyle, sink);
             }
@@ -64,7 +69,7 @@ public final class MarkupAdapter {
             if (chunk.isEmpty()) {
                 continue;
             }
-            SpanStylePayload payload = payloadFromSpan(span, i, text);
+            SpanStylePayload payload = payloadFromSpan(span, i, ownerHash, text);
             Style style = payload.isEmpty() ? baseStyle : applyToStyle(baseStyle, payload);
             if (style == baseStyle && hasActiveTrack(style)) {
                 style = ETAStyleOps.copyOf(baseStyle);
@@ -82,7 +87,13 @@ public final class MarkupAdapter {
         return true;
     }
 
-    public static <T> Optional<T> visitLiteral(String text, Style baseStyle, FormattedText.StyledContentConsumer<T> consumer) {
+    public static <T> Optional<T> visitLiteral(String text, Style baseStyle,
+            FormattedText.StyledContentConsumer<T> consumer) {
+        return visitLiteral(text, baseStyle, consumer, null);
+    }
+
+    public static <T> Optional<T> visitLiteral(String text, Style baseStyle,
+            FormattedText.StyledContentConsumer<T> consumer, Object owner) {
         if (!GlobalTextConfig.isMarkupEnabled()) {
             return consumer.accept(baseStyle, text);
         }
@@ -92,9 +103,10 @@ public final class MarkupAdapter {
             return consumer.accept(baseStyle, text);
         }
 
+        int ownerHash = computeOwnerHash(owner, text);
         if (spans.size() == 1) {
             TextSpan span = spans.get(0);
-            SpanStylePayload payload = payloadFromSpan(span, 0, text);
+            SpanStylePayload payload = payloadFromSpan(span, 0, ownerHash, text);
             if (span.getContent().equals(text) && payload.isEmpty()) {
                 return consumer.accept(baseStyle, text);
             }
@@ -108,7 +120,7 @@ public final class MarkupAdapter {
             if (chunk.isEmpty()) {
                 continue;
             }
-            SpanStylePayload payload = payloadFromSpan(span, i, text);
+            SpanStylePayload payload = payloadFromSpan(span, i, ownerHash, text);
             Style style = payload.isEmpty() ? baseStyle : applyToStyle(baseStyle, payload);
             if (style == baseStyle && hasActiveTrack(style)) {
                 style = ETAStyleOps.copyOf(baseStyle);
@@ -136,10 +148,14 @@ public final class MarkupAdapter {
     }
 
     public static FormattedText toFormattedText(String text) {
+        return toFormattedText(text, null);
+    }
+
+    public static FormattedText toFormattedText(String text, Object owner) {
         if (!hasMarkup(text)) {
             return new LiteralFormattedText(text);
         }
-        return new MarkupFormattedText(text);
+        return new MarkupFormattedText(text, owner);
     }
 
     public static FormattedText literalFormattedText(String text) {
@@ -199,7 +215,7 @@ public final class MarkupAdapter {
         return style;
     }
 
-    public static SpanStylePayload payloadFromSpan(TextSpan span, int spanIndex, String sourceKey) {
+    public static SpanStylePayload payloadFromSpan(TextSpan span, int spanIndex, int ownerHash, String sourceKey) {
         TextColor color = span.getColor();
         Boolean bold = span.getBold();
         Boolean italic = span.getItalic();
@@ -218,7 +234,7 @@ public final class MarkupAdapter {
             typewriterSpeed = span.getGlobalTypewriterSpeed();
         }
         if (typewriterSpeed != null) {
-            String trackId = buildTrackId(sourceKey, spanIndex, span);
+            String trackId = buildTrackId(ownerHash, sourceKey, spanIndex, span);
             track = new TypewriterTrack(TypewriterTrack.Mode.CHAR, typewriterSpeed, trackId);
             hasTrack = true;
         }
@@ -234,11 +250,28 @@ public final class MarkupAdapter {
                 wobbleAmplitude, wobbleSpeed, gradientFlow);
     }
 
-    private static String buildTrackId(String sourceKey, int spanIndex, TextSpan span) {
+    private static String buildTrackId(int ownerHash, String sourceKey, int spanIndex, TextSpan span) {
         int sourceHash = sourceKey != null ? sourceKey.hashCode() : 0;
         int contentHash = span.getContent() != null ? span.getContent().hashCode() : 0;
-        return "eta/track/" + Integer.toUnsignedString(sourceHash) + '/' + spanIndex + '/'
-                + Integer.toUnsignedString(contentHash);
+        return "eta/track/" + Integer.toUnsignedString(ownerHash) + '/' + Integer.toUnsignedString(sourceHash) + '/'
+                + spanIndex + '/' + Integer.toUnsignedString(contentHash);
+    }
+
+    private static int computeOwnerHash(Object owner, String sourceKey) {
+        int hash = 0;
+        if (owner != null) {
+            hash = System.identityHashCode(owner);
+        }
+        if (hash == 0 && sourceKey != null) {
+            hash = System.identityHashCode(sourceKey);
+            if (hash == 0) {
+                hash = sourceKey.hashCode();
+            }
+        }
+        if (hash == 0) {
+            hash = MarkupAdapter.class.hashCode();
+        }
+        return hash;
     }
 
     private static List<SpanEffect> collectEffects(TextSpan span) {
@@ -435,14 +468,16 @@ public final class MarkupAdapter {
 
     private static final class MarkupFormattedText implements FormattedText {
         private final String literal;
+        private final Object owner;
 
-        private MarkupFormattedText(String literal) {
+        private MarkupFormattedText(String literal, Object owner) {
             this.literal = literal;
+            this.owner = owner;
         }
 
         @Override
         public <T> Optional<T> visit(FormattedText.StyledContentConsumer<T> consumer, Style style) {
-            return visitLiteral(literal, style, consumer);
+            return visitLiteral(literal, style, consumer, owner);
         }
 
         @Override

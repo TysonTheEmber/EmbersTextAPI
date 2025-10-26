@@ -27,7 +27,7 @@ public abstract class LiteralContentsMixin {
         if (!GlobalTextConfig.isMarkupEnabled() || !MarkupAdapter.hasMarkup(this.text)) {
             return;
         }
-        Optional<T> result = MarkupAdapter.visitLiteral(this.text, style, consumer);
+        Optional<T> result = MarkupAdapter.visitLiteral(this.text, style, consumer, this);
         cir.setReturnValue(result);
     }
 }

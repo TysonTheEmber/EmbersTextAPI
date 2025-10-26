@@ -1232,6 +1232,7 @@ public class ImmersiveMessage {
         }
 
         String bridgeTrackId = ensureSpanBridgeTrackId();
+        int ownerHash = System.identityHashCode(this);
         for (int i = 0; i < spans.size(); i++) {
             TextSpan span = spans.get(i);
             if (span.getItemId() != null || span.getEntityId() != null) {
@@ -1253,7 +1254,7 @@ public class ImmersiveMessage {
             }
 
             MutableComponent spanComponent = Component.literal(content);
-            SpanStylePayload payload = MarkupAdapter.payloadFromSpan(span, i, bridgeTrackId);
+            SpanStylePayload payload = MarkupAdapter.payloadFromSpan(span, i, ownerHash, bridgeTrackId);
             Style spanStyle = payload.isEmpty() ? ETAStyleOps.copyOf(baseStyle)
                     : MarkupAdapter.applyToStyle(baseStyle, payload);
             ETAStyle duck = (ETAStyle) spanStyle;
