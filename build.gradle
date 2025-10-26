@@ -100,8 +100,7 @@ minecraft {
             property 'forge.enabledGameTestNamespaces', mod_id
             jvmArgs(
                     "-Dmixin.env.remapRefMap=true",
-                    "-Dmixin.env.refMapRemappingFile=${projectDir}/build/createSrgToMcp/output.srg",
-                    "-mixin.config=emberstextapi.mixins.json"
+                    "-Dmixin.env.refMapRemappingFile=${projectDir}/build/createSrgToMcp/output.srg"
             )
         }
 
@@ -110,8 +109,7 @@ minecraft {
             args '--nogui'
             jvmArgs(
                     "-Dmixin.env.remapRefMap=true",
-                    "-Dmixin.env.refMapRemappingFile=${projectDir}/build/createSrgToMcp/output.srg",
-                    "-mixin.config=emberstextapi.mixins.json"
+                    "-Dmixin.env.refMapRemappingFile=${projectDir}/build/createSrgToMcp/output.srg"
             )
         }
 
@@ -122,8 +120,7 @@ minecraft {
             property 'forge.enabledGameTestNamespaces', mod_id
             jvmArgs(
                     "-Dmixin.env.remapRefMap=true",
-                    "-Dmixin.env.refMapRemappingFile=${projectDir}/build/createSrgToMcp/output.srg",
-                    "-mixin.config=emberstextapi.mixins.json"
+                    "-Dmixin.env.refMapRemappingFile=${projectDir}/build/createSrgToMcp/output.srg"
             )
         }
 
