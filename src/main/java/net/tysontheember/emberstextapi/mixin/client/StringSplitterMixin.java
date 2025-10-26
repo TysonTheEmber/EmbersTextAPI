@@ -9,6 +9,7 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
+import net.tysontheember.emberstextapi.client.GlobalSwitches;
 import net.tysontheember.emberstextapi.client.text.SpanStringSplitter;
 import net.tysontheember.emberstextapi.client.text.SpanStyleExtras;
 import net.tysontheember.emberstextapi.client.text.StringSplitterBridge;
@@ -61,7 +62,7 @@ public abstract class StringSplitterMixin implements StringSplitterBridge {
 
     @Inject(method = "plainHeadByWidth", at = @At("HEAD"), cancellable = true)
     private void emberstextapi$sanitizePlainSubstr(String value, int maxWidth, Style style, CallbackInfoReturnable<String> cir) {
-        if (this.emberstextapi$callThrough || style == null) {
+        if (!GlobalSwitches.enabled() || this.emberstextapi$callThrough || style == null) {
             return;
         }
         if (!(style instanceof SpanStyleExtras extras) || extras.eta$getSpanGraph() == null) {
@@ -77,7 +78,7 @@ public abstract class StringSplitterMixin implements StringSplitterBridge {
 
     @Inject(method = "splitLines(Lnet/minecraft/network/chat/FormattedText;ILnet/minecraft/network/chat/Style;)Ljava/util/List;", at = @At("HEAD"), cancellable = true)
     private void emberstextapi$sanitizeSplitLines(FormattedText text, int maxWidth, Style baseStyle, CallbackInfoReturnable<List<FormattedCharSequence>> cir) {
-        if (this.emberstextapi$callThrough || text == null || baseStyle == null) {
+        if (!GlobalSwitches.enabled() || this.emberstextapi$callThrough || text == null || baseStyle == null) {
             return;
         }
         MutableComponent sanitized = Component.empty();

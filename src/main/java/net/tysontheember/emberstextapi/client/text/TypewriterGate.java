@@ -22,6 +22,9 @@ public final class TypewriterGate {
     }
 
     public static void setEnabled(boolean enabled) {
+        if (typewriterEnabled == enabled) {
+            return;
+        }
         typewriterEnabled = enabled;
         if (!enabled) {
             ACTIVE.clear();

@@ -2,6 +2,7 @@ package net.tysontheember.emberstextapi.mixin.client;
 
 import java.util.Optional;
 import net.minecraft.network.chat.Style;
+import net.tysontheember.emberstextapi.client.GlobalSwitches;
 import net.tysontheember.emberstextapi.client.text.ETAStyleOps;
 import net.tysontheember.emberstextapi.client.text.GradientColorer;
 import net.tysontheember.emberstextapi.client.text.SpanEffectRegistry;
@@ -45,12 +46,15 @@ public abstract class FontStringRenderOutputMixin {
         eta$overrideGreen = 0.0F;
         eta$overrideBlue = 0.0F;
         eta$skipGlyph = false;
+        if (!GlobalSwitches.enabled()) {
+            return;
+        }
         SpanGraph graph = ETAStyleOps.getGraph(style);
         if (graph == null) {
             return;
         }
 
-        if (style instanceof SpanStyleExtras extras) {
+        if (style instanceof SpanStyleExtras extras && GlobalSwitches.typewriterEnabled()) {
             Optional<SpanNode> typewriter = SpanEffectRegistry.findTypewriter(graph, logicalIndex);
             if (typewriter.isPresent()) {
                 SpanNode node = typewriter.get();

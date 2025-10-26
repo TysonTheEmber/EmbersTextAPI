@@ -1,6 +1,7 @@
 package net.tysontheember.emberstextapi.client.text;
 
 import net.minecraft.network.chat.Style;
+import net.tysontheember.emberstextapi.client.GlobalSwitches;
 
 /**
  * Placeholder dispatcher used to route span-aware rendering during string decomposition.
@@ -16,7 +17,7 @@ public final class SpanDispatcher {
      * @return {@code true} when span extras are present
      */
     public static boolean hasSpans(Style style) {
-        if (!(style instanceof SpanStyleExtras extras)) {
+        if (!GlobalSwitches.enabled() || !(style instanceof SpanStyleExtras extras)) {
             return false;
         }
         return extras.eta$getSpanGraph() != null;

@@ -9,6 +9,8 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
+import net.tysontheember.emberstextapi.client.GlobalSwitches;
+import net.tysontheember.emberstextapi.client.ETAKeybinds;
 import net.tysontheember.emberstextapi.client.text.TypewriterGate;
 
 /**
@@ -27,8 +29,11 @@ public final class TypewriterClientEvents {
         if (event.phase != TickEvent.Phase.END) {
             return;
         }
+        Minecraft mc = Minecraft.getInstance();
+        ETAKeybinds.handleClientTick(mc);
+        TypewriterGate.setEnabled(GlobalSwitches.typewriterEnabled());
         TypewriterGate.tick();
-        Screen current = Minecraft.getInstance().screen;
+        Screen current = mc.screen;
         if (current != lastScreen) {
             TypewriterGate.clearTooltipSession();
             tooltipContextPushed = false;

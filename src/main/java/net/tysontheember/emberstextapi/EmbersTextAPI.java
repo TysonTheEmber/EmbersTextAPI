@@ -1,7 +1,6 @@
 package net.tysontheember.emberstextapi;
 
 import com.mojang.logging.LogUtils;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.BlockItem;
@@ -14,6 +13,7 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -32,6 +32,8 @@ import org.spongepowered.asm.mixin.Mixins;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.network.TooltipPacket;
 import net.tysontheember.emberstextapi.network.Network;
+import net.tysontheember.emberstextapi.client.ETAClientConfig;
+import net.tysontheember.emberstextapi.client.ETAKeybinds;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(EmbersTextAPI.MODID)
@@ -88,6 +90,12 @@ public class EmbersTextAPI
         {
             Mixins.addConfiguration("META-INF/emberstextapi.mixins.json");
             LOGGER.debug("Registered EmbersTextAPI mixin config");
+            ETAClientConfig.register();
+        }
+
+        @SubscribeEvent
+        public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+            ETAKeybinds.register(event);
         }
     }
 }

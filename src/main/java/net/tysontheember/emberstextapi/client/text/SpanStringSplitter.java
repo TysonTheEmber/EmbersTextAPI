@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
+import net.tysontheember.emberstextapi.client.GlobalSwitches;
 
 /**
  * Helper utilities for span-aware width calculations and sanitisation.
@@ -16,6 +17,9 @@ public final class SpanStringSplitter {
     }
 
     public static String sanitized(Style base, String rawIfNeeded) {
+        if (!GlobalSwitches.enabled()) {
+            return rawIfNeeded == null ? "" : rawIfNeeded;
+        }
         if (base instanceof SpanStyleExtras extras) {
             SpanGraph graph = extras.eta$getSpanGraph();
             if (graph != null) {
