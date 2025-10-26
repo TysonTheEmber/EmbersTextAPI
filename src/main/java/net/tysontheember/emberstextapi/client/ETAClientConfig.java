@@ -52,17 +52,11 @@ public final class ETAClientConfig {
     }
 
     public static boolean globalSpansEnabled() {
-        if (!isLoaded()) {
-            return cachedGlobalSpans;
-        }
-        return ENABLE_GLOBAL_SPANS.get();
+        return cachedGlobalSpans;
     }
 
     public static boolean typewriterEnabled() {
-        if (!isLoaded()) {
-            return cachedTypewriter;
-        }
-        return ENABLE_TYPEWRITER.get();
+        return cachedTypewriter;
     }
 
     public static void setCachedGlobalSpans(boolean enabled) {
@@ -74,12 +68,42 @@ public final class ETAClientConfig {
     }
 
     @SubscribeEvent
-    public static void onConfigEvent(ModConfigEvent event) {
+    public static void onConfigLoading(ModConfigEvent.Loading event) {
         ModConfig config = event.getConfig();
         if (config.getSpec() == SPEC) {
             clientConfig = config;
+            refreshCachedValues();
+        }
+    }
+
+    @SubscribeEvent
+    public static void onConfigReloading(ModConfigEvent.Reloading event) {
+        ModConfig config = event.getConfig();
+        if (config.getSpec() == SPEC) {
+            clientConfig = config;
+            refreshCachedValues();
+        }
+    }
+
+    @SubscribeEvent
+    public static void onConfigUnloading(ModConfigEvent.Unloading event) {
+        ModConfig config = event.getConfig();
+        if (config.getSpec() == SPEC) {
+            clientConfig = null;
+        }
+    }
+
+    private static void refreshCachedValues() {
+        try {
             cachedGlobalSpans = ENABLE_GLOBAL_SPANS.get();
+        } catch (IllegalStateException ignored) {
+            cachedGlobalSpans = true;
+        }
+
+        try {
             cachedTypewriter = ENABLE_TYPEWRITER.get();
+        } catch (IllegalStateException ignored) {
+            cachedTypewriter = true;
         }
     }
 }
