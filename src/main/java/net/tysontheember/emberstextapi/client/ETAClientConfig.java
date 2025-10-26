@@ -19,7 +19,9 @@ public final class ETAClientConfig {
     public static final ForgeConfigSpec.BooleanValue ENABLE_TYPEWRITER;
     public static final ForgeConfigSpec SPEC;
 
-    private static ModConfig clientConfig;
+    private static volatile ModConfig clientConfig;
+    private static volatile boolean cachedGlobalSpans = true;
+    private static volatile boolean cachedTypewriter = true;
 
     static {
         BUILDER.push("general");
@@ -45,11 +47,39 @@ public final class ETAClientConfig {
         }
     }
 
+    public static boolean isLoaded() {
+        return clientConfig != null;
+    }
+
+    public static boolean globalSpansEnabled() {
+        if (!isLoaded()) {
+            return cachedGlobalSpans;
+        }
+        return ENABLE_GLOBAL_SPANS.get();
+    }
+
+    public static boolean typewriterEnabled() {
+        if (!isLoaded()) {
+            return cachedTypewriter;
+        }
+        return ENABLE_TYPEWRITER.get();
+    }
+
+    public static void setCachedGlobalSpans(boolean enabled) {
+        cachedGlobalSpans = enabled;
+    }
+
+    public static void setCachedTypewriter(boolean enabled) {
+        cachedTypewriter = enabled;
+    }
+
     @SubscribeEvent
     public static void onConfigEvent(ModConfigEvent event) {
         ModConfig config = event.getConfig();
         if (config.getSpec() == SPEC) {
             clientConfig = config;
+            cachedGlobalSpans = ENABLE_GLOBAL_SPANS.get();
+            cachedTypewriter = ENABLE_TYPEWRITER.get();
         }
     }
 }
