@@ -9,7 +9,8 @@
     "StringDecomposerMixin",
     "LiteralContentsMixin",
     "TranslatableContentsMixin",
-    "StringSplitterMixin"
+    "StringSplitterMixin",
+    "StringDecomposerAccess"
   ],
   "injectors": {
     "defaultRequire": 1
