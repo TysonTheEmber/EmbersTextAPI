@@ -5,7 +5,11 @@
   "refmap": "emberstextapi.refmap.json",
   "mixins": [
     "StyleMixin",
-    "StyleSerializerMixin"
+    "StyleSerializerMixin",
+    "StringDecomposerMixin",
+    "LiteralContentsMixin",
+    "TranslatableContentsMixin",
+    "StringSplitterMixin"
   ],
   "injectors": {
     "defaultRequire": 1
