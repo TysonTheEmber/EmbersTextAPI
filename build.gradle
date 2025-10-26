@@ -1,3 +1,14 @@
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
+    }
+}
+
 plugins {
     id 'eclipse'
     id 'idea'
@@ -5,6 +16,8 @@ plugins {
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
     id 'org.parchmentmc.librarian.forgegradle' version '1.+'
 }
+
+apply plugin: 'org.spongepowered.mixin'
 
 version = mod_version
 group = mod_group_id
@@ -87,13 +100,19 @@ minecraft {
             property 'forge.enabledGameTestNamespaces', mod_id
             jvmArgs(
                     "-Dmixin.env.remapRefMap=true",
-                    "-Dmixin.env.refMapRemappingFile=${projectDir}/build/createSrgToMcp/output.srg"
+                    "-Dmixin.env.refMapRemappingFile=${projectDir}/build/createSrgToMcp/output.srg",
+                    "-mixin.config=emberstextapi.mixins.json"
             )
         }
 
         server {
             property 'forge.enabledGameTestNamespaces', mod_id
             args '--nogui'
+            jvmArgs(
+                    "-Dmixin.env.remapRefMap=true",
+                    "-Dmixin.env.refMapRemappingFile=${projectDir}/build/createSrgToMcp/output.srg",
+                    "-mixin.config=emberstextapi.mixins.json"
+            )
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.
@@ -101,6 +120,11 @@ minecraft {
         // The gametest system is also enabled by default for other run configs under the /test command.
         gameTestServer {
             property 'forge.enabledGameTestNamespaces', mod_id
+            jvmArgs(
+                    "-Dmixin.env.remapRefMap=true",
+                    "-Dmixin.env.refMapRemappingFile=${projectDir}/build/createSrgToMcp/output.srg",
+                    "-mixin.config=emberstextapi.mixins.json"
+            )
         }
 
         data {
@@ -119,6 +143,7 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 repositories {
     // Forge repo (keep)
     maven { url = "https://maven.minecraftforge.net" }
+    maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
 
     // Route ONLY the 'curse.maven' group to CurseMaven
     maven {
@@ -150,6 +175,12 @@ dependencies {
     implementation fg.deobf("maven.modrinth:caxton:0.6.0+1.20.1-FORGE")
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.3'
+
+    annotationProcessor "org.spongepowered:mixin:0.8.5:processor"
+    compileOnly(annotationProcessor("io.github.llamalad7:mixinextras-common:0.3.2"))
+    implementation(jarJar("io.github.llamalad7:mixinextras-forge:0.3.2")) {
+        jarJar.ranged(it, "[0.3.2,)")
+    }
 
     implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
     implementation fg.deobf("curse.maven:ftb-library-forge-404465:6807424")
@@ -186,7 +217,8 @@ tasks.named('jar', Jar).configure {
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.jar.archiveVersion,
                 'Implementation-Vendor'   : mod_authors,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                'MixinConfigs'            : 'emberstextapi.mixins.json'
         ])
     }
 
@@ -211,6 +243,12 @@ publishing {
             url "file://${project.projectDir}/mcmodsrepo"
         }
     }
+}
+
+mixin {
+    add sourceSets.main, 'emberstextapi.refmap.json'
+    config 'emberstextapi.mixins.json'
+    debug.export = true
 }
 
 tasks.withType(JavaCompile).configureEach {
