@@ -12,6 +12,11 @@
     "StringSplitterMixin",
     "StringDecomposerAccess"
   ],
+  "client": [
+    "client.FontAccess",
+    "client.BakedGlyphMixin",
+    "client.StringRenderOutputMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

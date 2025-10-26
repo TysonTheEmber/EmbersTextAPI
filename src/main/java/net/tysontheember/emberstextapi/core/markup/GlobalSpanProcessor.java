@@ -5,6 +5,7 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Style;
@@ -12,6 +13,7 @@ import net.minecraft.util.FormattedCharSink;
 import net.tysontheember.emberstextapi.core.style.EmbersStyle;
 import net.tysontheember.emberstextapi.core.style.SpanEffectState;
 import net.tysontheember.emberstextapi.core.style.SpanStyleAdapter;
+import net.tysontheember.emberstextapi.core.style.TypewriterState;
 import net.tysontheember.emberstextapi.immersivemessages.api.MarkupParser;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import net.tysontheember.emberstextapi.mixin.StringDecomposerAccess;
@@ -20,6 +22,8 @@ import net.tysontheember.emberstextapi.mixin.StringDecomposerAccess;
  * Central coordinator that wires markup parsing into the vanilla formatted text pipeline.
  */
 public final class GlobalSpanProcessor {
+    private static final AtomicInteger TYPEWRITER_TRACK_COUNTER = new AtomicInteger();
+
     private GlobalSpanProcessor() {
     }
 
@@ -113,7 +117,13 @@ public final class GlobalSpanProcessor {
                 continue;
             }
 
-            if (!StringDecomposerAccess.callFeedChar(currentStyle, sink, index, ch)) {
+            Style glyphStyle = currentStyle;
+            ActiveMarkup typewriterMarkup = findActiveTypewriter(stack);
+            if (typewriterMarkup != null) {
+                glyphStyle = updateTypewriterState(glyphStyle, typewriterMarkup);
+            }
+
+            if (!StringDecomposerAccess.callFeedChar(glyphStyle, sink, index, ch)) {
                 return false;
             }
         }
@@ -138,7 +148,8 @@ public final class GlobalSpanProcessor {
                 nextStyle = applyEffect(previous, effect);
             }
         }
-        stack.addLast(new ActiveMarkup(instruction.name(), previous, effect));
+        Integer typewriterTrack = assignTypewriterTrack(nextStyle);
+        stack.addLast(new ActiveMarkup(instruction.name(), previous, effect, typewriterTrack));
         return nextStyle;
     }
 
@@ -179,6 +190,90 @@ public final class GlobalSpanProcessor {
         return source.withClickEvent(source.getClickEvent());
     }
 
-    private record ActiveMarkup(String name, Style previousStyle, SpanEffectRegistry.ActiveSpanEffect effect) {
+    private static Style updateTypewriterState(Style style, ActiveMarkup markup) {
+        if (style == null) {
+            return null;
+        }
+        SpanEffectState state = style instanceof EmbersStyle embers ? embers.emberstextapi$getSpanEffectState() : null;
+        if (state == null) {
+            return style;
+        }
+        TypewriterState typewriter = state.typewriter();
+        Integer track = markup.typewriterTrack();
+        if (typewriter == null || track == null) {
+            return style;
+        }
+
+        TypewriterState indexed = typewriter.withTrack(track).withIndex(markup.nextTypewriterIndex());
+        SpanEffectState copy = state.copy();
+        copy.setTypewriter(indexed);
+        Style cloned = cloneStyle(style);
+        ((EmbersStyle) (Object) cloned).emberstextapi$setSpanEffectState(copy);
+        return cloned;
+    }
+
+    private static Integer assignTypewriterTrack(Style style) {
+        if (!(style instanceof EmbersStyle embers)) {
+            return null;
+        }
+        SpanEffectState state = embers.emberstextapi$getSpanEffectState();
+        if (state == null) {
+            return null;
+        }
+        TypewriterState typewriter = state.typewriter();
+        if (typewriter == null) {
+            return null;
+        }
+        int track = Math.max(1, TYPEWRITER_TRACK_COUNTER.incrementAndGet());
+        state.setTypewriter(typewriter.withTrack(track).withIndex(0));
+        embers.emberstextapi$setSpanEffectState(state);
+        return track;
+    }
+
+    private static ActiveMarkup findActiveTypewriter(Deque<ActiveMarkup> stack) {
+        Iterator<ActiveMarkup> descending = stack.descendingIterator();
+        while (descending.hasNext()) {
+            ActiveMarkup markup = descending.next();
+            if (markup.typewriterTrack() != null) {
+                return markup;
+            }
+        }
+        return null;
+    }
+
+    private static final class ActiveMarkup {
+        private final String name;
+        private final Style previousStyle;
+        private final SpanEffectRegistry.ActiveSpanEffect effect;
+        private final Integer typewriterTrack;
+        private int typewriterIndex;
+
+        private ActiveMarkup(String name, Style previousStyle, SpanEffectRegistry.ActiveSpanEffect effect, Integer typewriterTrack) {
+            this.name = name;
+            this.previousStyle = previousStyle;
+            this.effect = effect;
+            this.typewriterTrack = typewriterTrack;
+            this.typewriterIndex = 0;
+        }
+
+        public String name() {
+            return name;
+        }
+
+        public Style previousStyle() {
+            return previousStyle;
+        }
+
+        public SpanEffectRegistry.ActiveSpanEffect effect() {
+            return effect;
+        }
+
+        public Integer typewriterTrack() {
+            return typewriterTrack;
+        }
+
+        public int nextTypewriterIndex() {
+            return typewriterIndex++;
+        }
     }
 }
