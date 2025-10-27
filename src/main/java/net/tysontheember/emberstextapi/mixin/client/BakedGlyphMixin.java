@@ -8,6 +8,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
 import net.minecraft.client.gui.font.glyphs.BakedGlyph;
+import net.tysontheember.emberstextapi.core.render.EmbersBakedGlyph;
 import net.tysontheember.emberstextapi.core.render.GlyphRenderSettings;
 
 @Mixin(BakedGlyph.class)

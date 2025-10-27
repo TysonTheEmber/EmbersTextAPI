@@ -21,6 +21,7 @@ import net.minecraft.client.gui.font.glyphs.EmptyGlyph;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
+import net.tysontheember.emberstextapi.core.render.EmbersBakedGlyph;
 import net.tysontheember.emberstextapi.core.render.GlyphEffectRuntime;
 import net.tysontheember.emberstextapi.core.render.GlyphRenderSettings;
 import net.tysontheember.emberstextapi.core.render.InlineAttachmentRenderer;
