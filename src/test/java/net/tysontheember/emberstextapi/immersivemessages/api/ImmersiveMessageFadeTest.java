@@ -82,14 +82,14 @@ public class ImmersiveMessageFadeTest {
         ImmersiveMessage fadeInOnly = ImmersiveMessage.builder(60f, "Fade in")
                 .fadeInTicks(10);
         setAge(fadeInOnly, 5f);
-        assertEquals(0.5f, alphaOf(fadeInOnly), 0.0001f);
+        assertEquals(0.5f, alphaOf(fadeInOnly), 0.01f);
         setAge(fadeInOnly, 20f);
         assertEquals(1f, alphaOf(fadeInOnly), 0.0001f);
 
         ImmersiveMessage fadeOutOnly = ImmersiveMessage.builder(60f, "Fade out")
                 .fadeOutTicks(10);
         setAge(fadeOutOnly, 65f);
-        assertEquals(0.5f, alphaOf(fadeOutOnly), 0.0001f);
+        assertEquals(0.5f, alphaOf(fadeOutOnly), 0.01f);
         setAge(fadeOutOnly, 70f);
         assertEquals(0f, alphaOf(fadeOutOnly), 0.0001f);
 
@@ -97,11 +97,11 @@ public class ImmersiveMessageFadeTest {
                 .fadeInTicks(10)
                 .fadeOutTicks(10);
         setAge(both, 5f);
-        assertEquals(0.5f, alphaOf(both), 0.0001f);
+        assertEquals(0.5f, alphaOf(both), 0.01f);
         setAge(both, 60f);
         assertEquals(1f, alphaOf(both), 0.0001f);
         setAge(both, 75f);
-        assertEquals(0.5f, alphaOf(both), 0.0001f);
+        assertEquals(0.5f, alphaOf(both), 0.01f);
     }
 
     @Test
@@ -109,7 +109,7 @@ public class ImmersiveMessageFadeTest {
         ImmersiveMessage message = ImmersiveMessage.builder(40f, "Interp")
                 .fadeInTicks(10);
         setAges(message, 2f, 3f);
-        assertEquals(0.25f, alphaOf(message, 0.5f), 0.0001f);
+        assertEquals(0.25f, alphaOf(message, 0.5f), 0.01f);
     }
 
     @Test

@@ -22,6 +22,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -31,6 +32,8 @@ import net.minecraftforge.network.PacketDistributor;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.network.TooltipPacket;
 import net.tysontheember.emberstextapi.network.Network;
+import net.tysontheember.emberstextapi.debug.DebugConfig;
+import net.tysontheember.emberstextapi.debug.DebugEnvironment;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(EmbersTextAPI.MODID)
@@ -40,12 +43,17 @@ public class EmbersTextAPI
     public static final String MODID = "emberstextapi";
     // Directly reference a slf4j logger
     private static final Logger LOGGER = LogUtils.getLogger();
+    public static final DebugEnvironment DEBUG = DebugEnvironment.get();
     public EmbersTextAPI(FMLJavaModLoadingContext context)
     {
         IEventBus modEventBus = context.getModEventBus();
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
+
+        modEventBus.addListener(this::onModConfig);
+
+        context.registerConfig(ModConfig.Type.CLIENT, DebugConfig.SPEC, DebugConfig.CONFIG_FILE);
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
@@ -68,6 +76,11 @@ public class EmbersTextAPI
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event)
     {
+    }
+
+    private void onModConfig(ModConfigEvent event)
+    {
+        DebugConfig.load(event);
     }
 
     /**
