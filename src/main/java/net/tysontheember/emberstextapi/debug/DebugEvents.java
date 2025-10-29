@@ -15,6 +15,18 @@ public final class DebugEvents {
         return new ConfigReloaded();
     }
 
+    public static ParseStarted parseStarted(int inputLength) {
+        return new ParseStarted(inputLength);
+    }
+
+    public static ParseCompleted parseCompleted(int inputLength, boolean hasSpans) {
+        return new ParseCompleted(inputLength, hasSpans);
+    }
+
+    public static ParseRecovered parseRecovered(String reason, int index) {
+        return new ParseRecovered(reason, index);
+    }
+
     public static DebugModeChanged debugModeChanged(boolean enabled, String source) {
         return new DebugModeChanged(enabled, source);
     }
@@ -53,6 +65,69 @@ public final class DebugEvents {
         @Override
         public String describe() {
             return "Debug configuration reloaded";
+        }
+    }
+
+    public static final class ParseStarted extends DebugEvent {
+        private final int inputLength;
+
+        private ParseStarted(int inputLength) {
+            this.inputLength = inputLength;
+        }
+
+        public int getInputLength() {
+            return inputLength;
+        }
+
+        @Override
+        public String describe() {
+            return "Span parse started for input length " + inputLength;
+        }
+    }
+
+    public static final class ParseCompleted extends DebugEvent {
+        private final int inputLength;
+        private final boolean hasSpans;
+
+        private ParseCompleted(int inputLength, boolean hasSpans) {
+            this.inputLength = inputLength;
+            this.hasSpans = hasSpans;
+        }
+
+        public int getInputLength() {
+            return inputLength;
+        }
+
+        public boolean hasSpans() {
+            return hasSpans;
+        }
+
+        @Override
+        public String describe() {
+            return "Span parse completed for input length " + inputLength + " (hasSpans=" + hasSpans + ")";
+        }
+    }
+
+    public static final class ParseRecovered extends DebugEvent {
+        private final String reason;
+        private final int index;
+
+        private ParseRecovered(String reason, int index) {
+            this.reason = reason;
+            this.index = index;
+        }
+
+        public String getReason() {
+            return reason;
+        }
+
+        public int getIndex() {
+            return index;
+        }
+
+        @Override
+        public String describe() {
+            return "Span parse recovered at index " + index + ": " + reason;
         }
     }
 
