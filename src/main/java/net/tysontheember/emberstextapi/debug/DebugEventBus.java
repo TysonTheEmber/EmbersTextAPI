@@ -20,9 +20,6 @@ public final class DebugEventBus {
     }
 
     public void post(DebugEvent event) {
-        if (!DebugFlags.isDebugEnabled()) {
-            return;
-        }
         for (Consumer<DebugEvent> listener : listeners) {
             listener.accept(event);
         }

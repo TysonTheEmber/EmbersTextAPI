@@ -62,23 +62,27 @@ public final class DebugFlags {
                            boolean failSafe,
                            boolean spans,
                            int effects) {
-        debugEnabled = debug;
+        setDebugEnabled(debug);
         TRACE_FLAGS.put(TraceChannel.PARSE, traceParse);
         TRACE_FLAGS.put(TraceChannel.LAYOUT, traceLayout);
         TRACE_FLAGS.put(TraceChannel.RENDER, traceRender);
         TRACE_FLAGS.put(TraceChannel.CACHE, traceCache);
         TRACE_FLAGS.put(TraceChannel.MIXIN, traceMixin);
 
-        overlayEnabled = overlay;
-        overlayLevel = overlayLvl;
-        perfEnabled = perf;
-        failSafeOnError = failSafe;
-        spanEverywhere = spans;
-        effectsVersion = effects;
+        setOverlayFlag(overlay);
+        setOverlayLevel(overlayLvl);
+        setPerfEnabled(perf);
+        setFailSafeOnError(failSafe);
+        setSpanEverywhere(spans);
+        setEffectsVersion(effects);
     }
 
     public static boolean isDebugEnabled() {
         return debugEnabled;
+    }
+
+    public static void setDebugEnabled(boolean enabled) {
+        debugEnabled = enabled;
     }
 
     public static boolean isTraceEnabled(TraceChannel channel) {
@@ -88,28 +92,68 @@ public final class DebugFlags {
         return TRACE_FLAGS.getOrDefault(channel, Boolean.FALSE);
     }
 
+    public static boolean getTraceFlag(TraceChannel channel) {
+        return TRACE_FLAGS.getOrDefault(channel, Boolean.FALSE);
+    }
+
+    public static void setTraceFlag(TraceChannel channel, boolean enabled) {
+        TRACE_FLAGS.put(channel, enabled);
+    }
+
     public static boolean isOverlayEnabled() {
         return debugEnabled && overlayEnabled;
+    }
+
+    public static boolean isOverlayFlagEnabled() {
+        return overlayEnabled;
     }
 
     public static int getOverlayLevel() {
         return overlayLevel;
     }
 
+    public static void setOverlayFlag(boolean enabled) {
+        overlayEnabled = enabled;
+    }
+
+    public static void setOverlayLevel(int level) {
+        overlayLevel = Math.max(0, Math.min(3, level));
+    }
+
     public static boolean isPerfEnabled() {
         return debugEnabled && perfEnabled;
+    }
+
+    public static boolean isPerfFlagEnabled() {
+        return perfEnabled;
+    }
+
+    public static void setPerfEnabled(boolean enabled) {
+        perfEnabled = enabled;
     }
 
     public static boolean isFailSafeOnError() {
         return failSafeOnError;
     }
 
+    public static void setFailSafeOnError(boolean enabled) {
+        failSafeOnError = enabled;
+    }
+
     public static boolean isSpanEverywhere() {
         return spanEverywhere;
     }
 
+    public static void setSpanEverywhere(boolean enabled) {
+        spanEverywhere = enabled;
+    }
+
     public static int getEffectsVersion() {
         return effectsVersion;
+    }
+
+    public static void setEffectsVersion(int version) {
+        effectsVersion = version;
     }
 
     private static boolean getValue(ForgeConfigSpec.BooleanValue value, boolean configLoaded) {
