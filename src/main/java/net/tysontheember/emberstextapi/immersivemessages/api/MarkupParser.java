@@ -300,7 +300,7 @@ public class MarkupParser {
                 } catch (Exception ignored) {}
             }
             
-            case "wiggle", "charshake" -> {
+            case "charshake" -> {
                 String typeStr = attrs.getOrDefault("type", "random");
                 String amplitudeStr = attrs.getOrDefault("amplitude", "1.0");
                 String speedStr = attrs.get("speed");
@@ -322,21 +322,20 @@ public class MarkupParser {
             }
             
             case "wave" -> {
-                // Wave is a shorthand for shake with wave type
                 String amplitudeStr = attrs.getOrDefault("amplitude", "1.0");
-                String speedStr = attrs.get("speed");
-                String wavelengthStr = attrs.get("wavelength");
+                String speedStr = attrs.getOrDefault("speed", "1.0");
+                String wavelengthStr = attrs.getOrDefault("wavelength", "1.0");
                 try {
                     float amplitude = Float.parseFloat(amplitudeStr);
                     if (speedStr != null && wavelengthStr != null) {
-                        float speed = Float.parseFloat(speedStr);
+                        float speed = Float.parseFloat(speedStr) * -1;
                         float wavelength = Float.parseFloat(wavelengthStr);
-                        span.shake(ShakeType.WAVE, amplitude, speed, wavelength);
+                        span.charShake(ShakeType.WAVE, amplitude, speed, wavelength);
                     } else if (speedStr != null) {
-                        float speed = Float.parseFloat(speedStr);
-                        span.shake(ShakeType.WAVE, amplitude, speed);
+                        float speed = Float.parseFloat(speedStr)* -1;
+                        span.charShake(ShakeType.WAVE, amplitude, speed);
                     } else {
-                        span.shake(ShakeType.WAVE, amplitude);
+                        span.charShake(ShakeType.WAVE, amplitude);
                     }
                 } catch (NumberFormatException ignored) {}
             }

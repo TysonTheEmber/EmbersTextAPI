@@ -983,11 +983,13 @@ public class ImmersiveMessage {
         buf.writeEnum(shakeType);
         buf.writeFloat(shakeStrength);
         buf.writeFloat(shakeSpeed);
+        buf.writeFloat(shakeWavelength);
         // Per-char shake
         buf.writeBoolean(charShake);
         buf.writeEnum(charShakeType);
         buf.writeFloat(charShakeStrength);
         buf.writeFloat(charShakeSpeed);
+        buf.writeFloat(charShakeWavelength);
         buf.writeInt(wrapMaxWidth);
         buf.writeFloat(delay);
         buf.writeVarInt(fadeInTicks);
@@ -1078,11 +1080,13 @@ public class ImmersiveMessage {
         msg.shakeType = buf.readEnum(ShakeType.class);
         msg.shakeStrength = buf.readFloat();
         msg.shakeSpeed = buf.readFloat();
+        msg.shakeWavelength = buf.readFloat();
         // Per-char shake
         msg.charShake = buf.readBoolean();
         msg.charShakeType = buf.readEnum(ShakeType.class);
         msg.charShakeStrength = buf.readFloat();
         msg.charShakeSpeed = buf.readFloat();
+        msg.charShakeWavelength = buf.readFloat();
         msg.wrapMaxWidth = buf.readInt();
         msg.delay = buf.readFloat();
         if (buf.isReadable()) {
