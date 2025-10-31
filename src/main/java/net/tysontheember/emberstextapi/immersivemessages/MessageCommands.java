@@ -392,7 +392,7 @@ public class MessageCommands {
             case 6 -> {
                 ResourceLocation font = ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "norse");
                 Component text = Component.literal("\u16A0\u16A2\u16A6\u16A8\u16AB\u16B2").withStyle(s -> s.withFont(font));
-                EmbersTextAPI.sendMessage(player, new ImmersiveMessage(text, 100f));
+                EmbersTextAPI.sendMessage(player, new ImmersiveMessage(text, 100f).scale(5));
             }
             case 7 -> {
                 MutableComponent component = Component.literal("You shall die here...")
@@ -418,8 +418,7 @@ public class MessageCommands {
             case 11 -> EmbersTextAPI.sendMessage(player,
                     ImmersiveMessage.fromMarkup(150f, "<grad from=#ff0000 to=#00ff00>Gradient</grad> <typewriter speed=2.0>text!</typewriter>"));
             case 12 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(200f, "<shake type=wave><grad from=#ff0000 to=#0000ff>Nested effects!</grad></shake>"));
-            // NEW: NBT + Span integration test cases (v2.0.0)
+                    ImmersiveMessage.fromMarkup(200f, "<shake><grad from=#ff0000 to=#0000ff>Nested effects!</grad></shake>"));
             case 13 -> {
                 // Test global background with span markup
                 CompoundTag data = new CompoundTag();
