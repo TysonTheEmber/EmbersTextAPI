@@ -49,7 +49,7 @@ public class MessageCommands {
 
     private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> testSubcommand() {
         return Commands.literal("test")
-            .then(Commands.argument("id", IntegerArgumentType.integer(1, 30))
+            .then(Commands.argument("id", IntegerArgumentType.integer(1, 25))
                 .executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
                     int id = IntegerArgumentType.getInteger(ctx, "id");
