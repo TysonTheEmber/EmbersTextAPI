@@ -39,6 +39,11 @@ public class TextSpan {
     private Float charShakeAmplitude;
     private Float charShakeSpeed;
     private Float charShakeWavelength;
+
+    // Runtime rendering metadata (not serialized or networked)
+    private transient Integer renderCharIndex;
+    private transient Integer renderTotalChars;
+    private transient Integer renderAbsoluteIndex;
     
     // Obfuscation settings
     private ObfuscateMode obfuscateMode;
@@ -165,6 +170,9 @@ public class TextSpan {
     public Float getCharShakeAmplitude() { return charShakeAmplitude; }
     public Float getCharShakeSpeed() { return charShakeSpeed; }
     public Float getCharShakeWavelength() { return charShakeWavelength; }
+    public Integer getRenderCharIndex() { return renderCharIndex; }
+    public Integer getRenderTotalChars() { return renderTotalChars; }
+    public Integer getRenderAbsoluteIndex() { return renderAbsoluteIndex; }
     public ObfuscateMode getObfuscateMode() { return obfuscateMode; }
     public Float getObfuscateSpeed() { return obfuscateSpeed; }
     public Integer getFadeInTicks() { return fadeInTicks; }
@@ -302,6 +310,21 @@ public class TextSpan {
         this.charShakeAmplitude = amplitude;
         this.charShakeSpeed = speed;
         this.charShakeWavelength = wavelength;
+        return this;
+    }
+
+    /**
+     * Sets per-character rendering context data that is computed at render time.
+     *
+     * @param charIndex index of the character within the span (0-based)
+     * @param totalChars total characters within the span
+     * @param absoluteIndex absolute index within the full string
+     * @return this span for chaining
+     */
+    public TextSpan renderContext(int charIndex, int totalChars, int absoluteIndex) {
+        this.renderCharIndex = charIndex;
+        this.renderTotalChars = totalChars;
+        this.renderAbsoluteIndex = absoluteIndex;
         return this;
     }
     
