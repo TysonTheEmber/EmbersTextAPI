@@ -112,6 +112,10 @@ public class ImmersiveMessage {
     private ShakeType charShakeType = ShakeType.RANDOM;
     private float charShakeSpeed = 10f; // multiplier for char shake animation speed
     private float charShakeWavelength = 1f; // wavelength for WAVE char shake type
+    // Span-scoped char shake (per-span effects in markup-driven messages)
+    private boolean spanCharShake = false;
+    private float spanCharShakeMaxStrength = 0f;
+    private List<CharShakeSegment> spanCharShakeSegments = Collections.emptyList();
 
     // NEW: Span-based rendering (v2.0.0)
     private List<TextSpan> spans;
@@ -145,9 +149,10 @@ public class ImmersiveMessage {
             this.typewriter = true;
         }
 
-        // Check if any spans have shake effects and enable global shake if so
+        // Check if any spans have shake effects (global) or per-span char shakes
+        boolean shakeConfigured = false;
         for (TextSpan span : spans) {
-            if (span.getShakeType() != null && span.getShakeAmplitude() != null) {
+            if (!shakeConfigured && span.getShakeType() != null && span.getShakeAmplitude() != null) {
                 this.shake = true;
                 this.shakeType = span.getShakeType();
                 this.shakeStrength = span.getShakeAmplitude();
@@ -157,21 +162,10 @@ public class ImmersiveMessage {
                 if (span.getShakeWavelength() != null) {
                     this.shakeWavelength = span.getShakeWavelength();
                 }
-                break; // Use first shake effect found
-            }
-            if (span.getCharShakeType() != null && span.getCharShakeAmplitude() != null) {
-                this.charShake = true;
-                this.charShakeType = span.getCharShakeType();
-                this.charShakeStrength = span.getCharShakeAmplitude();
-                if (span.getCharShakeSpeed() != null) {
-                    this.charShakeSpeed = span.getCharShakeSpeed();
-                }
-                if (span.getCharShakeWavelength() != null) {
-                    this.charShakeWavelength = span.getCharShakeWavelength();
-                }
-                break; // Use first char shake effect found
+                shakeConfigured = true; // Use first shake effect found for global shake
             }
         }
+        evaluateSpanCharShake();
 
         // Extract global message attributes from any span that has them (typically the first one)
         for (TextSpan span : spans) {
@@ -1018,6 +1012,7 @@ public class ImmersiveMessage {
             msg.spanMode = true;
             msg.spans = spans;
             msg.spanTypewriterIndices = new int[spans.size()];
+            msg.evaluateSpanCharShake();
         } else {
             // Legacy deserialization
             Component text = buf.readComponent();
@@ -1143,7 +1138,7 @@ public class ImmersiveMessage {
 
     public int renderColour() {
         int base = text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF;
-        int alpha = Mth.clamp((int)(computeAlpha(age) * 255f), 0, 255);
+        int alpha = Mth.clamp(Math.round(computeAlpha(age) * 255f), 0, 255);
         return (alpha << 24) | base;
     }
 
@@ -1155,7 +1150,7 @@ public class ImmersiveMessage {
      */
     public int renderColour(float partialTick) {
         int base = text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF;
-        int alpha = Mth.clamp((int)(computeAlpha(sampleAge(partialTick)) * 255f), 0, 255);
+        int alpha = Mth.clamp(Math.round(computeAlpha(sampleAge(partialTick)) * 255f), 0, 255);
         return (alpha << 24) | base;
     }
 
@@ -1460,7 +1455,7 @@ public class ImmersiveMessage {
         int baseWidth = layout.width();
         int baseHeight = layout.height();
 
-        float charPadding = charShake ? charShakeStrength : 0f;
+        float charPadding = charShake ? charShakeStrength : (hasCharShakeSpans() ? spanCharShakeMaxStrength : 0f);
         float textAreaWidth = baseWidth + charPadding * 2f;
         float textAreaHeight = baseHeight + charPadding * 2f;
 
@@ -1575,11 +1570,13 @@ public class ImmersiveMessage {
                 RenderUtil.drawBackground(graphics, 0, 0, widthForBg, backgroundHeightInt, bg, start, end);
             }
         }
+        boolean hasInlineItems = spanMode && spans != null && hasItemSpans();
+
         if (onRender != null) {
             onRender.render(graphics, this, 0, 0, alpha);
-        } else if (charShake) {
+        } else if ((charShake || hasCharShakeSpans()) && !hasInlineItems) {
             renderCharShake(graphics, lines, draw, colour, textStartX, textStartY);
-        } else if (spanMode && spans != null && hasItemSpans()) {
+        } else if (hasInlineItems) {
             // Render spans with items/entities inline (entities static; no animations)
             renderSpansWithItems(graphics, textStartX, textStartY, colour, alpha);
         } else if (lines != null) {
@@ -1703,6 +1700,61 @@ public class ImmersiveMessage {
     private boolean hasItemSpans() {
         if (spans == null) return false;
         return spans.stream().anyMatch(span -> span.getItemId() != null || span.getEntityId() != null);
+    }
+
+    private boolean hasCharShakeSpans() {
+        return spanCharShake;
+    }
+
+    private void evaluateSpanCharShake() {
+        spanCharShake = false;
+        spanCharShakeMaxStrength = 0f;
+        spanCharShakeSegments = Collections.emptyList();
+        if (spans == null) return;
+
+        List<CharShakeSegment> segments = new ArrayList<>();
+        int charIndex = 0;
+        for (TextSpan span : spans) {
+            String content = span.getContent();
+            int length = content != null ? content.length() : 0;
+            if (length > 0 && span.getCharShakeType() != null && span.getCharShakeAmplitude() != null
+                && span.getCharShakeAmplitude() > 0f) {
+                spanCharShake = true;
+                spanCharShakeMaxStrength = Math.max(spanCharShakeMaxStrength, span.getCharShakeAmplitude());
+                float speed = span.getCharShakeSpeed() != null ? span.getCharShakeSpeed() : this.charShakeSpeed;
+                float wavelength = span.getCharShakeWavelength() != null ? span.getCharShakeWavelength() : this.charShakeWavelength;
+                segments.add(new CharShakeSegment(
+                    charIndex,
+                    charIndex + length,
+                    span.getCharShakeType(),
+                    span.getCharShakeAmplitude(),
+                    speed,
+                    wavelength
+                ));
+            }
+            charIndex += length;
+        }
+        if (spanCharShake) {
+            spanCharShakeSegments = segments;
+        }
+    }
+
+    private static class CharShakeSegment {
+        final int startIndex;
+        final int endIndex;
+        final ShakeType type;
+        final float amplitude;
+        final float speed;
+        final float wavelength;
+
+        CharShakeSegment(int startIndex, int endIndex, ShakeType type, float amplitude, float speed, float wavelength) {
+            this.startIndex = startIndex;
+            this.endIndex = endIndex;
+            this.type = type;
+            this.amplitude = amplitude;
+            this.speed = speed;
+            this.wavelength = wavelength;
+        }
     }
 
     /**
@@ -1829,6 +1881,9 @@ public class ImmersiveMessage {
         var font = Minecraft.getInstance().font;
         var handler = CaxtonCompat.getHandler();
         int[] index = {0};
+        boolean useSegmentShake = !charShake && !spanCharShakeSegments.isEmpty();
+        int[] segmentCursor = {0};
+        CharShakeSegment[] activeSegment = {useSegmentShake ? spanCharShakeSegments.get(0) : null};
 
         if (lines != null) {
             for (int i = 0; i < lines.size(); i++) {
@@ -1838,20 +1893,45 @@ public class ImmersiveMessage {
                 lineSeq.accept((pos, style, codePoint) -> {
                     String ch = new String(Character.toChars(codePoint));
                     float sx = 0f, sy = 0f;
-                    switch (charShakeType) {
-                        // Use tick-based timing for frame-rate independence
-                        case WAVE -> {
-                            float charShakeTime = age * 0.05f * charShakeSpeed + index[0] * 0.1f;
-                            sy = (float) Math.sin(charShakeTime * 2 * Math.PI / charShakeWavelength) * charShakeStrength;
+                    ShakeType shakeTypeToUse = charShakeType;
+                    float amplitude = charShakeStrength;
+                    float speed = charShakeSpeed;
+                    float wavelength = charShakeWavelength;
+                    boolean applyShake = charShake;
+
+                    if (!charShake && useSegmentShake) {
+                        CharShakeSegment segment = activeSegment[0];
+                        while (segment != null && index[0] >= segment.endIndex) {
+                            segmentCursor[0]++;
+                            segment = segmentCursor[0] < spanCharShakeSegments.size() ? spanCharShakeSegments.get(segmentCursor[0]) : null;
+                            activeSegment[0] = segment;
                         }
-                        case CIRCLE -> {
-                            float charShakeTime = age * 0.05f * charShakeSpeed + index[0] * 0.1f;
-                            sx = (float) Math.cos(charShakeTime) * charShakeStrength;
-                            sy = (float) Math.sin(charShakeTime) * charShakeStrength;
+                        if (segment != null && index[0] >= segment.startIndex) {
+                            shakeTypeToUse = segment.type;
+                            amplitude = segment.amplitude;
+                            speed = segment.speed;
+                            wavelength = segment.wavelength;
+                            applyShake = amplitude > 0f;
+                        } else {
+                            applyShake = false;
                         }
-                        case RANDOM -> {
-                            sx = (random.nextFloat() - 0.5f) * 2f * charShakeStrength;
-                            sy = (random.nextFloat() - 0.5f) * 2f * charShakeStrength;
+                    }
+
+                    if (applyShake) {
+                        float charShakeTime = age * 0.05f * speed + index[0] * 0.1f;
+                        switch (shakeTypeToUse) {
+                            case WAVE -> {
+                                float safeWavelength = Math.max(0.0001f, wavelength);
+                                sy = (float) Math.sin(charShakeTime * 2 * Math.PI / safeWavelength) * amplitude;
+                            }
+                            case CIRCLE -> {
+                                sx = (float) Math.cos(charShakeTime) * amplitude;
+                                sy = (float) Math.sin(charShakeTime) * amplitude;
+                            }
+                            case RANDOM -> {
+                                sx = (random.nextFloat() - 0.5f) * 2f * amplitude;
+                                sy = (random.nextFloat() - 0.5f) * 2f * amplitude;
+                            }
                         }
                     }
                     Component comp = Component.literal(ch).withStyle(style);
@@ -1877,20 +1957,45 @@ public class ImmersiveMessage {
             draw.getVisualOrderText().accept((pos, style, codePoint) -> {
                 String ch = new String(Character.toChars(codePoint));
                 float sx = 0f, sy = 0f;
-                switch (charShakeType) {
-                    // Use tick-based timing for frame-rate independence
-                    case WAVE -> {
-                        float charShakeTime = age * 0.05f * charShakeSpeed + index[0] * 0.1f;
-                        sy = (float) Math.sin(charShakeTime * 2 * Math.PI / charShakeWavelength) * charShakeStrength;
+                ShakeType shakeTypeToUse = charShakeType;
+                float amplitude = charShakeStrength;
+                float speed = charShakeSpeed;
+                float wavelength = charShakeWavelength;
+                boolean applyShake = charShake;
+
+                if (!charShake && useSegmentShake) {
+                    CharShakeSegment segment = activeSegment[0];
+                    while (segment != null && index[0] >= segment.endIndex) {
+                        segmentCursor[0]++;
+                        segment = segmentCursor[0] < spanCharShakeSegments.size() ? spanCharShakeSegments.get(segmentCursor[0]) : null;
+                        activeSegment[0] = segment;
                     }
-                    case CIRCLE -> {
-                        float charShakeTime = age * 0.05f * charShakeSpeed + index[0] * 0.1f;
-                        sx = (float) Math.cos(charShakeTime) * charShakeStrength;
-                        sy = (float) Math.sin(charShakeTime) * charShakeStrength;
+                    if (segment != null && index[0] >= segment.startIndex) {
+                        shakeTypeToUse = segment.type;
+                        amplitude = segment.amplitude;
+                        speed = segment.speed;
+                        wavelength = segment.wavelength;
+                        applyShake = amplitude > 0f;
+                    } else {
+                        applyShake = false;
                     }
-                    case RANDOM -> {
-                        sx = (random.nextFloat() - 0.5f) * 2f * charShakeStrength;
-                        sy = (random.nextFloat() - 0.5f) * 2f * charShakeStrength;
+                }
+
+                if (applyShake) {
+                    float charShakeTime = age * 0.05f * speed + index[0] * 0.1f;
+                    switch (shakeTypeToUse) {
+                        case WAVE -> {
+                            float safeWavelength = Math.max(0.0001f, wavelength);
+                            sy = (float) Math.sin(charShakeTime * 2 * Math.PI / safeWavelength) * amplitude;
+                        }
+                        case CIRCLE -> {
+                            sx = (float) Math.cos(charShakeTime) * amplitude;
+                            sy = (float) Math.sin(charShakeTime) * amplitude;
+                        }
+                        case RANDOM -> {
+                            sx = (random.nextFloat() - 0.5f) * 2f * amplitude;
+                            sy = (random.nextFloat() - 0.5f) * 2f * amplitude;
+                        }
                     }
                 }
                 Component comp = Component.literal(ch).withStyle(style);
@@ -1948,6 +2053,7 @@ public class ImmersiveMessage {
             System.arraycopy(spanTypewriterIndices, 0, newIndices, 0, Math.min(spanTypewriterIndices.length, spans.size()));
             spanTypewriterIndices = newIndices;
         }
+        evaluateSpanCharShake();
         return this;
     }
 

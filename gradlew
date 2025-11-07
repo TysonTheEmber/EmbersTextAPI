@@ -113,12 +113,23 @@ esac
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
+# Fallback JAVA_HOME for WSL environments where Java is installed on Windows
+if [ -z "$JAVA_HOME" ]; then
+    if [ -x "/mnt/c/Program Files/Eclipse Adoptium/jdk-21.0.7.6-hotspot/bin/java.exe" ]; then
+        JAVA_HOME="/mnt/c/Program Files/Eclipse Adoptium/jdk-21.0.7.6-hotspot"
+    fi
+fi
+
 
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
     if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
         # IBM's JDK on AIX uses strange locations for the executables
         JAVACMD=$JAVA_HOME/jre/sh/java
+    elif [ -x "$JAVA_HOME/bin/java" ] ; then
+        JAVACMD=$JAVA_HOME/bin/java
+    elif [ -x "$JAVA_HOME/bin/java.exe" ] ; then
+        JAVACMD=$JAVA_HOME/bin/java.exe
     else
         JAVACMD=$JAVA_HOME/bin/java
     fi
