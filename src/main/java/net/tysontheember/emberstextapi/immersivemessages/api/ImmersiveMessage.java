@@ -16,6 +16,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.tysontheember.emberstextapi.client.TextLayoutCache;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfuscateAnimator;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterAnimator;
+import net.tysontheember.emberstextapi.immersivemessages.effects.color.FadeCalculator;
+import net.tysontheember.emberstextapi.immersivemessages.effects.color.GradientCalculator;
+import net.tysontheember.emberstextapi.immersivemessages.effects.position.ShakeCalculator;
+import net.tysontheember.emberstextapi.immersivemessages.effects.rendering.BackgroundRenderer;
+import net.tysontheember.emberstextapi.immersivemessages.effects.util.ColorUtil;
 import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
@@ -611,33 +618,11 @@ public class ImmersiveMessage {
 
     private void buildGradientColors() {
         String str = text.getString();
-        gradientColors = new TextColor[str.length()];
-        if (gradientStops == null || gradientStops.length < 2) return;
-
-        int segments = gradientStops.length - 1;
-        for (int i = 0; i < str.length(); i++) {
-            float t = str.length() <= 1 ? 0f : i / (float) (str.length() - 1);
-            float scaled = t * segments;
-            int idx = Mth.clamp((int) Math.floor(scaled), 0, segments - 1);
-            float local = scaled - idx;
-            int start = gradientStops[idx].getValue();
-            int end = gradientStops[idx + 1].getValue();
-            int rgb = lerpColor(start, end, local);
-            gradientColors[i] = TextColor.fromRgb(rgb);
-        }
+        gradientColors = GradientCalculator.buildGradientColors(str.length(), gradientStops);
     }
 
     private static int lerpColor(int start, int end, float t) {
-        int sr = (start >> 16) & 0xFF;
-        int sg = (start >> 8) & 0xFF;
-        int sb = start & 0xFF;
-        int er = (end >> 16) & 0xFF;
-        int eg = (end >> 8) & 0xFF;
-        int eb = end & 0xFF;
-        int r = (int) Mth.lerp(t, sr, er);
-        int g = (int) Mth.lerp(t, sg, eg);
-        int b = (int) Mth.lerp(t, sb, eb);
-        return (r << 16) | (g << 8) | b;
+        return GradientCalculator.lerpColor(start, end, t);
     }
 
     private void rebuildGradientCurrent() {
@@ -669,22 +654,7 @@ public class ImmersiveMessage {
     private void initObfuscation() {
         baseText = text.getString();
         revealMask = new boolean[baseText.length()];
-        revealOrder = new ArrayList<>(baseText.length());
-        for (int i = 0; i < baseText.length(); i++) revealOrder.add(i);
-        switch (obfuscateMode) {
-            case RIGHT -> Collections.reverse(revealOrder);
-            case CENTER -> {
-                revealOrder.clear();
-                int left = (baseText.length() - 1) / 2;
-                int right = baseText.length() / 2;
-                while (left >= 0 || right < baseText.length()) {
-                    if (left >= 0) revealOrder.add(left--);
-                    if (right < baseText.length()) revealOrder.add(right++);
-                }
-            }
-            case RANDOM -> Collections.shuffle(revealOrder, random);
-            default -> { /* LEFT default */ }
-        }
+        revealOrder = ObfuscateAnimator.createRevealOrder(obfuscateMode, baseText.length(), random);
         revealIndex = 0;
         obfuscateProgress = 0f;
         rebuildObfuscation();
@@ -1352,59 +1322,16 @@ public class ImmersiveMessage {
     }
 
     private float computeAlpha(float sampleAge) {
-        float fadeIn = this.fadeInTicks;
-        float fadeOut = this.fadeOutTicks;
-        float visibleEnd = fadeIn + duration;
-        float total = visibleEnd + fadeOut;
-
-        float alpha;
-        if (fadeIn > 0f && sampleAge <= fadeIn) {
-            // Ensure we start at exactly 0 alpha when sampleAge is 0
-            alpha = Math.max(0f, sampleAge) / Math.max(1f, fadeIn);
-        } else if (sampleAge < visibleEnd || (duration <= 0f && fadeIn == 0f && fadeOut == 0f)) {
-            alpha = 1f;
-        } else if (fadeOut > 0f && sampleAge < total) {
-            float fadeProgress = sampleAge - visibleEnd;
-            alpha = 1f - (fadeProgress / Math.max(1f, fadeOut));
-        } else {
-            alpha = 0f;
-        }
-        return Mth.clamp(alpha, 0f, 1f);
+        return FadeCalculator.computeFadeAlpha(sampleAge, fadeInTicks, duration, fadeOutTicks);
     }
 
     /**
      * Computes alpha for a specific span with per-span fade effects.
      */
     private float computeSpanAlpha(TextSpan span, float sampleAge) {
-        Integer spanFadeIn = span.getFadeInTicks();
-        Integer spanFadeOut = span.getFadeOutTicks();
-
-        // If span has no fade effects, use global alpha
-        if (spanFadeIn == null && spanFadeOut == null) {
-            return computeAlpha(sampleAge);
-        }
-
-        // Use span-specific fade timing
-        float fadeIn = spanFadeIn != null ? spanFadeIn : 0f;
-        float fadeOut = spanFadeOut != null ? spanFadeOut : 0f;
-        float visibleEnd = fadeIn + duration;
-        float total = visibleEnd + fadeOut;
-
-        float alpha;
-        if (fadeIn > 0f && sampleAge < fadeIn) {
-            alpha = sampleAge / Math.max(1f, fadeIn);
-        } else if (sampleAge < visibleEnd || (duration <= 0f && fadeIn == 0f && fadeOut == 0f)) {
-            alpha = 1f;
-        } else if (fadeOut > 0f && sampleAge < total) {
-            float fadeProgress = sampleAge - visibleEnd;
-            alpha = 1f - (fadeProgress / Math.max(1f, fadeOut));
-        } else {
-            alpha = 0f;
-        }
-
-        // Combine with global alpha (for overall message fade)
-        float globalAlpha = computeAlpha(sampleAge);
-        return Mth.clamp(alpha * globalAlpha, 0f, 1f);
+        return FadeCalculator.computeSpanFadeAlpha(sampleAge,
+                span.getFadeInTicks(), span.getFadeOutTicks(),
+                duration, fadeInTicks, fadeOutTicks);
     }
 
     private float sampleAge(float partialTick) {
@@ -1488,22 +1415,11 @@ public class ImmersiveMessage {
         }
 
         if (shake) {
-            float sx = 0f, sy = 0f;
             // Use tick-based timing for frame-rate independence (20 TPS = 0.05 seconds per tick)
             float shakeTime = renderAge * 0.05f * shakeSpeed;
-            switch (shakeType) {
-                case WAVE -> sy = (float) Math.sin(shakeTime * 2 * Math.PI / shakeWavelength) * shakeStrength;
-                case CIRCLE -> {
-                    sx = (float) Math.cos(shakeTime) * shakeStrength;
-                    sy = (float) Math.sin(shakeTime) * shakeStrength;
-                }
-                case RANDOM -> {
-                    sx = (random.nextFloat() - 0.5f) * 2f * shakeStrength;
-                    sy = (random.nextFloat() - 0.5f) * 2f * shakeStrength;
-                }
-            }
-            x += sx;
-            y += sy;
+            float[] offset = ShakeCalculator.calculateShakeOffset(shakeType, shakeTime, shakeStrength, shakeWavelength, random);
+            x += offset[0];
+            y += offset[1];
         }
 
         float alpha = computeAlpha(renderAge);
@@ -1531,43 +1447,18 @@ public class ImmersiveMessage {
         graphics.pose().translate(x - textStartX * textScale, y - textStartY * textScale, 0);
         graphics.pose().scale(textScale, textScale, 1f);
         if (background) {
-            int start = (Math.min(255, (int)(borderStart.getAlpha() * alpha)) << 24) | borderStart.getRGB();
-            int end = (Math.min(255, (int)(borderEnd.getAlpha() * alpha)) << 24) | borderEnd.getRGB();
-            int widthForBg = shake ? backgroundWidthInt + (int)(shakeStrength * 4f) : backgroundWidthInt;
+            int widthForBg = BackgroundRenderer.calculateShakeAdjustedWidth(backgroundWidthInt, shake, shakeStrength);
 
             if (useTextureBackground && backgroundTexture != null) {
-                RenderSystem.enableBlend();
-                RenderSystem.setShaderColor(1f, 1f, 1f, alpha);
-                if (textureSizingMode == TextureSizingMode.STRETCH) {
-                    graphics.blit(backgroundTexture, 0, 0, widthForBg, backgroundHeightInt, textureU, textureV, textureWidth, textureHeight, textureAtlasWidth, textureAtlasHeight);
-                } else {
-                    int drawWidth = Math.min(widthForBg, textureWidth);
-                    int drawHeight = Math.min(backgroundHeightInt, textureHeight);
-                    int destX = Math.max(0, (widthForBg - drawWidth) / 2);
-                    int destY = Math.max(0, (backgroundHeightInt - drawHeight) / 2);
-                    int uOffset = textureU;
-                    int vOffset = textureV;
-                    if (drawWidth < textureWidth) {
-                        uOffset += (textureWidth - drawWidth) / 2;
-                    }
-                    if (drawHeight < textureHeight) {
-                        vOffset += (textureHeight - drawHeight) / 2;
-                    }
-                    graphics.blit(backgroundTexture, destX, destY, drawWidth, drawHeight, uOffset, vOffset, drawWidth, drawHeight, textureAtlasWidth, textureAtlasHeight);
-                }
-                RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-                RenderSystem.disableBlend();
+                BackgroundRenderer.renderTextureBackground(graphics, 0, 0, widthForBg, backgroundHeightInt,
+                        backgroundTexture, textureU, textureV, textureWidth, textureHeight,
+                        textureAtlasWidth, textureAtlasHeight, textureSizingMode, alpha);
             } else if (backgroundGradientStops != null) {
-                int[] cols = new int[backgroundGradientStops.length];
-                for (int i = 0; i < backgroundGradientStops.length; i++) {
-                    ImmersiveColor c = backgroundGradientStops[i];
-                    int a = Math.min(255, (int)(c.getAlpha() * alpha));
-                    cols[i] = (a << 24) | c.getRGB();
-                }
-                RenderUtil.drawBackgroundGradient(graphics, 0, 0, widthForBg, backgroundHeightInt, cols, start, end);
+                BackgroundRenderer.renderGradientBackground(graphics, 0, 0, widthForBg, backgroundHeightInt,
+                        backgroundGradientStops, borderStart, borderEnd, alpha);
             } else {
-                int bg = (Math.min(255, (int)(backgroundColor.getAlpha() * alpha)) << 24) | backgroundColor.getRGB();
-                RenderUtil.drawBackground(graphics, 0, 0, widthForBg, backgroundHeightInt, bg, start, end);
+                BackgroundRenderer.renderSolidBackground(graphics, 0, 0, widthForBg, backgroundHeightInt,
+                        backgroundColor, borderStart, borderEnd, alpha);
             }
         }
         boolean hasInlineItems = spanMode && spans != null && hasItemSpans();
@@ -1600,9 +1491,9 @@ public class ImmersiveMessage {
         // Typewriter progression
         if (typewriter) {
             // Handle global typewriter (legacy mode)
-            int next = (int)(age * typewriterSpeed);
+            int next = TypewriterAnimator.calculateTypewriterIndex(age, typewriterSpeed, text.getString().length());
             if (next > typewriterIndex) {
-                typewriterIndex = Math.min(next, text.getString().length());
+                typewriterIndex = next;
                 if (obfuscateMode != ObfuscateMode.NONE) {
                     rebuildObfuscation();
                 } else if (gradientColors != null) {
@@ -1616,42 +1507,16 @@ public class ImmersiveMessage {
             // Handle per-span typewriter (span mode)
             if (spanMode && spans != null && spanTypewriterIndices != null) {
                 // Check if ANY span has its own typewriter speed (independent typewriter)
-                boolean hasIndependentTypewriter = spans.stream().anyMatch(span -> span.getTypewriterSpeed() != null);
+                boolean hasIndependentTypewriter = TypewriterAnimator.hasIndependentTypewriter(spans);
 
                 if (hasIndependentTypewriter) {
                     // Original behavior: Each span with typewriter animates independently
-                    for (int i = 0; i < spans.size(); i++) {
-                        TextSpan span = spans.get(i);
-                        if (span.getTypewriterSpeed() != null) {
-                            int spanNext = (int)(age * span.getTypewriterSpeed());
-                            spanTypewriterIndices[i] = Math.min(spanNext, span.getContent().length());
-                        } else {
-                            spanTypewriterIndices[i] = span.getContent().length(); // Show all if no typewriter
-                        }
-                    }
+                    TypewriterAnimator.updateIndependentSpanTypewriter(age, spans, spanTypewriterIndices);
                 } else {
                     // NEW: Container-based typewriter - count chars across all spans
                     // Use global typewriter speed and reveal chars sequentially across spans
                     int totalCharsToShow = Math.min(next, getFullText().length());
-                    int charsShown = 0;
-
-                    for (int i = 0; i < spans.size(); i++) {
-                        TextSpan span = spans.get(i);
-                        int spanLength = span.getContent().length();
-
-                        if (charsShown + spanLength <= totalCharsToShow) {
-                            // Show entire span
-                            spanTypewriterIndices[i] = spanLength;
-                            charsShown += spanLength;
-                        } else if (charsShown < totalCharsToShow) {
-                            // Partially show this span
-                            spanTypewriterIndices[i] = totalCharsToShow - charsShown;
-                            charsShown = totalCharsToShow;
-                        } else {
-                            // Don't show this span yet
-                            spanTypewriterIndices[i] = 0;
-                        }
-                    }
+                    TypewriterAnimator.updateContainerTypewriter(totalCharsToShow, spans, spanTypewriterIndices);
                 }
             }
         }
@@ -1663,21 +1528,18 @@ public class ImmersiveMessage {
     private void tickObfuscation(float delta) {
         if (baseText == null || revealIndex >= revealOrder.size()) return;
 
-        obfuscateProgress += obfuscateSpeed * delta;
-        int revealCount = Math.min((int) obfuscateProgress, revealOrder.size() - revealIndex);
-        if (revealCount <= 0) return;
+        int[] revealIndexRef = {revealIndex};
+        float[] progressRef = {obfuscateProgress};
+        int revealed = ObfuscateAnimator.updateRevealMask(revealMask, revealOrder,
+                revealIndexRef, progressRef,
+                delta, obfuscateSpeed,
+                typewriter, typewriterIndex);
+        revealIndex = revealIndexRef[0];
+        obfuscateProgress = progressRef[0];
 
-        int revealed = 0;
-        for (int i = 0; i < revealCount; i++) {
-            int idx = revealOrder.get(revealIndex);
-            if (typewriter && idx >= typewriterIndex) break;
-            revealMask[idx] = true;
-            revealIndex++;
-            revealed++;
+        if (revealed > 0) {
+            rebuildObfuscation();
         }
-        if (revealed <= 0) return;
-        obfuscateProgress -= revealed;
-        rebuildObfuscation();
     }
 
     public boolean isFinished() {
@@ -1918,21 +1780,9 @@ public class ImmersiveMessage {
                     }
 
                     if (applyShake) {
-                        float charShakeTime = age * 0.05f * speed + index[0] * 0.1f;
-                        switch (shakeTypeToUse) {
-                            case WAVE -> {
-                                float safeWavelength = Math.max(0.0001f, wavelength);
-                                sy = (float) Math.sin(charShakeTime * 2 * Math.PI / safeWavelength) * amplitude;
-                            }
-                            case CIRCLE -> {
-                                sx = (float) Math.cos(charShakeTime) * amplitude;
-                                sy = (float) Math.sin(charShakeTime) * amplitude;
-                            }
-                            case RANDOM -> {
-                                sx = (random.nextFloat() - 0.5f) * 2f * amplitude;
-                                sy = (random.nextFloat() - 0.5f) * 2f * amplitude;
-                            }
-                        }
+                        float[] offset = ShakeCalculator.calculateCharShakeOffset(shakeTypeToUse, age, speed, amplitude, wavelength, index[0], random);
+                        sx = offset[0];
+                        sy = offset[1];
                     }
                     Component comp = Component.literal(ch).withStyle(style);
                     FormattedCharSequence charSeq = comp.getVisualOrderText();
