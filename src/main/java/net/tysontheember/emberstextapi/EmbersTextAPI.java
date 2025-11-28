@@ -29,6 +29,7 @@ import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
 import net.minecraftforge.network.PacketDistributor;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
+import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.network.TooltipPacket;
 import net.tysontheember.emberstextapi.network.Network;
 
@@ -39,7 +40,7 @@ public class EmbersTextAPI
     // Define mod id in a common place for everything to reference
     public static final String MODID = "emberstextapi";
     // Directly reference a slf4j logger
-    private static final Logger LOGGER = LogUtils.getLogger();
+    public static final Logger LOGGER = LogUtils.getLogger();
     public EmbersTextAPI(FMLJavaModLoadingContext context)
     {
         IEventBus modEventBus = context.getModEventBus();
@@ -85,6 +86,11 @@ public class EmbersTextAPI
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event)
         {
+            // Initialize effect registry with all built-in effects (v2.1.0)
+            event.enqueueWork(() -> {
+                EffectRegistry.initializeDefaultEffects();
+                LOGGER.info("EmbersTextAPI: Initialized visual effects system");
+            });
         }
     }
 }

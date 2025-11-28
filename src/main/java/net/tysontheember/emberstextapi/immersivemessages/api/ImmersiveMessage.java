@@ -15,7 +15,10 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.tysontheember.emberstextapi.EmbersTextAPI;
 import net.tysontheember.emberstextapi.client.TextLayoutCache;
+import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
+import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfuscateAnimator;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterAnimator;
 import net.tysontheember.emberstextapi.immersivemessages.effects.color.FadeCalculator;
@@ -129,6 +132,10 @@ public class ImmersiveMessage {
     private boolean spanMode = false;
     private int[] spanTypewriterIndices; // Per-span typewriter progress
 
+    // NEW: Visual effects system (v2.1.0)
+    private List<Effect> globalEffects;
+    private List<EffectSegment> spanEffectSegments = Collections.emptyList();
+
     private OnRenderMessage onRender;
     private final Random random = new Random();
 
@@ -173,6 +180,7 @@ public class ImmersiveMessage {
             }
         }
         evaluateSpanCharShake();
+        buildEffectSegments();
 
         // Extract global message attributes from any span that has them (typically the first one)
         for (TextSpan span : spans) {
@@ -604,6 +612,62 @@ public class ImmersiveMessage {
         return this;
     }
 
+    // NEW: Visual effects system (v2.1.0)
+    /**
+     * Add a global visual effect to this message.
+     * Effects are applied to all characters in the message.
+     *
+     * @param effect The effect to add
+     * @return This message for chaining
+     */
+    public ImmersiveMessage addEffect(Effect effect) {
+        if (this.globalEffects == null) {
+            this.globalEffects = new ArrayList<>();
+        }
+        this.globalEffects.add(effect);
+        return this;
+    }
+
+    /**
+     * Add a global effect by parsing a tag content string.
+     * Example: effect("rainbow f=2.0 w=0.5")
+     *
+     * @param tagContent Effect name and parameters
+     * @return This message for chaining
+     */
+    public ImmersiveMessage effect(String tagContent) {
+        if (tagContent != null && !tagContent.isEmpty()) {
+            try {
+                Effect effect = EffectRegistry.parseTag(tagContent);
+                addEffect(effect);
+            } catch (IllegalArgumentException e) {
+                // Silently ignore unknown effects
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Clear all global effects.
+     *
+     * @return This message for chaining
+     */
+    public ImmersiveMessage clearEffects() {
+        if (this.globalEffects != null) {
+            this.globalEffects.clear();
+        }
+        return this;
+    }
+
+    /**
+     * Get the list of global effects (may be null).
+     *
+     * @return List of effects or null
+     */
+    public List<Effect> getGlobalEffects() {
+        return globalEffects;
+    }
+
     private static TextColor parseColor(String value) {
         if (value == null) return null;
         ChatFormatting fmt = ChatFormatting.getByName(value);
@@ -958,6 +1022,14 @@ public class ImmersiveMessage {
         buf.writeFloat(delay);
         buf.writeVarInt(fadeInTicks);
         buf.writeVarInt(fadeOutTicks);
+
+        // NEW: Encode global effects (v2.1.0)
+        buf.writeVarInt(globalEffects == null ? 0 : globalEffects.size());
+        if (globalEffects != null && !globalEffects.isEmpty()) {
+            for (Effect effect : globalEffects) {
+                buf.writeUtf(effect.serialize());
+            }
+        }
     }
 
     public static ImmersiveMessage decode(FriendlyByteBuf buf) {
@@ -983,6 +1055,7 @@ public class ImmersiveMessage {
             msg.spans = spans;
             msg.spanTypewriterIndices = new int[spans.size()];
             msg.evaluateSpanCharShake();
+            msg.buildEffectSegments();
         } else {
             // Legacy deserialization
             Component text = buf.readComponent();
@@ -1060,6 +1133,24 @@ public class ImmersiveMessage {
         if (buf.isReadable()) {
             msg.fadeOutTicks = Math.max(0, buf.readVarInt());
         }
+
+        // NEW: Decode global effects (v2.1.0)
+        if (buf.isReadable()) {
+            int effectCount = buf.readVarInt();
+            if (effectCount > 0) {
+                for (int i = 0; i < effectCount; i++) {
+                    String effectTag = buf.readUtf();
+                    try {
+                        Effect effect = EffectRegistry.parseTag(effectTag);
+                        msg.addEffect(effect);
+                    } catch (IllegalArgumentException e) {
+                        // Skip unknown effects (forward compatibility)
+                        EmbersTextAPI.LOGGER.warn("Failed to decode global effect: {}", effectTag, e);
+                    }
+                }
+            }
+        }
+
         if (msg.obfuscateMode != ObfuscateMode.NONE) msg.initObfuscation();
         return msg;
     }
@@ -1463,8 +1554,31 @@ public class ImmersiveMessage {
         }
         boolean hasInlineItems = spanMode && spans != null && hasItemSpans();
 
+        // NEW: Check for effects (v2.1.0)
+        boolean hasGlobalEffects = globalEffects != null && !globalEffects.isEmpty();
+        boolean hasSpanEffects = spanMode && spans != null && spans.stream().anyMatch(s -> s.getEffects() != null && !s.getEffects().isEmpty());
+
+        // DEBUG: Log effect detection
+        if (EmbersTextAPI.LOGGER.isDebugEnabled() && (hasGlobalEffects || hasSpanEffects)) {
+            EmbersTextAPI.LOGGER.debug("EFFECT DEBUG: hasGlobalEffects={}, hasSpanEffects={}, spanMode={}, spans={}",
+                hasGlobalEffects, hasSpanEffects, spanMode, spans != null ? spans.size() : 0);
+            if (hasGlobalEffects && globalEffects != null) {
+                EmbersTextAPI.LOGGER.debug("EFFECT DEBUG: Global effects count: {}", globalEffects.size());
+            }
+            if (hasSpanEffects && spans != null) {
+                long effectSpanCount = spans.stream()
+                        .filter(s -> s.getEffects() != null && !s.getEffects().isEmpty())
+                        .count();
+                EmbersTextAPI.LOGGER.debug("EFFECT DEBUG: Spans with effects: {}", effectSpanCount);
+            }
+        }
+
         if (onRender != null) {
             onRender.render(graphics, this, 0, 0, alpha);
+        } else if (hasGlobalEffects || hasSpanEffects) {
+            // Use new effect rendering system (v2.1.0)
+            EmbersTextAPI.LOGGER.info("EFFECT DEBUG: Calling renderWithEffects");
+            renderWithEffects(graphics, lines, draw, colour, textStartX, textStartY);
         } else if ((charShake || hasCharShakeSpans()) && !hasInlineItems) {
             renderCharShake(graphics, lines, draw, colour, textStartX, textStartY);
         } else if (hasInlineItems) {
@@ -1601,6 +1715,33 @@ public class ImmersiveMessage {
         }
     }
 
+    /**
+     * Build effect segments from spans with effects (v2.1.0).
+     * This creates a mapping of character indices to their associated effects.
+     */
+    private void buildEffectSegments() {
+        spanEffectSegments = Collections.emptyList();
+        if (spans == null) return;
+
+        List<EffectSegment> segments = new ArrayList<>();
+        int charIndex = 0;
+        for (TextSpan span : spans) {
+            String content = span.getContent();
+            int length = content != null ? content.length() : 0;
+            if (length > 0 && span.getEffects() != null && !span.getEffects().isEmpty()) {
+                segments.add(new EffectSegment(
+                    charIndex,
+                    charIndex + length,
+                    span.getEffects()
+                ));
+            }
+            charIndex += length;
+        }
+        if (!segments.isEmpty()) {
+            spanEffectSegments = segments;
+        }
+    }
+
     private static class CharShakeSegment {
         final int startIndex;
         final int endIndex;
@@ -1616,6 +1757,22 @@ public class ImmersiveMessage {
             this.amplitude = amplitude;
             this.speed = speed;
             this.wavelength = wavelength;
+        }
+    }
+
+    /**
+     * Segment mapping for visual effects (v2.1.0).
+     * Maps character ranges to their associated effects.
+     */
+    private static class EffectSegment {
+        final int startIndex;
+        final int endIndex;
+        final List<Effect> effects;
+
+        EffectSegment(int startIndex, int endIndex, List<Effect> effects) {
+            this.startIndex = startIndex;
+            this.endIndex = endIndex;
+            this.effects = effects;
         }
     }
 
@@ -1868,6 +2025,137 @@ public class ImmersiveMessage {
         }
     }
 
+    /**
+     * Render with effects applied per-character (v2.1.0).
+     * This method applies both span-level and global effects to each character.
+     */
+    private void renderWithEffects(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int baseColour, float baseX, float baseY) {
+        var font = Minecraft.getInstance().font;
+        var handler = CaxtonCompat.getHandler();
+        int[] index = {0};
+
+        // Extract base color components from baseColour
+        float baseAlpha = ((baseColour >> 24) & 0xFF) / 255f;
+        float baseRed = ((baseColour >> 16) & 0xFF) / 255f;
+        float baseGreen = ((baseColour >> 8) & 0xFF) / 255f;
+        float baseBlue = (baseColour & 0xFF) / 255f;
+
+        if (lines != null) {
+            for (int i = 0; i < lines.size(); i++) {
+                final float lineBaseY = baseY + i * font.lineHeight;
+                final float[] xAdvance = {baseX};
+                FormattedCharSequence lineSeq = lines.get(i);
+
+                lineSeq.accept((pos, style, codePoint) -> {
+                    renderCharWithEffects(graphics, font, handler, codePoint, style,
+                            xAdvance[0], lineBaseY, baseRed, baseGreen, baseBlue, baseAlpha,
+                            index[0], false, xAdvance);
+                    index[0]++;
+                    return true;
+                });
+            }
+        } else {
+            final float[] xAdvance = {baseX};
+            draw.getVisualOrderText().accept((pos, style, codePoint) -> {
+                renderCharWithEffects(graphics, font, handler, codePoint, style,
+                        xAdvance[0], baseY, baseRed, baseGreen, baseBlue, baseAlpha,
+                        index[0], false, xAdvance);
+                index[0]++;
+                return true;
+            });
+        }
+    }
+
+    /**
+     * Render a single character with effects applied.
+     */
+    private void renderCharWithEffects(GuiGraphics graphics, net.minecraft.client.gui.Font font,
+                                        Object handler, int codePoint, net.minecraft.network.chat.Style style,
+                                        float baseX, float baseY,
+                                        float baseR, float baseG, float baseB, float baseA,
+                                        int charIndex, boolean isShadow, float[] xAdvanceOut) {
+        // Import EffectSettings and EffectContext
+        var settings = new net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings(
+                0f, 0f,  // x, y offsets start at 0
+                baseR, baseG, baseB, baseA,
+                charIndex, codePoint, isShadow
+        );
+
+        // Apply global effects first
+        if (globalEffects != null && !globalEffects.isEmpty()) {
+            net.tysontheember.emberstextapi.immersivemessages.effects.EffectContext.applyEffects(globalEffects, settings);
+        }
+
+        // Apply span-level effects (v2.1.0)
+        if (!spanEffectSegments.isEmpty()) {
+            // Find the effect segment for this character index
+            for (EffectSegment segment : spanEffectSegments) {
+                if (charIndex >= segment.startIndex && charIndex < segment.endIndex) {
+                    // Apply this span's effects
+                    net.tysontheember.emberstextapi.immersivemessages.effects.EffectContext.applyEffects(segment.effects, settings);
+                    break;
+                }
+            }
+        }
+
+        // Clamp colors to valid range
+        settings.clampColors();
+
+        // Render main character with effect-modified settings
+        renderSingleChar(graphics, font, handler, codePoint, style,
+                baseX + settings.x, baseY + settings.y,
+                settings.rot, settings.getPackedColor(), xAdvanceOut);
+
+        // Render sibling layers (for multi-layer effects like glitch)
+        for (var sibling : settings.siblings) {
+            sibling.clampColors();
+            renderSingleChar(graphics, font, handler, codePoint, style,
+                    baseX + sibling.x, baseY + sibling.y,
+                    sibling.rot, sibling.getPackedColor(), null);
+        }
+    }
+
+    /**
+     * Render a single character at the specified position with optional rotation.
+     */
+    private void renderSingleChar(GuiGraphics graphics, net.minecraft.client.gui.Font font,
+                                   Object handler, int codePoint, net.minecraft.network.chat.Style style,
+                                   float x, float y, float rotation, int color,
+                                   float[] xAdvanceOut) {
+        String ch = new String(Character.toChars(codePoint));
+        Component comp = Component.literal(ch).withStyle(style);
+        FormattedCharSequence charSeq = comp.getVisualOrderText();
+
+        // Calculate character width
+        float cw = font.width(charSeq);
+        if (handler != null) {
+            var caxtonHandler = (net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat.WidthProvider) handler;
+            float caxtonWidth = caxtonHandler.getWidth(charSeq);
+            if (!Float.isNaN(caxtonWidth)) {
+                cw = caxtonWidth;
+            }
+        }
+
+        graphics.pose().pushPose();
+
+        // Apply rotation if needed (for SwingEffect, etc.)
+        if (rotation != 0f) {
+            // Rotate around character center
+            graphics.pose().translate(x + cw / 2f, y + font.lineHeight / 2f, 0);
+            graphics.pose().mulPose(com.mojang.math.Axis.ZP.rotation(rotation));
+            graphics.pose().translate(-(x + cw / 2f), -(y + font.lineHeight / 2f), 0);
+        }
+
+        graphics.pose().translate(x, y, 0);
+        graphics.drawString(font, charSeq, 0, 0, color, shadow);
+        graphics.pose().popPose();
+
+        // Update x advance for next character
+        if (xAdvanceOut != null) {
+            xAdvanceOut[0] += cw;
+        }
+    }
+
     // NEW: Span-based API methods (v2.0.0)
 
     /**
@@ -1904,6 +2192,7 @@ public class ImmersiveMessage {
             spanTypewriterIndices = newIndices;
         }
         evaluateSpanCharShake();
+        buildEffectSegments();
         return this;
     }
 

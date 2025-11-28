@@ -49,7 +49,7 @@ public class MessageCommands {
 
     private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> testSubcommand() {
         return Commands.literal("test")
-            .then(Commands.argument("id", IntegerArgumentType.integer(1, 25))
+            .then(Commands.argument("id", IntegerArgumentType.integer(1, 33))
                 .executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
                     int id = IntegerArgumentType.getInteger(ctx, "id");
@@ -512,6 +512,24 @@ public class MessageCommands {
                 ImmersiveMessage msg = new ImmersiveMessage(spans, 100f);
                 EmbersTextAPI.sendMessage(player, msg);
             }
+
+            // NEW: Visual effects tests (v2.1.0)
+            case 26 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<rainbow>Rainbow Test</rainbow>"));
+            case 27 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<glitch>Glitch Test</glitch>"));
+            case 28 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<bounce>Bounce Test</bounce>"));
+            case 29 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<pulse>Pulse Test</pulse>"));
+            case 30 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<swing>Swing Test</swing>"));
+            case 31 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<turb>Turbulence Test</turb>"));
+            case 32 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<wave>Wave Test</wave>"));
+            case 33 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "<rainbow><wave>Combined Effects Test</wave></rainbow>"));
         }
     }
     

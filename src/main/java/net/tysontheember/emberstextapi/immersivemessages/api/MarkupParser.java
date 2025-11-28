@@ -15,8 +15,8 @@ import java.util.regex.Pattern;
  */
 public class MarkupParser {
     
-    private static final Pattern TAG_PATTERN = Pattern.compile("<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:\\s+[a-zA-Z][a-zA-Z0-9]*[=:](?:[\"'][^\"']*[\"']|[^\\s>]+))*)>");
-    private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile("([a-zA-Z][a-zA-Z0-9]*)[=:](?:([\"'])([^\"']*)\\2|([^\\s>]+))");
+    private static final Pattern TAG_PATTERN = Pattern.compile("<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:\\s+[a-zA-Z][a-zA-Z0-9]*(?:[=:](?:[\"'][^\"']*[\"']|[^\\s>]+))?)*)>");
+    private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile("([a-zA-Z][a-zA-Z0-9]*)(?:[=:](?:([\"'])([^\"']*)\\2|([^\\s>]+)))?");
     
     /**
      * Parses markup text into a list of TextSpan objects.
@@ -133,7 +133,13 @@ public class MarkupParser {
         if (source.getStrikethrough() != null) target.strikethrough(source.getStrikethrough());
         if (source.getObfuscated() != null) target.obfuscated(source.getObfuscated());
         if (source.getFont() != null) target.font(source.getFont());
-        if (source.getGradientColors() != null) target.gradient(source.getGradientColors());
+        // OLD gradient system removed - use new GradientEffect instead (v2.1.0)
+        // Inherit effects (v2.1.0)
+        if (source.getEffects() != null) {
+            for (var effect : source.getEffects()) {
+                target.addEffect(effect);
+            }
+        }
         // DON'T inherit typewriter - it should be a container effect, not per-span
         // Typewriter will be handled at the message level via ImmersiveMessage.typewriter flag
         // if (source.getTypewriterSpeed() != null) {
@@ -247,25 +253,9 @@ public class MarkupParser {
             }
             
             case "grad", "gradient" -> {
-                String values = attrs.get("values");
-                if (values != null) {
-                    // Parse comma-separated color list: values=red,blue,white
-                    String[] colorStrs = values.split(",");
-                    if (colorStrs.length >= 2) {
-                        // Trim whitespace from each color
-                        for (int i = 0; i < colorStrs.length; i++) {
-                            colorStrs[i] = colorStrs[i].trim();
-                        }
-                        span.gradient(colorStrs);
-                    }
-                } else {
-                    // Fallback to from/to syntax for backwards compatibility
-                    String from = attrs.get("from");
-                    String to = attrs.get("to");
-                    if (from != null && to != null) {
-                        span.gradient(from, to);
-                    }
-                }
+                // Always use new GradientEffect (v2.1.0)
+                String tagContent = buildEffectTag("grad", attributes);
+                span.effect(tagContent);
             }
             
             case "typewriter", "type" -> {
@@ -280,64 +270,62 @@ public class MarkupParser {
             }
             
             case "shake" -> {
-                String typeStr = attrs.getOrDefault("type", "random");
-                String amplitudeStr = attrs.getOrDefault("amplitude", "1.0");
-                String speedStr = attrs.get("speed");
-                String wavelengthStr = attrs.get("wavelength");
-                try {
-                    ShakeType type = ShakeType.valueOf(typeStr.toUpperCase());
-                    float amplitude = Float.parseFloat(amplitudeStr);
-                    if (speedStr != null && wavelengthStr != null) {
-                        float speed = Float.parseFloat(speedStr);
-                        float wavelength = Float.parseFloat(wavelengthStr);
-                        span.shake(type, amplitude, speed, wavelength);
-                    } else if (speedStr != null) {
-                        float speed = Float.parseFloat(speedStr);
-                        span.shake(type, amplitude, speed);
-                    } else {
-                        span.shake(type, amplitude);
-                    }
-                } catch (Exception ignored) {}
+                // Check if using old ShakeType system (deprecated)
+                String typeStr = attrs.get("type");
+
+                if (typeStr != null) {
+                    // OLD SYSTEM: Map type parameter to new effects
+                    String effectName = switch (typeStr.toLowerCase()) {
+                        case "wave" -> "wave";
+                        case "circle" -> "circle";
+                        default -> "shake"; // "random" or any other value
+                    };
+                    String tagContent = buildEffectTag(effectName, attributes);
+                    span.effect(tagContent);
+                } else {
+                    // NEW SYSTEM: Use ShakeEffect directly (v2.1.0)
+                    String tagContent = buildEffectTag("shake", attributes);
+                    span.effect(tagContent);
+                }
             }
             
             case "charshake" -> {
+                // DEPRECATED: All new effects are per-character by default
+                // Map old charshake to new effect system
                 String typeStr = attrs.getOrDefault("type", "random");
-                String amplitudeStr = attrs.getOrDefault("amplitude", "1.0");
-                String speedStr = attrs.get("speed");
-                String wavelengthStr = attrs.get("wavelength");
-                try {
-                    ShakeType type = ShakeType.valueOf(typeStr.toUpperCase());
-                    float amplitude = Float.parseFloat(amplitudeStr);
-                    if (speedStr != null && wavelengthStr != null) {
-                        float speed = Float.parseFloat(speedStr);
-                        float wavelength = Float.parseFloat(wavelengthStr);
-                        span.charShake(type, amplitude, speed, wavelength);
-                    } else if (speedStr != null) {
-                        float speed = Float.parseFloat(speedStr);
-                        span.charShake(type, amplitude, speed);
-                    } else {
-                        span.charShake(type, amplitude);
-                    }
-                } catch (Exception ignored) {}
+
+                String effectName = switch (typeStr.toLowerCase()) {
+                    case "wave" -> "wave";
+                    case "circle" -> "circle";
+                    default -> "shake"; // "random" or any other value
+                };
+
+                String tagContent = buildEffectTag(effectName, attributes);
+                span.effect(tagContent);
             }
             
             case "wave" -> {
-                String amplitudeStr = attrs.getOrDefault("amplitude", "1.0");
-                String speedStr = attrs.getOrDefault("speed", "1.0");
-                String wavelengthStr = attrs.getOrDefault("wavelength", "1.0");
-                try {
-                    float amplitude = Float.parseFloat(amplitudeStr);
-                    if (speedStr != null && wavelengthStr != null) {
-                        float speed = Float.parseFloat(speedStr) * -1;
-                        float wavelength = Float.parseFloat(wavelengthStr);
-                        span.charShake(ShakeType.WAVE, amplitude, speed, wavelength);
-                    } else if (speedStr != null) {
-                        float speed = Float.parseFloat(speedStr)* -1;
-                        span.charShake(ShakeType.WAVE, amplitude, speed);
-                    } else {
-                        span.charShake(ShakeType.WAVE, amplitude);
-                    }
-                } catch (NumberFormatException ignored) {}
+                // Use new WaveEffect (v2.1.0) instead of charShake-based wave
+                String tagContent = buildEffectTag("wave", attributes);
+                span.effect(tagContent);
+
+                // OLD (deprecated): charShake-based wave - kept here as reference
+                // String amplitudeStr = attrs.getOrDefault("amplitude", "1.0");
+                // String speedStr = attrs.getOrDefault("speed", "1.0");
+                // String wavelengthStr = attrs.getOrDefault("wavelength", "1.0");
+                // try {
+                //     float amplitude = Float.parseFloat(amplitudeStr);
+                //     if (speedStr != null && wavelengthStr != null) {
+                //         float speed = Float.parseFloat(speedStr) * -1;
+                //         float wavelength = Float.parseFloat(wavelengthStr);
+                //         span.charShake(ShakeType.WAVE, amplitude, speed, wavelength);
+                //     } else if (speedStr != null) {
+                //         float speed = Float.parseFloat(speedStr)* -1;
+                //         span.charShake(ShakeType.WAVE, amplitude, speed);
+                //     } else {
+                //         span.charShake(ShakeType.WAVE, amplitude);
+                //     }
+                // } catch (NumberFormatException ignored) {}
             }
             
             case "obfuscate", "scramble" -> {
@@ -429,27 +417,50 @@ public class MarkupParser {
             }
             
             case "shadow" -> {
-                String shadowStr = attrs.getOrDefault("value", "true");
-                boolean shadow = "true".equalsIgnoreCase(shadowStr);
-                span.globalShadow(shadow);
-            }
-            
-            case "fade" -> {
-                String inStr = attrs.get("in");
-                String outStr = attrs.get("out");
-                
-                if (inStr != null) {
-                    try {
-                        int inTicks = Integer.parseInt(inStr);
-                        span.globalFadeIn(inTicks);
-                    } catch (NumberFormatException ignored) {}
+                // Check if this is using new ShadowEffect parameters (x, y, c, r, g, b, a)
+                boolean isNewEffect = attrs.containsKey("x") || attrs.containsKey("y") ||
+                                     attrs.containsKey("c") || attrs.containsKey("r") ||
+                                     attrs.containsKey("g") || attrs.containsKey("b");
+
+                if (isNewEffect) {
+                    // Use new ShadowEffect (v2.1.0)
+                    String tagContent = buildEffectTag("shadow", attributes);
+                    span.effect(tagContent);
+                } else {
+                    // OLD system: global shadow enable/disable
+                    String shadowStr = attrs.getOrDefault("value", "true");
+                    boolean shadow = "true".equalsIgnoreCase(shadowStr);
+                    span.globalShadow(shadow);
                 }
-                
-                if (outStr != null) {
-                    try {
-                        int outTicks = Integer.parseInt(outStr);
-                        span.globalFadeOut(outTicks);
-                    } catch (NumberFormatException ignored) {}
+            }
+
+            case "fade" -> {
+                // Check if this is using new FadeEffect parameters (a, f, w)
+                boolean isNewEffect = attrs.containsKey("a") || attrs.containsKey("f") ||
+                                     attrs.containsKey("w");
+
+                if (isNewEffect) {
+                    // Use new FadeEffect (v2.1.0)
+                    String tagContent = buildEffectTag("fade", attributes);
+                    span.effect(tagContent);
+                } else {
+                    // OLD system: global fade in/out
+                    String inStr = attrs.get("in");
+                    String outStr = attrs.get("out");
+
+                    if (inStr != null) {
+                        try {
+                            int inTicks = Integer.parseInt(inStr);
+                            span.globalFadeIn(inTicks);
+                        } catch (NumberFormatException ignored) {}
+                    }
+
+                    if (outStr != null) {
+                        try {
+                            int outTicks = Integer.parseInt(outStr);
+                            span.globalFadeOut(outTicks);
+                        } catch (NumberFormatException ignored) {}
+                    }
                 }
             }
             
@@ -517,7 +528,82 @@ public class MarkupParser {
                     }
                 }
             }
+
+            // NEW: Visual effects (v2.1.0)
+            // These are recognized effect names that get delegated to the effect system
+            case "rainbow", "rainb" -> {
+                // Build tag content from effect name and attributes
+                String tagContent = buildEffectTag("rainbow", attributes);
+                span.effect(tagContent);
+            }
+
+            case "glitch" -> {
+                String tagContent = buildEffectTag("glitch", attributes);
+                span.effect(tagContent);
+            }
+
+            case "bounce" -> {
+                String tagContent = buildEffectTag("bounce", attributes);
+                span.effect(tagContent);
+            }
+
+            case "pulse" -> {
+                String tagContent = buildEffectTag("pulse", attributes);
+                span.effect(tagContent);
+            }
+
+            case "swing" -> {
+                String tagContent = buildEffectTag("swing", attributes);
+                span.effect(tagContent);
+            }
+
+            case "turb", "turbulence" -> {
+                String tagContent = buildEffectTag("turb", attributes);
+                span.effect(tagContent);
+            }
+
+            case "circle" -> {
+                String tagContent = buildEffectTag("circle", attributes);
+                span.effect(tagContent);
+            }
+
+            case "wiggle" -> {
+                String tagContent = buildEffectTag("wiggle", attributes);
+                span.effect(tagContent);
+            }
+
+            case "pend", "pendulum" -> {
+                String tagContent = buildEffectTag("pend", attributes);
+                span.effect(tagContent);
+            }
+
+            case "scroll" -> {
+                String tagContent = buildEffectTag("scroll", attributes);
+                span.effect(tagContent);
+            }
+
+            case "neon" -> {
+                String tagContent = buildEffectTag("neon", attributes);
+                span.effect(tagContent);
+            }
+
+            // Note: "wave" already exists above as charShake-based effect
+            // To use the new WaveEffect, users can use <effect>wave</effect> or we keep the old for compatibility
+            // Note: "shake" already exists above as charShake-based effect
+            // To use the new ShakeEffect, users can use <effect>shake</effect> or we keep the old for compatibility
+            // Note: "fade" and "shadow" handle both old and new systems dynamically based on parameters
         }
+    }
+
+    /**
+     * Helper method to build effect tag content from tag name and attributes.
+     * Reconstructs the tag format expected by EffectRegistry.parseTag().
+     */
+    private static String buildEffectTag(String effectName, String attributes) {
+        if (attributes == null || attributes.trim().isEmpty()) {
+            return effectName;
+        }
+        return effectName + attributes;
     }
     
     private static Map<String, String> parseAttributes(String attributeString) {
@@ -525,14 +611,20 @@ public class MarkupParser {
         if (attributeString == null || attributeString.trim().isEmpty()) {
             return attributes;
         }
-        
+
         Matcher matcher = ATTRIBUTE_PATTERN.matcher(attributeString);
         while (matcher.find()) {
             String key = matcher.group(1);
             String value = matcher.group(3) != null ? matcher.group(3) : matcher.group(4);
-            attributes.put(key.toLowerCase(), value);
+
+            // If value is null, treat it as a boolean flag (true)
+            if (value == null) {
+                attributes.put(key.toLowerCase(), "true");
+            } else {
+                attributes.put(key.toLowerCase(), value);
+            }
         }
-        
+
         return attributes;
     }
     
