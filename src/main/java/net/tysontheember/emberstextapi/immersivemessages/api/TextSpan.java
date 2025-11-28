@@ -3,7 +3,12 @@ package net.tysontheember.emberstextapi.immersivemessages.api;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
+import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
+import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Represents a styled span of text with its own attributes and effects.
@@ -11,6 +16,9 @@ import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
  */
 public class TextSpan {
     private final String content;
+
+    // NEW: Visual effects (v2.1.0)
+    private List<Effect> effects;
     
     // Basic text styling
     private TextColor color;
@@ -97,6 +105,7 @@ public class TextSpan {
     // Copy constructor for building from existing spans
     public TextSpan(TextSpan other) {
         this.content = other.content;
+        this.effects = other.effects != null ? new ArrayList<>(other.effects) : null;
         this.color = other.color;
         this.bold = other.bold;
         this.italic = other.italic;
@@ -152,6 +161,7 @@ public class TextSpan {
     
     // Getters
     public String getContent() { return content; }
+    public List<Effect> getEffects() { return effects; }
     public TextColor getColor() { return color; }
     public Boolean getBold() { return bold; }
     public Boolean getItalic() { return italic; }
@@ -226,14 +236,74 @@ public class TextSpan {
     public TextSpan strikethrough(boolean strikethrough) { this.strikethrough = strikethrough; return this; }
     public TextSpan obfuscated(boolean obfuscated) { this.obfuscated = obfuscated; return this; }
     public TextSpan font(ResourceLocation font) { this.font = font; return this; }
-    
+
+    // NEW: Effect methods (v2.1.0)
+    /**
+     * Add a visual effect to this span.
+     * Effects are applied in the order they are added.
+     *
+     * @param effect The effect to add
+     * @return This span for chaining
+     */
+    public TextSpan addEffect(Effect effect) {
+        if (this.effects == null) {
+            this.effects = new ArrayList<>();
+        }
+        this.effects.add(effect);
+        return this;
+    }
+
+    /**
+     * Add an effect by name and tag content (parses parameters).
+     * Example: effect("rainbow f=2.0 w=0.5")
+     *
+     * @param tagContent Effect name and parameters (e.g., "rainbow f=2.0")
+     * @return This span for chaining
+     */
+    public TextSpan effect(String tagContent) {
+        if (tagContent != null && !tagContent.isEmpty()) {
+            try {
+                net.tysontheember.emberstextapi.EmbersTextAPI.LOGGER.info("EFFECT DEBUG: Parsing effect tag: '{}'", tagContent);
+                Effect effect = EffectRegistry.parseTag(tagContent);
+                net.tysontheember.emberstextapi.EmbersTextAPI.LOGGER.info("EFFECT DEBUG: Created effect: {}", effect.getName());
+                addEffect(effect);
+            } catch (IllegalArgumentException e) {
+                // Silently ignore unknown effects to avoid breaking rendering
+                net.tysontheember.emberstextapi.EmbersTextAPI.LOGGER.warn("EFFECT DEBUG: Failed to parse effect: '{}' - {}", tagContent, e.getMessage());
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Clear all effects from this span.
+     *
+     * @return This span for chaining
+     */
+    public TextSpan clearEffects() {
+        if (this.effects != null) {
+            this.effects.clear();
+        }
+        return this;
+    }
+
+    /**
+     * @deprecated Use {@code effect("grad from=COLOR1 to=COLOR2")} with the new GradientEffect instead.
+     * The new effect system provides more features including HSV interpolation, animation, and cyclic modes.
+     */
+    @Deprecated
     public TextSpan gradient(TextColor... colors) {
         if (colors != null && colors.length >= 2) {
             this.gradientColors = colors.clone();
         }
         return this;
     }
-    
+
+    /**
+     * @deprecated Use {@code effect("grad from=COLOR1 to=COLOR2")} with the new GradientEffect instead.
+     * The new effect system provides more features including HSV interpolation, animation, and cyclic modes.
+     */
+    @Deprecated
     public TextSpan gradient(int... rgbs) {
         if (rgbs != null && rgbs.length >= 2) {
             TextColor[] colors = new TextColor[rgbs.length];
@@ -244,7 +314,12 @@ public class TextSpan {
         }
         return this;
     }
-    
+
+    /**
+     * @deprecated Use {@code effect("grad from=COLOR1 to=COLOR2")} with the new GradientEffect instead.
+     * The new effect system provides more features including HSV interpolation, animation, and cyclic modes.
+     */
+    @Deprecated
     public TextSpan gradient(String... values) {
         if (values != null && values.length >= 2) {
             TextColor[] colors = new TextColor[values.length];
@@ -271,19 +346,49 @@ public class TextSpan {
         return this;
     }
     
+    /**
+     * @deprecated Use the new effect system instead:
+     * <ul>
+     *   <li>For RANDOM shake: {@code effect("shake a=AMPLITUDE f=SPEED")}</li>
+     *   <li>For WAVE shake: {@code effect("wave a=AMPLITUDE f=SPEED w=WAVELENGTH")}</li>
+     *   <li>For CIRCLE shake: {@code effect("circle a=AMPLITUDE f=SPEED")}</li>
+     * </ul>
+     * The new effect system provides better performance and composability.
+     */
+    @Deprecated
     public TextSpan shake(ShakeType type, float amplitude) {
         this.shakeType = type;
         this.shakeAmplitude = amplitude;
         return this;
     }
-    
+
+    /**
+     * @deprecated Use the new effect system instead:
+     * <ul>
+     *   <li>For RANDOM shake: {@code effect("shake a=AMPLITUDE f=SPEED")}</li>
+     *   <li>For WAVE shake: {@code effect("wave a=AMPLITUDE f=SPEED w=WAVELENGTH")}</li>
+     *   <li>For CIRCLE shake: {@code effect("circle a=AMPLITUDE f=SPEED")}</li>
+     * </ul>
+     * The new effect system provides better performance and composability.
+     */
+    @Deprecated
     public TextSpan shake(ShakeType type, float amplitude, float speed) {
         this.shakeType = type;
         this.shakeAmplitude = amplitude;
         this.shakeSpeed = speed;
         return this;
     }
-    
+
+    /**
+     * @deprecated Use the new effect system instead:
+     * <ul>
+     *   <li>For RANDOM shake: {@code effect("shake a=AMPLITUDE f=SPEED")}</li>
+     *   <li>For WAVE shake: {@code effect("wave a=AMPLITUDE f=SPEED w=WAVELENGTH")}</li>
+     *   <li>For CIRCLE shake: {@code effect("circle a=AMPLITUDE f=SPEED")}</li>
+     * </ul>
+     * The new effect system provides better performance and composability.
+     */
+    @Deprecated
     public TextSpan shake(ShakeType type, float amplitude, float speed, float wavelength) {
         this.shakeType = type;
         this.shakeAmplitude = amplitude;
@@ -291,20 +396,47 @@ public class TextSpan {
         this.shakeWavelength = wavelength;
         return this;
     }
-    
+
+    /**
+     * @deprecated All new effects are per-character by default. Use the new effect system instead:
+     * <ul>
+     *   <li>For RANDOM shake: {@code effect("shake a=AMPLITUDE f=SPEED")}</li>
+     *   <li>For WAVE motion: {@code effect("wave a=AMPLITUDE f=SPEED w=WAVELENGTH")}</li>
+     *   <li>For CIRCLE motion: {@code effect("circle a=AMPLITUDE f=SPEED")}</li>
+     * </ul>
+     */
+    @Deprecated
     public TextSpan charShake(ShakeType type, float amplitude) {
         this.charShakeType = type;
         this.charShakeAmplitude = amplitude;
         return this;
     }
-    
+
+    /**
+     * @deprecated All new effects are per-character by default. Use the new effect system instead:
+     * <ul>
+     *   <li>For RANDOM shake: {@code effect("shake a=AMPLITUDE f=SPEED")}</li>
+     *   <li>For WAVE motion: {@code effect("wave a=AMPLITUDE f=SPEED w=WAVELENGTH")}</li>
+     *   <li>For CIRCLE motion: {@code effect("circle a=AMPLITUDE f=SPEED")}</li>
+     * </ul>
+     */
+    @Deprecated
     public TextSpan charShake(ShakeType type, float amplitude, float speed) {
         this.charShakeType = type;
         this.charShakeAmplitude = amplitude;
         this.charShakeSpeed = speed;
         return this;
     }
-    
+
+    /**
+     * @deprecated All new effects are per-character by default. Use the new effect system instead:
+     * <ul>
+     *   <li>For RANDOM shake: {@code effect("shake a=AMPLITUDE f=SPEED")}</li>
+     *   <li>For WAVE motion: {@code effect("wave a=AMPLITUDE f=SPEED w=WAVELENGTH")}</li>
+     *   <li>For CIRCLE motion: {@code effect("circle a=AMPLITUDE f=SPEED")}</li>
+     * </ul>
+     */
+    @Deprecated
     public TextSpan charShake(ShakeType type, float amplitude, float speed, float wavelength) {
         this.charShakeType = type;
         this.charShakeAmplitude = amplitude;
@@ -713,6 +845,14 @@ public class TextSpan {
                 buf.writeUtf(entityAnimation);
             }
         }
+
+        // NEW: Encode effects (v2.1.0)
+        buf.writeVarInt(effects == null ? 0 : effects.size());
+        if (effects != null && !effects.isEmpty()) {
+            for (Effect effect : effects) {
+                buf.writeUtf(effect.serialize());
+            }
+        }
     }
     
     public static TextSpan decode(net.minecraft.network.FriendlyByteBuf buf) {
@@ -885,7 +1025,22 @@ public class TextSpan {
                 span.entityAnimation = buf.readUtf();
             }
         }
-        
+
+        // NEW: Decode effects (v2.1.0)
+        int effectCount = buf.readVarInt();
+        if (effectCount > 0) {
+            for (int i = 0; i < effectCount; i++) {
+                String effectTag = buf.readUtf();
+                try {
+                    Effect effect = net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry.parseTag(effectTag);
+                    span.addEffect(effect);
+                } catch (IllegalArgumentException e) {
+                    // Skip unknown effects (forward compatibility)
+                    net.tysontheember.emberstextapi.EmbersTextAPI.LOGGER.warn("Failed to decode effect: {}", effectTag, e);
+                }
+            }
+        }
+
         return span;
     }
 }
