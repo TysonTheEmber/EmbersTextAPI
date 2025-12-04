@@ -74,6 +74,8 @@ public class ViewStateEventHandler {
             // Generate tooltip context ID from item
             String tooltipContext = generateTooltipContext(stack);
 
+            LOGGER.info("TOOLTIP EVENT: Tooltip pre-render for context: {}", tooltipContext);
+
             // Update view state tracker
             ViewStateTracker.updateTooltipContext(tooltipContext);
 
@@ -108,7 +110,7 @@ public class ViewStateEventHandler {
                 ViewStateTracker.markScreenOpened(screenContext);
                 lastScreen = newScreen;
 
-                LOGGER.trace("Screen opened: {}", screenContext);
+                LOGGER.info("SCREEN EVENT: Screen opened: {}", screenContext);
             }
 
         } catch (Exception e) {
@@ -224,19 +226,24 @@ public class ViewStateEventHandler {
      */
     private static String generateScreenContext(Screen screen) {
         String className = screen.getClass().getSimpleName();
+        String fullClassName = screen.getClass().getName();
 
-        // Check if this is an FTB Quests screen
-        if (className.contains("Quest")) {
+        LOGGER.info("SCREEN CONTEXT DEBUG: Simple class: {}, Full class: {}", className, fullClassName);
+
+        // Check if this is an FTB Quests screen (by package or class name)
+        if (fullClassName.contains("ftbquests") || className.contains("Quest")) {
             // Try to extract quest ID if possible
             // This is a best-effort approach; exact implementation depends on FTB Quests version
             try {
                 // For now, use class name + title hash as context
                 String title = screen.getTitle().getString();
+                LOGGER.info("SCREEN CONTEXT DEBUG: Quest screen detected, title: {}", title);
                 if (!title.isEmpty()) {
-                    return "screen:" + className + ":" + title.hashCode();
+                    // Use "quest:" prefix for compatibility with existing quest context tracking
+                    return "quest:screen:" + title.hashCode();
                 }
             } catch (Exception e) {
-                // Fall through to default
+                LOGGER.warn("Error extracting quest title", e);
             }
         }
 

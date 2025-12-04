@@ -70,6 +70,12 @@ public class ViewStateTracker {
     private static volatile String currentScreenContext = null;
 
     /**
+     * Currently active quest context (quest ID).
+     * Null when no quest is being viewed.
+     */
+    private static volatile String currentQuestContext = null;
+
+    /**
      * Last frame's tooltip context for change detection.
      */
     private static volatile String lastTooltipContext = null;
@@ -77,14 +83,19 @@ public class ViewStateTracker {
     /**
      * Get the timestamp when a specific view context became visible.
      * <p>
-     * If the context is not tracked, returns the current time (making it immediately visible).
+     * If the context is not tracked, creates a new entry with the current time.
+     * This ensures the context is tracked for future calls.
      * </p>
      *
      * @param contextId The context identifier
      * @return Timestamp in milliseconds when the context became visible
      */
     public static long getViewStartTime(String contextId) {
-        return VIEW_START_TIMES.getOrDefault(contextId, System.currentTimeMillis());
+        return VIEW_START_TIMES.computeIfAbsent(contextId, key -> {
+            long currentTime = System.currentTimeMillis();
+            LOGGER.info("TRACKER: Auto-created view context: {} at {}", key, currentTime);
+            return currentTime;
+        });
     }
 
     /**
@@ -104,9 +115,9 @@ public class ViewStateTracker {
         Long previousTime = VIEW_START_TIMES.put(contextId, currentTime);
 
         if (previousTime == null) {
-            LOGGER.debug("New view context started: {} at {}", contextId, currentTime);
+            LOGGER.info("TRACKER: New view context started: {} at {}", contextId, currentTime);
         } else {
-            LOGGER.debug("View context reset: {} (was {}, now {})", contextId, previousTime, currentTime);
+            LOGGER.info("TRACKER: View context reset: {} (was {}, now {})", contextId, previousTime, currentTime);
         }
     }
 
@@ -122,7 +133,7 @@ public class ViewStateTracker {
     public static void updateTooltipContext(String tooltipContext) {
         // Detect context change (including null -> non-null and vice versa)
         if (!java.util.Objects.equals(tooltipContext, lastTooltipContext)) {
-            LOGGER.trace("Tooltip context changed: {} -> {}", lastTooltipContext, tooltipContext);
+            LOGGER.info("TRACKER: Tooltip context changed: {} -> {}", lastTooltipContext, tooltipContext);
 
             // If we have a new tooltip context, mark it as started
             if (tooltipContext != null) {
@@ -179,8 +190,9 @@ public class ViewStateTracker {
             return;
         }
 
-        LOGGER.debug("Quest viewed: {}", questId);
-        markViewStarted("quest:" + questId);
+        LOGGER.info("TRACKER: Quest viewed: {}", questId);
+        currentQuestContext = "quest:" + questId;
+        markViewStarted(currentQuestContext);
     }
 
     /**
@@ -202,6 +214,15 @@ public class ViewStateTracker {
     }
 
     /**
+     * Get the currently active quest context.
+     *
+     * @return Current quest context identifier, or null if no quest is being viewed
+     */
+    public static String getCurrentQuestContext() {
+        return currentQuestContext;
+    }
+
+    /**
      * Clear all tracked view states.
      * <p>
      * Useful for cleanup or testing. Not typically needed during normal operation.
@@ -211,6 +232,7 @@ public class ViewStateTracker {
         VIEW_START_TIMES.clear();
         currentTooltipContext = null;
         currentScreenContext = null;
+        currentQuestContext = null;
         lastTooltipContext = null;
         LOGGER.debug("View state tracker cleared");
     }

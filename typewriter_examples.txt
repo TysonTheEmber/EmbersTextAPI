@@ -1,0 +1,176 @@
+# Typewriter Effect Examples
+# Copy these into item tooltips, quest descriptions, or custom text components
+
+# BASIC EXAMPLES
+# ==============
+
+# Simple typewriter - default 20 chars/sec
+<typewriter>This text appears character by character</typewriter>
+
+# Fast typing
+<typewriter s=40>Quick typing effect!</typewriter>
+
+# Slow typing for dramatic effect
+<typewriter s=10>S...l...o...w typing for suspense...</typewriter>
+
+# With initial delay
+<typewriter d=1.0>Waits 1 second before typing</typewriter>
+<typewriter s=25 d=0.5>Fast typing after short delay</typewriter>
+
+# Cycling animation (repeats)
+<typewriter s=15 c=true>This repeats forever...</typewriter>
+
+
+# COMBINED WITH OTHER EFFECTS
+# ============================
+
+# Rainbow typewriter
+<rainbow><typewriter>Colorful typing!</typewriter></rainbow>
+
+# Wave typewriter
+<wave><typewriter s=25>Wavy typing effect</typewriter></wave>
+
+# Gradient typewriter
+<gradient from=#FF0000 to=#0000FF><typewriter>Gradient typing</typewriter></gradient>
+
+# Glitch + typewriter (dramatic)
+<glitch f=1.5><typewriter s=20>Gl1tch3d typ1ng</typewriter></glitch>
+
+# Shadow + typewriter (emphasis)
+<shadow x=2 y=2 a=0.5><typewriter s=25>Shadowed typing</typewriter></shadow>
+
+# Multiple effects stacked
+<rainbow><wave><typewriter s=20>Rainbow wavy typewriter!</typewriter></wave></rainbow>
+
+# Neon + typewriter (cyberpunk feel)
+<neon><typewriter s=30>NEON TYPING EFFECT</typewriter></neon>
+
+
+# FTB QUESTS EXAMPLES
+# ===================
+
+# Quest title
+<rainbow><typewriter s=30>The Ancient Temple</typewriter></rainbow>
+
+# Quest description
+<typewriter s=25>Deep in the jungle lies an ancient temple, forgotten by time. Brave adventurer, will you uncover its secrets?</typewriter>
+
+# Quest with multiple paragraphs
+<typewriter s=20>Chapter 1: The Beginning</typewriter>
+
+<typewriter s=20 d=1.0>You stand at the crossroads. The path ahead is uncertain, but glory awaits those who dare to venture forth.</typewriter>
+
+# Quest objectives with typewriter
+<typewriter s=25>Objectives:
+
+<bold>1. Gather 10 Ancient Fragments
+2. Locate the Hidden Chamber
+3. Defeat the Temple Guardian
+4. Claim the Legendary Artifact</bold></typewriter>
+
+# Quest reward description
+<gradient from=#FFD700 to=#FFA500><typewriter s=30>Rewards await the worthy...</typewriter></gradient>
+
+
+# ITEM TOOLTIP EXAMPLES
+# ======================
+
+# Legendary weapon
+<rainbow><typewriter s=25>Blade of the Dragon King</typewriter></rainbow>
+<typewriter s=20 d=0.5>Forged in the heart of a dying star, this blade has slain countless dragons.</typewriter>
+
+# Magical item
+<gradient from=#9400D3 to=#4B0082><typewriter>Mystic Amulet of Protection</typewriter></gradient>
+<typewriter s=15 d=0.3>Grants the wearer immunity to dark magic.</typewriter>
+
+# Quest item
+<typewriter s=30 id=quest_fragment>Ancient Fragment (Quest Item)</typewriter>
+<typewriter s=20 d=0.5>This fragment pulses with ancient power. Collect 10 to unlock the temple.</typewriter>
+
+# Cursed item
+<glitch><typewriter s=25>C̵u̴r̸s̷e̶d̴ Sword of Madness</typewriter></glitch>
+<typewriter s=15>WARNING: Wielding this blade may corrupt your soul...</typewriter>
+
+# Tutorial item
+<typewriter s=20 id=tutorial_welcome>Welcome Item</typewriter>
+<typewriter s=18 d=0.3>This item helps you learn the basics. Right-click to continue the tutorial.</typewriter>
+
+
+# ADVANCED EXAMPLES
+# =================
+
+# Variable speed storytelling
+<typewriter s=30>It was a dark and stormy night.</typewriter>
+<typewriter s=15 d=1.0> The wind howled through the trees...</typewriter>
+<typewriter s=8 d=2.0> And then... she appeared.</typewriter>
+<typewriter s=40 d=3.0> RUN!</typewriter>
+
+# Dramatic reveal
+<fade><typewriter s=5>In the beginning...</typewriter></fade>
+<fade><typewriter s=10 d=2.0>there was only darkness...</typewriter></fade>
+<rainbow><typewriter s=30 d=4.0>Until the light came!</typewriter></rainbow>
+
+# Combat text
+<shake><typewriter s=50>CRITICAL HIT!</typewriter></shake>
+<typewriter s=40 d=0.2>You dealt 9999 damage!</typewriter>
+
+# Achievement-style text
+<neon><bounce><typewriter s=35>ACHIEVEMENT UNLOCKED!</typewriter></bounce></neon>
+<typewriter s=25 d=0.5>Master of the Elements</typewriter>
+
+# Lore text with multiple effects
+<gradient from=#8B4513 to=#D2691E><typewriter s=20>The Chronicles of the Ancients</typewriter></gradient>
+
+<typewriter s=18 d=0.5>Volume I: The First Age</typewriter>
+
+<typewriter s=15 d=1.0>Long before the kingdoms rose, before the dragons took flight, there existed a power beyond mortal comprehension...</typewriter>
+
+<pulse><typewriter s=20 d=2.5>A power that would shape the very fabric of reality.</typewriter></pulse>
+
+
+# CONTEXT-SPECIFIC EXAMPLES
+# ==========================
+
+# Each of these maintains independent animation state
+
+# Main quest line
+<typewriter s=20 id=quest_main_1>Begin your journey in the starter village.</typewriter>
+<typewriter s=20 id=quest_main_2>Venture into the dark forest.</typewriter>
+<typewriter s=20 id=quest_main_3>Confront the final boss.</typewriter>
+
+# Side quest line
+<typewriter s=25 id=quest_side_1>Help the farmer with their crops.</typewriter>
+<typewriter s=25 id=quest_side_2>Deliver the package to the next town.</typewriter>
+
+# Tutorial tooltips
+<typewriter s=20 id=tutorial_combat>This is your first weapon. Left-click to attack!</typewriter>
+<typewriter s=20 id=tutorial_mining>Use a pickaxe to mine stone and ore.</typewriter>
+<typewriter s=20 id=tutorial_crafting>Open your crafting table to create items.</typewriter>
+
+
+# CREATIVE USES
+# ==============
+
+# Loading screen style
+<typewriter s=30 c=true>Loading... Please wait...</typewriter>
+
+# Computer terminal style
+<neon c=#00FF00><typewriter s=40>>_ Accessing mainframe...</typewriter></neon>
+<neon c=#00FF00><typewriter s=40 d=1.0>>_ Authentication required...</typewriter></neon>
+<neon c=#00FF00><typewriter s=40 d=2.0>>_ Access granted. Welcome, Commander.</typewriter></neon>
+
+# Horror style
+<glitch f=2.0><typewriter s=8>They're watching...</typewriter></glitch>
+<glitch f=2.5><typewriter s=5 d=2.0>Always watching...</typewriter></glitch>
+<shake a=2.0><typewriter s=3 d=4.0>You cannot escape...</typewriter></shake>
+
+# Retro game style
+<rainbow><typewriter s=25>GAME START!</typewriter></rainbow>
+<typewriter s=20 d=1.0>LEVEL 1</typewriter>
+<bounce><typewriter s=30 d=2.0>GO!</typewriter></bounce>
+
+# Poetry style
+<wave><typewriter s=15>Roses are red,</typewriter></wave>
+<wave><typewriter s=15 d=1.5>Violets are blue,</typewriter></wave>
+<wave><typewriter s=15 d=3.0>This typewriter effect,</typewriter></wave>
+<rainbow><typewriter s=15 d=4.5>Is amazing for you!</typewriter></rainbow>
