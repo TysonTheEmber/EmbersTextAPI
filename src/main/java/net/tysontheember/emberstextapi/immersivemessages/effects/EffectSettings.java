@@ -48,6 +48,12 @@ public class EffectSettings {
      */
     public float rot;
 
+    /**
+     * Scale multiplier for the character.
+     * 1.0 is normal size, values > 1.0 enlarge, values < 1.0 shrink.
+     */
+    public float scale;
+
     // ===== Color & Alpha =====
 
     /**
@@ -81,6 +87,12 @@ public class EffectSettings {
      * Used by effects to create phase offsets between characters (e.g., wave propagation).
      */
     public int index;
+
+    /**
+     * Absolute character index across all text (0-based).
+     * Used for effects that need global positioning context.
+     */
+    public int absoluteIndex;
 
     /**
      * Unicode codepoint of the character being rendered.
@@ -136,11 +148,13 @@ public class EffectSettings {
         this.x = 0f;
         this.y = 0f;
         this.rot = 0f;
+        this.scale = 1f;
         this.r = 1f;
         this.g = 1f;
         this.b = 1f;
         this.a = 1f;
         this.index = 0;
+        this.absoluteIndex = 0;
         this.codepoint = 0;
         this.isShadow = false;
         this.shadowOffset = 1f;
@@ -167,11 +181,13 @@ public class EffectSettings {
         this.x = x;
         this.y = y;
         this.rot = 0f;
+        this.scale = 1f;
         this.r = r;
         this.g = g;
         this.b = b;
         this.a = a;
         this.index = index;
+        this.absoluteIndex = index; // Default to same as index
         this.codepoint = codepoint;
         this.isShadow = isShadow;
         this.shadowOffset = 1f;
@@ -194,11 +210,13 @@ public class EffectSettings {
         copy.x = this.x;
         copy.y = this.y;
         copy.rot = this.rot;
+        copy.scale = this.scale;
         copy.r = this.r;
         copy.g = this.g;
         copy.b = this.b;
         copy.a = this.a;
         copy.index = this.index;
+        copy.absoluteIndex = this.absoluteIndex;
         copy.codepoint = this.codepoint;
         copy.isShadow = this.isShadow;
         copy.shadowOffset = this.shadowOffset;
@@ -212,13 +230,14 @@ public class EffectSettings {
      * Reset this EffectSettings to default values while preserving character context.
      * <p>
      * Resets position, rotation, color, alpha, and clears siblings, but keeps
-     * the index, codepoint, and isShadow values.
+     * the index, absoluteIndex, codepoint, and isShadow values.
      * </p>
      */
     public void reset() {
         this.x = 0f;
         this.y = 0f;
         this.rot = 0f;
+        this.scale = 1f;
         this.r = 1f;
         this.g = 1f;
         this.b = 1f;
@@ -255,7 +274,7 @@ public class EffectSettings {
 
     @Override
     public String toString() {
-        return String.format("EffectSettings[pos=(%.1f,%.1f) rot=%.2f rgba=(%.2f,%.2f,%.2f,%.2f) idx=%d cp=%d shadow=%b siblings=%d]",
-                x, y, rot, r, g, b, a, index, codepoint, isShadow, siblings.size());
+        return String.format("EffectSettings[pos=(%.1f,%.1f) rot=%.2f scale=%.2f rgba=(%.2f,%.2f,%.2f,%.2f) idx=%d abs=%d cp=%d shadow=%b siblings=%d]",
+                x, y, rot, scale, r, g, b, a, index, absoluteIndex, codepoint, isShadow, siblings.size());
     }
 }

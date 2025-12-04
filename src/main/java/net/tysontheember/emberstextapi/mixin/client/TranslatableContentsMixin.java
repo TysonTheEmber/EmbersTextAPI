@@ -96,6 +96,25 @@ public abstract class TranslatableContentsMixin {
             return;
         }
 
+        // Check if any span has effects OR formatting - if not, let vanilla handle it
+        boolean hasEffectsOrFormatting = false;
+        for (TextSpan span : spans) {
+            boolean hasEffects = span.getEffects() != null && !span.getEffects().isEmpty();
+            boolean hasFormatting = (span.getBold() != null && span.getBold()) ||
+                                   (span.getItalic() != null && span.getItalic()) ||
+                                   (span.getUnderline() != null && span.getUnderline()) ||
+                                   (span.getStrikethrough() != null && span.getStrikethrough()) ||
+                                   (span.getObfuscated() != null && span.getObfuscated());
+
+            if (hasEffects || hasFormatting) {
+                hasEffectsOrFormatting = true;
+                break;
+            }
+        }
+        if (!hasEffectsOrFormatting) {
+            return; // Let vanilla handle plain text
+        }
+
         // Process each span with its effects
         for (TextSpan span : spans) {
             String content = span.getContent();
@@ -105,8 +124,8 @@ public abstract class TranslatableContentsMixin {
                 continue;
             }
 
-            // Clone the style and add this span's effects
-            Style spanStyle = StyleUtil.cloneAndAddEffects(style, span.getEffects());
+            // Clone the style and apply this span's formatting and effects
+            Style spanStyle = StyleUtil.applyTextSpanFormatting(style, span);
 
             // Emit each character with the modified style
             for (int i = 0; i < content.length(); i++) {

@@ -259,14 +259,10 @@ public class MarkupParser {
             }
             
             case "typewriter", "type" -> {
-                // Typewriter is a GLOBAL message attribute (container effect)
-                String speedStr = attrs.getOrDefault("speed", "1.0");
-                String centerStr = attrs.get("center");
-                try {
-                    float speed = Float.parseFloat(speedStr);
-                    boolean center = "true".equalsIgnoreCase(centerStr);
-                    span.globalTypewriter(speed, center);
-                } catch (NumberFormatException ignored) {}
+                // Use new TypewriterEffect (v2.1.0+)
+                // Parameters: s (speed), d (delay), c (cycle)
+                String tagContent = buildEffectTag("typewriter", attributes);
+                span.effect(tagContent);
             }
             
             case "shake" -> {
