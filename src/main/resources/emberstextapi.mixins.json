@@ -9,7 +9,10 @@
   ],
   "client": [
     "client.LiteralContentsMixin",
-    "client.TranslatableContentsMixin"
+    "client.TranslatableContentsMixin",
+    "client.BakedGlyphMixin",
+    "client.FontAccess",
+    "client.StringRenderOutputMixin"
   ],
   "injectors": {
     "defaultRequire": 1
