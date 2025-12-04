@@ -1,4 +1,4 @@
-package net.tysontheember.emberstextapi.mixin.duck;
+package net.tysontheember.emberstextapi.duck;
 
 import com.google.common.collect.ImmutableList;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
@@ -26,35 +26,29 @@ import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 public interface ETAStyle {
 
     /**
-     * Get the list of effects attached to this style.
-     * <p>
-     * Returns an immutable list to prevent external modification.
-     * Use {@link #emberstextapi$setEffects(ImmutableList)} to modify.
-     * </p>
-     *
-     * @return Immutable list of effects (never null, may be empty)
-     */
+    * Get the list of effects attached to this style.
+    * Returns an immutable list to prevent external modification.
+    * Use {@link #emberstextapi$setEffects(ImmutableList)} to modify.
+    *
+    * @return Immutable list of effects (never null, may be empty)
+    */
     ImmutableList<Effect> emberstextapi$getEffects();
 
     /**
-     * Set the complete list of effects for this style.
-     * <p>
-     * Replaces any existing effects. To add a single effect,
-     * use {@link #emberstextapi$addEffect(Effect)} instead.
-     * </p>
-     *
-     * @param effects New effect list (must not be null)
-     */
+    * Set the complete list of effects for this style.
+    * Replaces any existing effects. To add a single effect,
+    * use {@link #emberstextapi$addEffect(Effect)} instead.
+    *
+    * @param effects New effect list (must not be null)
+    */
     void emberstextapi$setEffects(ImmutableList<Effect> effects);
 
     /**
-     * Add a single effect to this style's effect list.
-     * <p>
-     * Creates a new ImmutableList with the added effect.
-     * If you need to add multiple effects, use {@link #emberstextapi$setEffects(ImmutableList)} instead.
-     * </p>
-     *
-     * @param effect Effect to add (must not be null)
-     */
+    * Add a single effect to this style's effect list.
+    * Creates a new ImmutableList with the added effect.
+    * If you need to add multiple effects, use {@link #emberstextapi$setEffects(ImmutableList)} instead.
+    *
+    * @param effect Effect to add (must not be null)
+    */
     void emberstextapi$addEffect(Effect effect);
 }

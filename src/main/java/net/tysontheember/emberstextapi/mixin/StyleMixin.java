@@ -7,7 +7,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
-import net.tysontheember.emberstextapi.mixin.duck.ETAStyle;
+import net.tysontheember.emberstextapi.duck.ETAStyle;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
