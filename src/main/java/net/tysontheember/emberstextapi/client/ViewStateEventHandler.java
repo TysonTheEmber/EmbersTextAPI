@@ -51,6 +51,18 @@ public class ViewStateEventHandler {
     private static ItemStack lastTooltipStack = ItemStack.EMPTY;
 
     /**
+     * Cached empty tooltip context with timestamp.
+     * Reused within the same tooltip session to allow animation to progress.
+     */
+    private static String cachedEmptyTooltipContext = null;
+
+    /**
+     * Last time a tooltip was rendered (milliseconds).
+     * Used to detect gaps in tooltip rendering.
+     */
+    private static long lastTooltipTime = 0;
+
+    /**
      * Currently tracked screen for context.
      * Used to detect screen changes.
      */
@@ -70,6 +82,39 @@ public class ViewStateEventHandler {
     public static void onTooltipPre(RenderTooltipEvent.Pre event) {
         try {
             ItemStack stack = event.getItemStack();
+            long currentTime = System.currentTimeMillis();
+
+            // Clear cached empty tooltip context when there's a gap in tooltip rendering
+            // This happens when you move mouse between quests (brief moment with no tooltip)
+            boolean shouldClearCache = false;
+
+            if (stack.isEmpty()) {
+                // Hovering over quest icon (empty stack)
+                long timeSinceLastTooltip = currentTime - lastTooltipTime;
+
+                if (timeSinceLastTooltip > 100) {
+                    // Gap detected (>100ms since last tooltip) - must be a new hover
+                    shouldClearCache = true;
+                    LOGGER.debug("Cleared cache: tooltip gap detected ({}ms)", timeSinceLastTooltip);
+                } else if (!lastTooltipStack.isEmpty()) {
+                    // Transitioned from item to quest - clear cache
+                    shouldClearCache = true;
+                    LOGGER.debug("Cleared cache: transitioned from item to quest");
+                }
+            } else {
+                // Hovering over real item - clear cache for next quest hover
+                if (cachedEmptyTooltipContext != null) {
+                    shouldClearCache = true;
+                    LOGGER.debug("Cleared cache: hovering real item");
+                }
+            }
+
+            if (shouldClearCache) {
+                cachedEmptyTooltipContext = null;
+            }
+
+            // Update last tooltip time
+            lastTooltipTime = currentTime;
 
             // Generate tooltip context ID from item
             String tooltipContext = generateTooltipContext(stack);
@@ -173,6 +218,12 @@ public class ViewStateEventHandler {
                 lastScreen = mc.screen;
             }
 
+            // Clear cached empty tooltip context when screen changes
+            // This ensures fresh context when reopening quest screen
+            if (mc.screen != lastScreen) {
+                cachedEmptyTooltipContext = null;
+            }
+
             // Note: Tooltip state is handled by RenderTooltipEvent, not here
             // The tooltip events fire per-frame during rendering
 
@@ -192,8 +243,17 @@ public class ViewStateEventHandler {
      */
     private static String generateTooltipContext(ItemStack stack) {
         if (stack.isEmpty()) {
-            return "tooltip:empty";
+            // For empty stacks (like quest icons), generate a unique context
+            // But reuse it during the same hover session so animation can progress
+            if (cachedEmptyTooltipContext == null) {
+                cachedEmptyTooltipContext = "tooltip:empty:" + System.currentTimeMillis();
+                LOGGER.debug("Generated new empty tooltip context: {}", cachedEmptyTooltipContext);
+            }
+            return cachedEmptyTooltipContext;
         }
+
+        // Clear cached empty tooltip when hovering over real items
+        cachedEmptyTooltipContext = null;
 
         StringBuilder context = new StringBuilder("tooltip:");
         context.append(stack.getItem().toString());
@@ -259,7 +319,19 @@ public class ViewStateEventHandler {
     public static void reset() {
         lastTooltipStack = ItemStack.EMPTY;
         lastScreen = null;
+        cachedEmptyTooltipContext = null;
         ViewStateTracker.clear();
         LOGGER.debug("View state event handler reset");
+    }
+
+    /**
+     * Clear the cached empty tooltip context.
+     * Called when tooltip disappears to ensure fresh context on next hover.
+     */
+    public static void clearEmptyTooltipCache() {
+        if (cachedEmptyTooltipContext != null) {
+            LOGGER.debug("Clearing cached empty tooltip context: {}", cachedEmptyTooltipContext);
+            cachedEmptyTooltipContext = null;
+        }
     }
 }
