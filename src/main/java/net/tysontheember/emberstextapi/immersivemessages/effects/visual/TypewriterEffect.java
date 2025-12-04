@@ -5,6 +5,8 @@ import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
 import net.tysontheember.emberstextapi.immersivemessages.effects.params.Params;
 import net.tysontheember.emberstextapi.util.ViewStateTracker;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Typewriter effect that reveals characters progressively from left to right.
@@ -56,6 +58,12 @@ import org.jetbrains.annotations.NotNull;
  */
 public class TypewriterEffect extends BaseEffect {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(TypewriterEffect.class);
+    private static String lastLoggedContext = null;
+
+    /** Track text content hash per effect instance to create unique quest contexts */
+    private Integer textContentHash = null;
+
     /** Characters per second reveal rate */
     private final float speed;
 
@@ -88,23 +96,59 @@ public class TypewriterEffect extends BaseEffect {
 
         // If no custom context ID was provided, automatically detect the current context
         if (contextKey == null) {
-            // Try to use current tooltip context
-            contextKey = ViewStateTracker.getCurrentTooltipContext();
+            // Priority 1: Try to use current quest context (FTB Quests)
+            contextKey = ViewStateTracker.getCurrentQuestContext();
 
-            // If no tooltip, try current screen context
+            // Priority 2: Check if we're in a screen context
+            String screenContext = ViewStateTracker.getCurrentScreenContext();
+
+            // Priority 3: Try to use current tooltip context (but skip if it's empty AND we're in a quest screen)
             if (contextKey == null) {
-                contextKey = ViewStateTracker.getCurrentScreenContext();
+                String tooltipContext = ViewStateTracker.getCurrentTooltipContext();
+
+                // If we have a screen context and tooltip is empty, this is likely a quest description
+                // Use text content hash to create unique context per quest
+                if (screenContext != null && "tooltip:empty".equals(tooltipContext)) {
+                    // Calculate hash of text content on first character to identify unique text
+                    if (settings.index == 0 && textContentHash == null) {
+                        // Use codepoint as a simple identifier (first character of the text)
+                        // This will be the same for all characters in the same text render
+                        textContentHash = System.identityHashCode(this);
+                    }
+
+                    // Create unique context using screen + text hash
+                    if (textContentHash != null) {
+                        contextKey = screenContext + ":text" + textContentHash;
+                    } else {
+                        contextKey = screenContext;
+                    }
+                } else if (tooltipContext != null) {
+                    contextKey = tooltipContext;
+                }
             }
 
-            // If still no context, use "default" and mark it as started now
+            // Priority 4: Use screen context if no other context found
+            if (contextKey == null && screenContext != null) {
+                contextKey = screenContext;
+            }
+
+            // Priority 5: If still no context, use "default"
             if (contextKey == null) {
                 contextKey = "default";
-                ViewStateTracker.markViewStarted(contextKey);
+                // Don't mark as started here - let getViewStartTime handle it
             }
         }
 
         // Get the time when this view context became visible
+        // If context doesn't exist yet, this will return current time (making it visible immediately)
         long viewStartTime = ViewStateTracker.getViewStartTime(contextKey);
+
+        // DEBUG: Log context info once per context change (only on first character)
+        if (settings.index == 0 && !contextKey.equals(lastLoggedContext)) {
+            LOGGER.info("TYPEWRITER DEBUG: Using context '{}', start time: {}, current time: {}",
+                contextKey, viewStartTime, System.currentTimeMillis());
+            lastLoggedContext = contextKey;
+        }
 
         // Calculate elapsed time since view became visible (in seconds)
         float elapsedSeconds = (System.currentTimeMillis() - viewStartTime) / 1000.0f;

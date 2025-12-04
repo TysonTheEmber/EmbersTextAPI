@@ -43,6 +43,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class QuestScreenMixin {
 
     /**
+     * Track the last quest context to detect changes.
+     * Only mark quest as viewed when it changes, not every frame.
+     */
+    private String emberstextapi$lastQuestContext = null;
+
+    /**
      * Track when a quest screen renders.
      * <p>
      * This method is called during screen rendering, allowing us to detect
@@ -64,12 +70,16 @@ public class QuestScreenMixin {
             // Extract quest context if possible
             String questContext = emberstextapi$getQuestContext();
 
-            // Mark this quest as being viewed
-            ViewStateTracker.markQuestViewed(questContext);
+            // Only mark as viewed if this is a NEW quest context (changed from last frame)
+            if (!questContext.equals(emberstextapi$lastQuestContext)) {
+                System.out.println("QUEST MIXIN: Quest context changed to: " + questContext);
+                ViewStateTracker.markQuestViewed(questContext);
+                emberstextapi$lastQuestContext = questContext;
+            }
 
         } catch (Exception e) {
-            // Silently fail - don't break FTB Quests if something goes wrong
-            // LOGGER would be better but keeping it simple to avoid dependencies
+            System.err.println("QUEST MIXIN ERROR: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
