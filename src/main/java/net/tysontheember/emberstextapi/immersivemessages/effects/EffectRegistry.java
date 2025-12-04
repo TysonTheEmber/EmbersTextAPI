@@ -229,6 +229,10 @@ public class EffectRegistry {
         register("neon", net.tysontheember.emberstextapi.immersivemessages.effects.visual.NeonEffect::new);
         register("shadow", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ShadowEffect::new);
 
+        // === Animation Effects ===
+        register("typewriter", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect::new);
+        register("type", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect::new); // Alias
+
         initialized = true;
         LOGGER.info("Registered {} effects", EFFECTS.size());
     }
