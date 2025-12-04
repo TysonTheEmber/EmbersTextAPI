@@ -91,6 +91,10 @@ public class TypewriterEffect extends BaseEffect {
 
     @Override
     public void apply(@NotNull EffectSettings settings) {
+        // Reset per-frame ordinal counters when a new frame begins.
+        long frameTimeNs = net.minecraft.client.Minecraft.getInstance().getFrameTimeNs();
+        ViewStateTracker.beginFrame(frameTimeNs);
+
         // Get the current view context to determine when text became visible
         String contextKey = contextId;
 
@@ -133,11 +137,11 @@ public class TypewriterEffect extends BaseEffect {
                 contextKey = screenContext;
             }
 
-            // Priority 5: If still no context, use "default"
-            if (contextKey == null) {
-                contextKey = "default";
-                // Don't mark as started here - let getViewStartTime handle it
-            }
+        // Priority 5: If still no context, use "default"
+        if (contextKey == null) {
+            contextKey = "default";
+            // Don't mark as started here - let getViewStartTime handle it
+        }
         }
 
         // Get the time when this view context became visible
@@ -156,6 +160,12 @@ public class TypewriterEffect extends BaseEffect {
         // Calculate elapsed time since view became visible (in seconds)
         float elapsedSeconds = (System.currentTimeMillis() - viewStartTime) / 1000.0f;
 
+        // Use a per-context absolute ordinal that spans wrapped lines. We advance
+        // only on the main pass so shadow/bold reuse the same ordinal.
+        // Advance separate ordinal streams for shadow and main so each pass
+        // has correct per-glyph order without double-counting.
+        int absoluteOrdinal = ViewStateTracker.nextCharOrdinal(contextKey, settings.isShadow, true);
+
         // Apply initial delay
         float animationTime = Math.max(0, elapsedSeconds - delay);
 
@@ -173,15 +183,15 @@ public class TypewriterEffect extends BaseEffect {
         int visibleChars = (int) revealProgress;
 
         // DEBUG: Log visibility calculation for first few characters
-        if (settings.index < 3 && elapsedSeconds < 1.0f) {
-            LOGGER.info("TYPEWRITER CHAR DEBUG: index={}, absoluteIndex={}, visibleChars={}, elapsed={}, alpha will be={}",
-                settings.index, settings.absoluteIndex, visibleChars, elapsedSeconds,
-                (settings.index >= visibleChars ? 0.0f : settings.a));
+        if (absoluteOrdinal < 3 && elapsedSeconds < 1.0f) {
+            LOGGER.info("TYPEWRITER CHAR DEBUG: ord={}, visibleChars={}, elapsed={}, alpha will be={}",
+                absoluteOrdinal, visibleChars, elapsedSeconds,
+                (absoluteOrdinal >= visibleChars ? 0.0f : settings.a));
         }
 
         // Hide this character if it's beyond the reveal point
-        if (settings.index >= visibleChars) {
-            settings.a = 0.0f; // Make character invisible
+        if (absoluteOrdinal >= visibleChars) {
+            settings.a = 0.0f; // Make character invisible (kills shadow too)
         }
         // Characters before the reveal point stay visible (no modification needed)
     }

@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Tracks when text becomes visible to enable view-based animation resets.
@@ -76,9 +77,24 @@ public class ViewStateTracker {
     private static volatile String currentQuestContext = null;
 
     /**
+     * Per-context ordinal counters used by the typewriter effect to assign
+     * a stable absolute character index across wrapped lines. We keep separate
+     * streams for shadow and main passes to avoid double-advancing while
+     * still hiding unrevealed shadows.
+     */
+    private static final ConcurrentHashMap<String, AtomicInteger> CHAR_ORDINALS = new ConcurrentHashMap<>();
+
+    /**
+     * Last frame timestamp (nanoseconds) observed when assigning ordinals.
+     * Used to detect frame boundaries and clear per-frame state.
+     */
+    private static volatile long lastFrameTimeNs = -1;
+
+    /**
      * Last frame's tooltip context for change detection.
      */
     private static volatile String lastTooltipContext = null;
+
 
     /**
      * Get the timestamp when a specific view context became visible.
@@ -119,6 +135,10 @@ public class ViewStateTracker {
         } else {
             LOGGER.info("TRACKER: View context reset: {} (was {}, now {})", contextId, previousTime, currentTime);
         }
+
+        // Reset ordinal counters for this context so typing restarts at the top.
+        resetOrdinals(contextId);
+
     }
 
     /**
@@ -264,6 +284,8 @@ public class ViewStateTracker {
         currentScreenContext = null;
         currentQuestContext = null;
         lastTooltipContext = null;
+        CHAR_ORDINALS.clear();
+        lastFrameTimeNs = -1;
         LOGGER.debug("View state tracker cleared");
     }
 
@@ -280,6 +302,19 @@ public class ViewStateTracker {
     }
 
     /**
+     * Begin a new render frame for typewriter ordinal assignment.
+     * Clears per-frame ordinal counters when the frame timestamp advances.
+     *
+     * @param frameTimeNs Current frame timestamp in nanoseconds
+     */
+    public static void beginFrame(long frameTimeNs) {
+        if (frameTimeNs != lastFrameTimeNs) {
+            lastFrameTimeNs = frameTimeNs;
+            CHAR_ORDINALS.clear();
+        }
+    }
+
+    /**
      * Force reset a specific context's timer.
      * <p>
      * This is equivalent to calling {@link #markViewStarted(String)} but with
@@ -290,5 +325,32 @@ public class ViewStateTracker {
      */
     public static void resetContext(String contextId) {
         markViewStarted(contextId);
+    }
+
+    /**
+     * Get the next absolute character ordinal for the given context.
+     * Ordinals are per-context and persist until the context is reset via
+     * {@link #markViewStarted(String)} or cleared via {@link #clear()}.
+     *
+     * @param contextId  Context identifier (must not be null)
+     * @param shadowPass Whether this is the shadow pass
+     * @param advance    Whether to advance the counter (usually true)
+     * @return Current ordinal (0-based)
+     */
+    public static int nextCharOrdinal(String contextId, boolean shadowPass, boolean advance) {
+        AtomicInteger counter = CHAR_ORDINALS.computeIfAbsent(ordinalKey(contextId, shadowPass), key -> new AtomicInteger(0));
+        return advance ? counter.getAndIncrement() : counter.get();
+    }
+
+    private static String ordinalKey(String contextId, boolean shadowPass) {
+        return contextId + (shadowPass ? ":shadow" : ":main");
+    }
+
+    /**
+     * Clear ordinal counters for a single context (both shadow and main streams).
+     */
+    public static void resetOrdinals(String contextId) {
+        CHAR_ORDINALS.remove(ordinalKey(contextId, true));
+        CHAR_ORDINALS.remove(ordinalKey(contextId, false));
     }
 }
