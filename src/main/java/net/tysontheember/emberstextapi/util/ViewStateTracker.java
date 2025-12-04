@@ -140,10 +140,40 @@ public class ViewStateTracker {
                 markViewStarted(tooltipContext);
             }
 
+            // Notify event handler when tooltip disappears (context becomes null)
+            if (tooltipContext == null && lastTooltipContext != null) {
+                onTooltipDisappeared();
+            }
+
             lastTooltipContext = tooltipContext;
         }
 
         currentTooltipContext = tooltipContext;
+    }
+
+    /**
+     * Called when a tooltip disappears.
+     * Can be used by other systems to clean up state.
+     */
+    private static void onTooltipDisappeared() {
+        LOGGER.debug("Tooltip disappeared - clearing empty tooltip cache");
+        // Clear the cached empty tooltip context so next hover gets a fresh timestamp
+        clearEmptyTooltipCache();
+    }
+
+    /**
+     * Notify ViewStateEventHandler to clear empty tooltip cache.
+     * This is a callback mechanism to avoid circular dependencies.
+     */
+    private static void clearEmptyTooltipCache() {
+        try {
+            // Call the EventHandler's public method via reflection to avoid circular dependency
+            Class.forName("net.tysontheember.emberstextapi.client.ViewStateEventHandler")
+                .getMethod("clearEmptyTooltipCache")
+                .invoke(null);
+        } catch (Exception e) {
+            LOGGER.warn("Could not clear empty tooltip cache", e);
+        }
     }
 
     /**

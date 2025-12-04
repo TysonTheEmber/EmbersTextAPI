@@ -102,28 +102,29 @@ public class TypewriterEffect extends BaseEffect {
             // Priority 2: Check if we're in a screen context
             String screenContext = ViewStateTracker.getCurrentScreenContext();
 
-            // Priority 3: Try to use current tooltip context (but skip if it's empty AND we're in a quest screen)
+            // Priority 3: Try to use current tooltip context
             if (contextKey == null) {
                 String tooltipContext = ViewStateTracker.getCurrentTooltipContext();
 
-                // If we have a screen context and tooltip is empty, this is likely a quest description
-                // Use text content hash to create unique context per quest
-                if (screenContext != null && "tooltip:empty".equals(tooltipContext)) {
-                    // Calculate hash of text content on first character to identify unique text
+                // If we have a screen context (quest menu open), check if this is description or tooltip
+                if (screenContext != null && tooltipContext != null && tooltipContext.startsWith("tooltip:empty:")) {
+                    // In quest screen with empty tooltip - need to distinguish tooltip vs description
+                    // Quest descriptions render with more complex geometry, tooltips are simpler
+                    // Use text hash to create unique context for description (separate from tooltip)
                     if (settings.index == 0 && textContentHash == null) {
-                        // Use codepoint as a simple identifier (first character of the text)
-                        // This will be the same for all characters in the same text render
                         textContentHash = System.identityHashCode(this);
                     }
-
-                    // Create unique context using screen + text hash
-                    if (textContentHash != null) {
-                        contextKey = screenContext + ":text" + textContentHash;
-                    } else {
-                        contextKey = screenContext;
-                    }
+                    // Quest descriptions use screen+text hash (separate from tooltip context)
+                    contextKey = screenContext + ":text" + textContentHash;
                 } else if (tooltipContext != null) {
-                    contextKey = tooltipContext;
+                    // Not in quest screen, or regular tooltip - use tooltip context directly
+                    if (tooltipContext.startsWith("tooltip:empty:") && tooltipContext.length() > 14) {
+                        // Quest tooltip (not in screen) - use the unique timestamped context
+                        contextKey = tooltipContext;
+                    } else {
+                        // Regular tooltip (items with content)
+                        contextKey = tooltipContext;
+                    }
                 }
             }
 
@@ -145,8 +146,10 @@ public class TypewriterEffect extends BaseEffect {
 
         // DEBUG: Log context info once per context change (only on first character)
         if (settings.index == 0 && !contextKey.equals(lastLoggedContext)) {
-            LOGGER.info("TYPEWRITER DEBUG: Using context '{}', start time: {}, current time: {}",
-                contextKey, viewStartTime, System.currentTimeMillis());
+            long currentTime = System.currentTimeMillis();
+            float elapsed = (currentTime - viewStartTime) / 1000.0f;
+            LOGGER.info("TYPEWRITER DEBUG: Using context '{}', start time: {}, current time: {}, elapsed: {}s",
+                contextKey, viewStartTime, currentTime, elapsed);
             lastLoggedContext = contextKey;
         }
 
@@ -168,6 +171,13 @@ public class TypewriterEffect extends BaseEffect {
         }
 
         int visibleChars = (int) revealProgress;
+
+        // DEBUG: Log visibility calculation for first few characters
+        if (settings.index < 3 && elapsedSeconds < 1.0f) {
+            LOGGER.info("TYPEWRITER CHAR DEBUG: index={}, absoluteIndex={}, visibleChars={}, elapsed={}, alpha will be={}",
+                settings.index, settings.absoluteIndex, visibleChars, elapsedSeconds,
+                (settings.index >= visibleChars ? 0.0f : settings.a));
+        }
 
         // Hide this character if it's beyond the reveal point
         if (settings.index >= visibleChars) {
