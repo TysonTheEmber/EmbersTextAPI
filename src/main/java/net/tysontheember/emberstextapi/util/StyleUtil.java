@@ -1,9 +1,9 @@
-package net.tysontheember.emberstextapi.mixin.util;
+package net.tysontheember.emberstextapi.util;
 
 import com.google.common.collect.ImmutableList;
 import net.minecraft.network.chat.Style;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
-import net.tysontheember.emberstextapi.mixin.duck.ETAStyle;
+import net.tysontheember.emberstextapi.duck.ETAStyle;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +16,7 @@ import java.util.List;
  * attach parsed effects to style objects during text component visiting.
  * </p>
  *
- * @see net.tysontheember.emberstextapi.mixin.duck.ETAStyle
+ * @see net.tysontheember.emberstextapi.duck.ETAStyle
  * @see net.tysontheember.emberstextapi.mixin.StyleMixin
  */
 public class StyleUtil {
@@ -43,8 +43,9 @@ public class StyleUtil {
         }
 
         // Clone the style by creating a copy with the same properties
-        // We use applyTo to merge the style with EMPTY, which creates a new instance
-        Style cloned = Style.EMPTY.applyTo(original);
+        // We use applyTo to merge the original with EMPTY, which creates a new instance
+        // Note: original.applyTo(Style.EMPTY) means "apply EMPTY on top of original" which gives us original
+        Style cloned = original.applyTo(Style.EMPTY);
 
         // Cast to our duck interface to access effect methods
         ETAStyle etaStyle = (ETAStyle) cloned;
@@ -101,6 +102,10 @@ public class StyleUtil {
      * <p>
      * Convenience method for creating a style from scratch with effects attached.
      * </p>
+     * <p>
+     * WARNING: Style.EMPTY is a singleton, so we MUST create a new instance
+     * to avoid mutating the global empty style object.
+     * </p>
      *
      * @param effects The effects to attach
      * @return A new empty style with the effects
@@ -110,7 +115,9 @@ public class StyleUtil {
             return Style.EMPTY;
         }
 
-        Style style = Style.EMPTY;
+        // CRITICAL: Don't modify Style.EMPTY directly! Create a new instance.
+        // We can do this by creating a copy via applyTo
+        Style style = Style.EMPTY.applyTo(Style.EMPTY); // Creates a new EMPTY-like instance
         ETAStyle etaStyle = (ETAStyle) style;
         etaStyle.emberstextapi$setEffects(ImmutableList.copyOf(effects));
         return style;
