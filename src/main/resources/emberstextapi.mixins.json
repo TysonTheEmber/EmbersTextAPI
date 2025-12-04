@@ -12,7 +12,8 @@
     "client.TranslatableContentsMixin",
     "client.BakedGlyphMixin",
     "client.FontAccess",
-    "client.StringRenderOutputMixin"
+    "client.StringRenderOutputMixin",
+    "client.ftbquests.QuestScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
