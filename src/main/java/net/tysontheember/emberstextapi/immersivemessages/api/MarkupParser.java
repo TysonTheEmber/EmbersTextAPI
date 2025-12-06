@@ -14,9 +14,11 @@ import java.util.regex.Pattern;
  * Supports tags like &lt;grad from=#ff0000 to=#00ff00&gt;, &lt;bold&gt;, &lt;shake&gt;, etc.
  */
 public class MarkupParser {
-    
-    private static final Pattern TAG_PATTERN = Pattern.compile("<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:\\s+[a-zA-Z][a-zA-Z0-9]*(?:[=:](?:[\"'][^\"']*[\"']|[^\\s>]+))?)*)>");
-    private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile("([a-zA-Z][a-zA-Z0-9]*)(?:[=:](?:([\"'])([^\"']*)\\2|([^\\s>]+)))?");
+
+    // Updated pattern to handle self-closing tags: captures trailing / before >
+    // Attribute values must not include / to avoid capturing it as part of the value
+    private static final Pattern TAG_PATTERN = Pattern.compile("<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:\\s+[a-zA-Z][a-zA-Z0-9]*(?:[=:](?:[\"'][^\"']*[\"']|[^\\s>/]+))?)*)(/?)>");
+    private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile("([a-zA-Z][a-zA-Z0-9]*)(?:[=:](?:([\"'])([^\"']*)\\2|([^\\s>/]+)))?");
     
     /**
      * Parses markup text into a list of TextSpan objects.
@@ -46,8 +48,50 @@ public class MarkupParser {
             String isClosing = matcher.group(1);
             String tagName = matcher.group(2).toLowerCase();
             String attributes = matcher.group(3);
-            
-            if ("/".equals(isClosing)) {
+            String isSelfClosing = matcher.group(4); // Capture trailing / for self-closing tags
+
+            // Handle self-closing tags like <item id=.../>
+            if ("/".equals(isSelfClosing)) {
+                // Self-closing tag: treat as both opening and immediate closing
+                TextSpan currentStyle = styleStack.isEmpty() ? new TextSpan("") : styleStack.peek().inherit();
+                applyTagToSpan(currentStyle, tagName, attributes);
+
+                // For item and entity tags, create the span immediately
+                if ("item".equals(tagName) && currentStyle.getItemId() != null) {
+                    TextSpan itemSpan = new TextSpan("");
+                    itemSpan.item(currentStyle.getItemId(), currentStyle.getItemCount() != null ? currentStyle.getItemCount() : 1);
+                    if (currentStyle.getItemOffsetX() != null || currentStyle.getItemOffsetY() != null) {
+                        itemSpan.itemOffset(
+                            currentStyle.getItemOffsetX() != null ? currentStyle.getItemOffsetX() : 0f,
+                            currentStyle.getItemOffsetY() != null ? currentStyle.getItemOffsetY() : 0f
+                        );
+                    }
+                    result.add(itemSpan);
+                } else if ("entity".equals(tagName) && currentStyle.getEntityId() != null) {
+                    TextSpan entitySpan = new TextSpan("");
+                    entitySpan.entity(currentStyle.getEntityId(), currentStyle.getEntityScale() != null ? currentStyle.getEntityScale() : 1.0f);
+                    if (currentStyle.getEntityOffsetX() != null || currentStyle.getEntityOffsetY() != null) {
+                        entitySpan.entityOffset(
+                            currentStyle.getEntityOffsetX() != null ? currentStyle.getEntityOffsetX() : 0f,
+                            currentStyle.getEntityOffsetY() != null ? currentStyle.getEntityOffsetY() : 0f
+                        );
+                    }
+                    if (currentStyle.getEntityYaw() != null || currentStyle.getEntityPitch() != null) {
+                        entitySpan.entityRotation(
+                            currentStyle.getEntityYaw() != null ? currentStyle.getEntityYaw() : 45f,
+                            currentStyle.getEntityPitch() != null ? currentStyle.getEntityPitch() : 0f
+                        );
+                    }
+                    if (currentStyle.getEntityAnimation() != null) {
+                        entitySpan.entityAnimation(currentStyle.getEntityAnimation());
+                    }
+                    result.add(entitySpan);
+                } else {
+                    // For other effects, push and immediately pop (applies to enclosed text)
+                    styleStack.push(currentStyle);
+                    styleStack.pop();
+                }
+            } else if ("/".equals(isClosing)) {
                 // Closing tag - pop from stack
                 // Special case: if this is an item or entity closing tag and the last span on stack has one,
                 // create the span now

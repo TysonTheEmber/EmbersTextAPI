@@ -96,8 +96,8 @@ public abstract class TranslatableContentsMixin {
             return;
         }
 
-        // Check if any span has effects OR formatting - if not, let vanilla handle it
-        boolean hasEffectsOrFormatting = false;
+        // Check if any span has effects, formatting, or item data - if not, let vanilla handle it
+        boolean hasEffectsOrFormattingOrItems = false;
         for (TextSpan span : spans) {
             boolean hasEffects = span.getEffects() != null && !span.getEffects().isEmpty();
             boolean hasFormatting = (span.getBold() != null && span.getBold()) ||
@@ -105,13 +105,14 @@ public abstract class TranslatableContentsMixin {
                                    (span.getUnderline() != null && span.getUnderline()) ||
                                    (span.getStrikethrough() != null && span.getStrikethrough()) ||
                                    (span.getObfuscated() != null && span.getObfuscated());
+            boolean hasItem = span.getItemId() != null;
 
-            if (hasEffects || hasFormatting) {
-                hasEffectsOrFormatting = true;
+            if (hasEffects || hasFormatting || hasItem) {
+                hasEffectsOrFormattingOrItems = true;
                 break;
             }
         }
-        if (!hasEffectsOrFormatting) {
+        if (!hasEffectsOrFormattingOrItems) {
             return; // Let vanilla handle plain text
         }
 
@@ -119,9 +120,14 @@ public abstract class TranslatableContentsMixin {
         for (TextSpan span : spans) {
             String content = span.getContent();
 
-            // Skip empty spans
+            // For item spans with empty content, use a space so the item has something to render on
+            boolean isItemSpan = span.getItemId() != null;
             if (content == null || content.isEmpty()) {
-                continue;
+                if (isItemSpan) {
+                    content = " "; // Emit a space for the item to replace
+                } else {
+                    continue; // Skip truly empty spans
+                }
             }
 
             // Clone the style and apply this span's formatting and effects

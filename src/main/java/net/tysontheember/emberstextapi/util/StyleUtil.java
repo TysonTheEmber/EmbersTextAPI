@@ -209,6 +209,126 @@ public class StyleUtil {
             result = cloneAndAddEffects(result, effects);
         }
 
+        // Apply item data (if any)
+        if (span.getItemId() != null) {
+            result = cloneAndAddItem(
+                result,
+                span.getItemId(),
+                span.getItemCount() != null ? span.getItemCount() : 1,
+                span.getItemOffsetX() != null ? span.getItemOffsetX() : -4.0f,
+                span.getItemOffsetY() != null ? span.getItemOffsetY() : -4.0f
+            );
+        }
+
         return result;
+    }
+
+    /**
+     * Create a style with an item attached for inline item rendering.
+     * <p>
+     * This creates a new style with item rendering data. The style can be applied to
+     * any text component (typically a space character or empty string) to render an
+     * item icon inline with text.
+     * </p>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * Style itemStyle = StyleUtil.withItem("minecraft:diamond", 1, 0f, 0f);
+     * Component text = Component.literal(" ").withStyle(itemStyle);
+     * }</pre>
+     * </p>
+     *
+     * @param itemId Item resource location (e.g., "minecraft:diamond")
+     * @param count Item stack count (must be >= 1)
+     * @param offsetX X offset in pixels for item positioning
+     * @param offsetY Y offset in pixels for item positioning
+     * @return A new style with item data attached
+     */
+    public static Style withItem(String itemId, int count, float offsetX, float offsetY) {
+        if (itemId == null || itemId.isEmpty()) {
+            return Style.EMPTY;
+        }
+
+        // Create a new style instance (avoid mutating Style.EMPTY)
+        Style style = Style.EMPTY.withColor((net.minecraft.network.chat.TextColor)null);
+        ETAStyle etaStyle = (ETAStyle) style;
+
+        // Set item properties
+        etaStyle.emberstextapi$setItemId(itemId);
+        etaStyle.emberstextapi$setItemCount(Math.max(1, count));
+        etaStyle.emberstextapi$setItemOffsetX(offsetX);
+        etaStyle.emberstextapi$setItemOffsetY(offsetY);
+
+        return style;
+    }
+
+    /**
+     * Create a style with an item attached (default offset -4, -4).
+     *
+     * @param itemId Item resource location (e.g., "minecraft:diamond")
+     * @param count Item stack count
+     * @return A new style with item data attached
+     */
+    public static Style withItem(String itemId, int count) {
+        return withItem(itemId, count, -4.0f, -4.0f);
+    }
+
+    /**
+     * Create a style with an item attached (count = 1, default offset -4, -4).
+     *
+     * @param itemId Item resource location (e.g., "minecraft:diamond")
+     * @return A new style with item data attached
+     */
+    public static Style withItem(String itemId) {
+        return withItem(itemId, 1, -4.0f, -4.0f);
+    }
+
+    /**
+     * Add item data to an existing style.
+     * <p>
+     * This creates a clone of the original style and adds item rendering data.
+     * </p>
+     *
+     * @param original The original style to clone
+     * @param itemId Item resource location
+     * @param count Item stack count
+     * @param offsetX X offset in pixels
+     * @param offsetY Y offset in pixels
+     * @return A new style with item data added
+     */
+    public static Style cloneAndAddItem(Style original, String itemId, int count, float offsetX, float offsetY) {
+        if (itemId == null || itemId.isEmpty()) {
+            return original;
+        }
+
+        // Clone the style with all properties
+        Style cloned = Style.EMPTY
+                .withColor(original.getColor())
+                .withBold(original.isBold())
+                .withItalic(original.isItalic())
+                .withUnderlined(original.isUnderlined())
+                .withStrikethrough(original.isStrikethrough())
+                .withObfuscated(original.isObfuscated())
+                .withClickEvent(original.getClickEvent())
+                .withHoverEvent(original.getHoverEvent())
+                .withInsertion(original.getInsertion())
+                .withFont(original.getFont());
+
+        ETAStyle etaStyle = (ETAStyle) cloned;
+        ETAStyle originalEta = (ETAStyle) original;
+
+        // Copy effects from original if any
+        ImmutableList<Effect> existingEffects = originalEta.emberstextapi$getEffects();
+        if (!existingEffects.isEmpty()) {
+            etaStyle.emberstextapi$setEffects(existingEffects);
+        }
+
+        // Set item properties
+        etaStyle.emberstextapi$setItemId(itemId);
+        etaStyle.emberstextapi$setItemCount(Math.max(1, count));
+        etaStyle.emberstextapi$setItemOffsetX(offsetX);
+        etaStyle.emberstextapi$setItemOffsetY(offsetY);
+
+        return cloned;
     }
 }

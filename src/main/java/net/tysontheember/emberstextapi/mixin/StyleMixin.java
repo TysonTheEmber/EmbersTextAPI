@@ -39,6 +39,21 @@ public class StyleMixin implements ETAStyle {
     @Unique
     private ImmutableList<Effect> emberstextapi$effects = ImmutableList.of();
 
+    /**
+     * Item rendering properties
+     */
+    @Unique
+    private String emberstextapi$itemId = null;
+
+    @Unique
+    private Integer emberstextapi$itemCount = null;
+
+    @Unique
+    private Float emberstextapi$itemOffsetX = null;
+
+    @Unique
+    private Float emberstextapi$itemOffsetY = null;
+
     @Override
     public ImmutableList<Effect> emberstextapi$getEffects() {
         return emberstextapi$effects;
@@ -64,6 +79,46 @@ public class StyleMixin implements ETAStyle {
         }
     }
 
+    @Override
+    public String emberstextapi$getItemId() {
+        return emberstextapi$itemId;
+    }
+
+    @Override
+    public void emberstextapi$setItemId(String itemId) {
+        this.emberstextapi$itemId = itemId;
+    }
+
+    @Override
+    public Integer emberstextapi$getItemCount() {
+        return emberstextapi$itemCount;
+    }
+
+    @Override
+    public void emberstextapi$setItemCount(Integer count) {
+        this.emberstextapi$itemCount = count;
+    }
+
+    @Override
+    public Float emberstextapi$getItemOffsetX() {
+        return emberstextapi$itemOffsetX;
+    }
+
+    @Override
+    public void emberstextapi$setItemOffsetX(Float offsetX) {
+        this.emberstextapi$itemOffsetX = offsetX;
+    }
+
+    @Override
+    public Float emberstextapi$getItemOffsetY() {
+        return emberstextapi$itemOffsetY;
+    }
+
+    @Override
+    public void emberstextapi$setItemOffsetY(Float offsetY) {
+        this.emberstextapi$itemOffsetY = offsetY;
+    }
+
     /**
      * Extend the equals() method to include effect comparison.
      * <p>
@@ -85,6 +140,23 @@ public class StyleMixin implements ETAStyle {
         if (this != obj && obj instanceof ETAStyle otherStyle) {
             // If effects don't match, styles are not equal
             if (!Objects.equals(this.emberstextapi$effects, otherStyle.emberstextapi$getEffects())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            // If item properties don't match, styles are not equal
+            if (!Objects.equals(this.emberstextapi$itemId, otherStyle.emberstextapi$getItemId())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (!Objects.equals(this.emberstextapi$itemCount, otherStyle.emberstextapi$getItemCount())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (!Objects.equals(this.emberstextapi$itemOffsetX, otherStyle.emberstextapi$getItemOffsetX())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (!Objects.equals(this.emberstextapi$itemOffsetY, otherStyle.emberstextapi$getItemOffsetY())) {
                 cir.setReturnValue(false);
             }
         }

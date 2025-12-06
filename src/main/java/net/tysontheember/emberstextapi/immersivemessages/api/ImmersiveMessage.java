@@ -136,12 +136,24 @@ public class ImmersiveMessage {
     private List<Effect> globalEffects;
     private List<EffectSegment> spanEffectSegments = Collections.emptyList();
 
+    // Unique context ID for this message (prevents tooltip hovers from resetting chat typewriter)
+    private final String messageContextId;
+
     private OnRenderMessage onRender;
     private final Random random = new Random();
 
     public ImmersiveMessage(Component text, float duration) {
         this.text = text;
         this.duration = duration;
+        // Create a unique context ID for this message instance
+        // Using creation timestamp + object hash ensures uniqueness
+        this.messageContextId = "message:" + System.currentTimeMillis() + ":" + System.identityHashCode(this);
+
+        // Mark this message context as started NOW (when message is created)
+        // This ensures typewriter effects start immediately when sent, not when first rendered
+        // And prevents tooltip hovers from resetting the animation
+        net.tysontheember.emberstextapi.util.ViewStateTracker.markViewStarted(this.messageContextId);
+
         // Initialize age to ensure proper fade-in from start
         this.age = 0f;
         this.previousAge = 0f;
@@ -154,6 +166,11 @@ public class ImmersiveMessage {
         this.duration = duration;
         this.spanMode = true;
         this.spanTypewriterIndices = new int[spans.size()];
+
+        // Create unique context ID and mark as started (same as other constructor)
+        this.messageContextId = "message:" + System.currentTimeMillis() + ":" + System.identityHashCode(this);
+        net.tysontheember.emberstextapi.util.ViewStateTracker.markViewStarted(this.messageContextId);
+
         // Initialize age to ensure proper fade-in from start
         this.age = 0f;
         this.previousAge = 0f;
@@ -2080,6 +2097,10 @@ public class ImmersiveMessage {
                 baseR, baseG, baseB, baseA,
                 charIndex, codePoint, isShadow
         );
+
+        // Set message context ID for persistent effects (prevents tooltip hovers from resetting)
+        // TODO: Re-enable when messageContextId field is added back to EffectSettings
+        // settings.messageContextId = this.messageContextId;
 
         // Apply global effects first
         if (globalEffects != null && !globalEffects.isEmpty()) {

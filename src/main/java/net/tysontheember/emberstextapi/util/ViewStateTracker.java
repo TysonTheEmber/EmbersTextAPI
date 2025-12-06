@@ -3,6 +3,7 @@ package net.tysontheember.emberstextapi.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -77,12 +78,13 @@ public class ViewStateTracker {
     private static volatile String currentQuestContext = null;
 
     /**
-     * Per-context ordinal counters used by the typewriter effect to assign
-     * a stable absolute character index across wrapped lines. We keep separate
-     * streams for shadow and main passes to avoid double-advancing while
-     * still hiding unrevealed shadows.
+     * Per-context position-aware ordinal trackers used by the typewriter effect.
+     * Tracks character positions (Y, X) and assigns ordinals based on visual order
+     * (top-to-bottom, left-to-right) rather than rendering order.
+     * This fixes multi-line typewriter animation to always animate top-to-bottom
+     * regardless of the order lines are rendered.
      */
-    private static final ConcurrentHashMap<String, AtomicInteger> CHAR_ORDINALS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, PositionAwareOrdinalTracker> CHAR_ORDINALS = new ConcurrentHashMap<>();
 
     /**
      * Last frame timestamp (nanoseconds) observed when assigning ordinals.
@@ -94,6 +96,116 @@ public class ViewStateTracker {
      * Last frame's tooltip context for change detection.
      */
     private static volatile String lastTooltipContext = null;
+
+    /**
+     * Helper class that tracks character positions and assigns ordinals based on
+     * visual position (Y, then X) rather than rendering order.
+     * Uses a position-to-ordinal calculation to ensure stable ordinals that don't
+     * change as more characters are rendered.
+     */
+    private static class PositionAwareOrdinalTracker {
+        // Map from position key to assigned ordinal (for caching)
+        private final Map<String, Integer> positionToOrdinal = new HashMap<>();
+        // Track minimum Y value seen to normalize positions
+        private float minY = Float.MAX_VALUE;
+        // Track minimum X value seen per line
+        private final Map<Integer, Float> minXPerLine = new HashMap<>();
+
+        /**
+         * Get the ordinal for a character at the given position.
+         * Ordinals are calculated based on position: characters higher up (lower Y)
+         * get lower ordinals, and within a line, characters further left (lower X)
+         * get lower ordinals.
+         *
+         * @param y Y position of the character
+         * @param x X position of the character
+         * @param advance Whether to record this position (usually true)
+         * @return The ordinal for this position
+         */
+        int getOrdinal(float y, float x, boolean advance) {
+            String posKey = positionKey(y, x);
+
+            // Return cached ordinal if we've seen this position before
+            Integer cached = positionToOrdinal.get(posKey);
+            if (cached != null) {
+                return cached;
+            }
+
+            if (!advance) {
+                // Just calculate without caching
+                return calculateOrdinal(y, x);
+            }
+
+            // Track min Y for normalization
+            if (y < minY) {
+                minY = y;
+            }
+
+            // Track min X per line (using absolute Y to determine line)
+            int absoluteLineIndex = getAbsoluteLineIndex(y);
+            Float currentMinX = minXPerLine.get(absoluteLineIndex);
+            if (currentMinX == null || x < currentMinX) {
+                minXPerLine.put(absoluteLineIndex, x);
+            }
+
+            // Calculate and cache the ordinal
+            int ordinal = calculateOrdinal(y, x);
+            positionToOrdinal.put(posKey, ordinal);
+            return ordinal;
+        }
+
+        /**
+         * Calculate ordinal based on RELATIVE position from the first character seen.
+         * Formula: (lineIndex * 10000) + characterIndexInLine
+         * This ensures characters on earlier lines always have lower ordinals,
+         * and within a line, characters to the left have lower ordinals.
+         */
+        private int calculateOrdinal(float y, float x) {
+            // Use relative positions from the first character seen (minY, minX)
+            float relativeY = (minY == Float.MAX_VALUE) ? 0 : (y - minY);
+
+            // Determine which line this character is on RELATIVE to the first line
+            int relativeLineIndex = getRelativeLineIndex(relativeY);
+
+            // Get the minimum X for this line (using absolute line index for lookup)
+            int absoluteLineIndex = getAbsoluteLineIndex(y);
+            Float lineMinX = minXPerLine.get(absoluteLineIndex);
+            float relativeX = (lineMinX == null) ? x : (x - lineMinX);
+
+            // Determine character position within the line (assuming ~6 pixels per char)
+            // Round to nearest character position to avoid floating point issues
+            int charIndexInLine = Math.max(0, (int) Math.round(relativeX / 6.0f));
+
+            // Combine: line * 10000 + char position
+            // This gives us a stable ordinal where earlier lines have lower values
+            return (relativeLineIndex * 10000) + charIndexInLine;
+        }
+
+        /**
+         * Convert absolute Y position to absolute line index.
+         * Used for tracking which characters belong to the same line.
+         */
+        private int getAbsoluteLineIndex(float absoluteY) {
+            // Round to nearest line (9 pixels per line in Minecraft)
+            return (int) Math.round(absoluteY / 9.0f);
+        }
+
+        /**
+         * Convert RELATIVE Y position to relative line index (0-based from first line).
+         * Used for ordinal calculation.
+         */
+        private int getRelativeLineIndex(float relativeY) {
+            // Round to nearest line (9 pixels per line in Minecraft)
+            return Math.max(0, (int) Math.round(relativeY / 9.0f));
+        }
+
+        private static String positionKey(float y, float x) {
+            // Round to nearest 0.1 to handle floating point precision issues
+            int yRounded = Math.round(y * 10);
+            int xRounded = Math.round(x * 10);
+            return yRounded + "," + xRounded;
+        }
+    }
 
 
     /**
@@ -329,17 +441,22 @@ public class ViewStateTracker {
 
     /**
      * Get the next absolute character ordinal for the given context.
-     * Ordinals are per-context and persist until the context is reset via
-     * {@link #markViewStarted(String)} or cleared via {@link #clear()}.
+     * Ordinals are per-context and assigned based on visual position (Y, X)
+     * to ensure top-to-bottom, left-to-right ordering regardless of render order.
      *
      * @param contextId  Context identifier (must not be null)
      * @param shadowPass Whether this is the shadow pass
+     * @param y          Y position of the character
+     * @param x          X position of the character
      * @param advance    Whether to advance the counter (usually true)
      * @return Current ordinal (0-based)
      */
-    public static int nextCharOrdinal(String contextId, boolean shadowPass, boolean advance) {
-        AtomicInteger counter = CHAR_ORDINALS.computeIfAbsent(ordinalKey(contextId, shadowPass), key -> new AtomicInteger(0));
-        return advance ? counter.getAndIncrement() : counter.get();
+    public static int nextCharOrdinal(String contextId, boolean shadowPass, float y, float x, boolean advance) {
+        PositionAwareOrdinalTracker tracker = CHAR_ORDINALS.computeIfAbsent(
+            ordinalKey(contextId, shadowPass),
+            key -> new PositionAwareOrdinalTracker()
+        );
+        return tracker.getOrdinal(y, x, advance);
     }
 
     private static String ordinalKey(String contextId, boolean shadowPass) {

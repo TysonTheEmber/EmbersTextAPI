@@ -51,4 +51,60 @@ public interface ETAStyle {
     * @param effect Effect to add (must not be null)
     */
     void emberstextapi$addEffect(Effect effect);
+
+    /**
+     * Get the item ID attached to this style for inline item rendering.
+     *
+     * @return Item resource location string (e.g., "minecraft:diamond"), or null if no item
+     */
+    String emberstextapi$getItemId();
+
+    /**
+     * Set the item ID for inline item rendering.
+     *
+     * @param itemId Item resource location string (e.g., "minecraft:diamond")
+     */
+    void emberstextapi$setItemId(String itemId);
+
+    /**
+     * Get the item stack count for item rendering.
+     *
+     * @return Item count (defaults to 1 if not set)
+     */
+    Integer emberstextapi$getItemCount();
+
+    /**
+     * Set the item stack count for item rendering.
+     *
+     * @param count Item count (must be >= 1)
+     */
+    void emberstextapi$setItemCount(Integer count);
+
+    /**
+     * Get the X offset for item rendering.
+     *
+     * @return X offset in pixels, or null if not set
+     */
+    Float emberstextapi$getItemOffsetX();
+
+    /**
+     * Set the X offset for item rendering.
+     *
+     * @param offsetX X offset in pixels
+     */
+    void emberstextapi$setItemOffsetX(Float offsetX);
+
+    /**
+     * Get the Y offset for item rendering.
+     *
+     * @return Y offset in pixels, or null if not set
+     */
+    Float emberstextapi$getItemOffsetY();
+
+    /**
+     * Set the Y offset for item rendering.
+     *
+     * @param offsetY Y offset in pixels
+     */
+    void emberstextapi$setItemOffsetY(Float offsetY);
 }

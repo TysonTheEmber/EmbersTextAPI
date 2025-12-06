@@ -74,16 +74,32 @@ public abstract class LiteralContentsMixin {
             return;
         }
 
+        // Debug logging
+        if (text.contains("item")) {
+            System.out.println("[EmbersTextAPI] LiteralContentsMixin detected item markup: " + text);
+        }
+
         // Parse the markup into spans with effects
         List<TextSpan> spans = MarkupParser.parse(text);
+
+        // Debug logging
+        if (text.contains("item")) {
+            System.out.println("[EmbersTextAPI] Parsed " + (spans != null ? spans.size() : 0) + " spans");
+            if (spans != null) {
+                for (int i = 0; i < spans.size(); i++) {
+                    TextSpan span = spans.get(i);
+                    System.out.println("[EmbersTextAPI]   Span " + i + ": content='" + span.getContent() + "', itemId=" + span.getItemId());
+                }
+            }
+        }
 
         // If no valid markup was found (empty list or parsing failed), let vanilla handle it
         if (spans == null || spans.isEmpty()) {
             return;
         }
 
-        // Check if any span has effects OR formatting - if not, let vanilla handle it
-        boolean hasEffectsOrFormatting = false;
+        // Check if any span has effects, formatting, or item data - if not, let vanilla handle it
+        boolean hasEffectsOrFormattingOrItems = false;
         for (TextSpan span : spans) {
             boolean hasEffects = span.getEffects() != null && !span.getEffects().isEmpty();
             boolean hasFormatting = (span.getBold() != null && span.getBold()) ||
@@ -91,13 +107,14 @@ public abstract class LiteralContentsMixin {
                                    (span.getUnderline() != null && span.getUnderline()) ||
                                    (span.getStrikethrough() != null && span.getStrikethrough()) ||
                                    (span.getObfuscated() != null && span.getObfuscated());
+            boolean hasItem = span.getItemId() != null;
 
-            if (hasEffects || hasFormatting) {
-                hasEffectsOrFormatting = true;
+            if (hasEffects || hasFormatting || hasItem) {
+                hasEffectsOrFormattingOrItems = true;
                 break;
             }
         }
-        if (!hasEffectsOrFormatting) {
+        if (!hasEffectsOrFormattingOrItems) {
             return; // Let vanilla handle plain text
         }
 
@@ -105,9 +122,14 @@ public abstract class LiteralContentsMixin {
         for (TextSpan span : spans) {
             String content = span.getContent();
 
-            // Skip empty spans
+            // For item spans with empty content, use a space so the item has something to render on
+            boolean isItemSpan = span.getItemId() != null;
             if (content == null || content.isEmpty()) {
-                continue;
+                if (isItemSpan) {
+                    content = " "; // Emit a space for the item to replace
+                } else {
+                    continue; // Skip truly empty spans
+                }
             }
 
             // Clone the style and apply this span's formatting and effects
