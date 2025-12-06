@@ -13,6 +13,7 @@
     "client.BakedGlyphMixin",
     "client.FontAccess",
     "client.StringRenderOutputMixin",
+    "client.StringSplitterMixin",
     "client.ftbquests.QuestScreenMixin"
   ],
   "injectors": {

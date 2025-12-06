@@ -119,8 +119,18 @@ public abstract class StringRenderOutputMixin {
      */
     @Inject(method = "accept", at = @At("HEAD"), cancellable = true)
     private void emberstextapi$accept(int index, Style style, int codepoint, CallbackInfoReturnable<Boolean> cir) {
-        // Cast to our duck interface to access effects
+        // Cast to our duck interface to access effects and item data
         ETAStyle etaStyle = (ETAStyle) style;
+
+        // Check if this style has an item to render
+        String itemId = etaStyle.emberstextapi$getItemId();
+        if (itemId != null) {
+            emberstextapi$renderItem(etaStyle, itemId);
+            // Cancel vanilla rendering - we rendered an item instead
+            cir.setReturnValue(true);
+            return;
+        }
+
         List<Effect> effects = etaStyle.emberstextapi$getEffects().asList();
 
         // If no effects, let vanilla handle it
@@ -322,6 +332,87 @@ public abstract class StringRenderOutputMixin {
                     vertexConsumer,
                     packedLightCoords
             );
+        }
+    }
+
+    /**
+     * Render an item icon inline with text.
+     * <p>
+     * This method handles rendering Minecraft items as inline icons
+     * when a Style has item data attached via ETAStyle.
+     * </p>
+     *
+     * @param etaStyle The style containing item data
+     * @param itemId Item resource location (e.g., "minecraft:diamond")
+     */
+    @Unique
+    private void emberstextapi$renderItem(ETAStyle etaStyle, String itemId) {
+        try {
+            // Parse item ID
+            net.minecraft.resources.ResourceLocation itemLocation = net.minecraft.resources.ResourceLocation.tryParse(itemId);
+            if (itemLocation == null) {
+                return;
+            }
+
+            // Get the item from registry
+            net.minecraft.world.item.Item item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(itemLocation);
+            if (item == null) {
+                return;
+            }
+
+            // Create item stack
+            int count = etaStyle.emberstextapi$getItemCount() != null ? etaStyle.emberstextapi$getItemCount() : 1;
+            net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item, count);
+
+            // Get offsets - default -4, -4 for best visual alignment
+            float offsetX = etaStyle.emberstextapi$getItemOffsetX() != null ? etaStyle.emberstextapi$getItemOffsetX() : -4.0f;
+            float offsetY = etaStyle.emberstextapi$getItemOffsetY() != null ? etaStyle.emberstextapi$getItemOffsetY() : -4.0f;
+
+            // Item size (standard Minecraft item icon is 16x16)
+            int itemSize = 16;
+
+            // Translate to item position
+            Matrix4f itemPose = new Matrix4f(this.pose);
+            itemPose.translate(this.x + offsetX, this.y + offsetY, 0);
+
+            // Render the item using GuiGraphics-like rendering
+            // Since we're in the middle of text rendering, we need to be careful
+            // We'll use the MultiBufferSource to ensure proper rendering order
+            var mc = net.minecraft.client.Minecraft.getInstance();
+
+            // End current batch to ensure items render on top of text (if possible)
+            if (this.bufferSource instanceof net.minecraft.client.renderer.MultiBufferSource.BufferSource bs) {
+                bs.endBatch();
+            }
+
+            // Create a temporary GuiGraphics for item rendering
+            // This is needed because ItemRenderer expects to work with GuiGraphics
+            // We need to get or create a BufferSource
+            net.minecraft.client.renderer.MultiBufferSource.BufferSource bufferSource;
+            if (this.bufferSource instanceof net.minecraft.client.renderer.MultiBufferSource.BufferSource bs) {
+                bufferSource = bs;
+            } else {
+                // Fallback: use render buffers from Minecraft instance
+                bufferSource = mc.renderBuffers().bufferSource();
+            }
+
+            var guiGraphics = new net.minecraft.client.gui.GuiGraphics(mc, bufferSource);
+            guiGraphics.pose().mulPoseMatrix(itemPose);
+
+            // Render the item
+            guiGraphics.renderItem(stack, 0, 0);
+
+            // End batch to flush the item rendering
+            bufferSource.endBatch();
+
+            // Advance x position for next character
+            // Item is offset by offsetX and has width itemSize
+            // Advance past the right edge (offsetX + itemSize) plus minimal padding
+            this.x += offsetX + itemSize; // Accounts for offset + width + 0px padding
+
+        } catch (Exception e) {
+            // If item rendering fails, just skip it and continue
+            // This prevents crashes from invalid item IDs
         }
     }
 }

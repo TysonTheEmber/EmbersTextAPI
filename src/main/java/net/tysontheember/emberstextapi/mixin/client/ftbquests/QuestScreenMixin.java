@@ -93,18 +93,49 @@ public class QuestScreenMixin {
      * @return Quest context identifier
      */
     private String emberstextapi$getQuestContext() {
-        // Try to extract quest-specific information
-        // This is a best-effort approach; exact implementation depends on FTB Quests internals
-
+        // Try to extract a stable quest identifier via reflection.
+        // We attempt a few common field/method names used by FTB Quests screens.
+        Object quest = null;
         try {
-            // Attempt to get current quest ID via reflection or duck interface
-            // For now, use a generic context that will reset on every screen render
-            // This ensures typewriter effect resets when quest screen is opened
-            return "quest:ftb:" + System.identityHashCode(this);
+            quest = emberstextapi$getField(this, "selectedQuest");
+            if (quest == null) quest = emberstextapi$getField(this, "quest");
+            if (quest == null) quest = emberstextapi$getField(this, "focusedQuest");
+            if (quest == null) quest = emberstextapi$getField(this, "viewedQuest");
+        } catch (Exception ignored) {
+        }
 
-        } catch (Exception e) {
-            // Fall back to generic quest context
-            return "quest:ftb:generic";
+        // If we found a quest object, try to pull its ID
+        if (quest != null) {
+            try {
+                Object id = quest.getClass().getMethod("getId").invoke(quest);
+                if (id != null) {
+                    return "quest:ftb:" + id.toString();
+                }
+            } catch (Exception ignored) {
+            }
+            try {
+                Object id = quest.getClass().getField("id").get(quest);
+                if (id != null) {
+                    return "quest:ftb:" + id.toString();
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        // Fallbacks if we cannot introspect quest
+        return "quest:ftb:" + System.identityHashCode(this);
+    }
+
+    /**
+     * Simple reflective field getter that ignores exceptions.
+     */
+    private Object emberstextapi$getField(Object target, String name) {
+        try {
+            var field = target.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            return field.get(target);
+        } catch (Exception ignored) {
+            return null;
         }
     }
 }

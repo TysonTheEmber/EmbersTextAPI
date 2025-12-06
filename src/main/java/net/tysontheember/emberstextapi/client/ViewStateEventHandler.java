@@ -124,6 +124,9 @@ public class ViewStateEventHandler {
             // Update view state tracker
             ViewStateTracker.updateTooltipContext(tooltipContext);
 
+            // Reset typewriter animation for this tooltip
+            net.tysontheember.emberstextapi.typewriter.TypewriterController.getInstance().resetContext(tooltipContext);
+
             // Track for change detection
             lastTooltipStack = stack.copy();
 
@@ -154,6 +157,9 @@ public class ViewStateEventHandler {
                 String screenContext = generateScreenContext(newScreen);
                 ViewStateTracker.markScreenOpened(screenContext);
                 lastScreen = newScreen;
+
+                // Reset typewriter animation for this screen
+                net.tysontheember.emberstextapi.typewriter.TypewriterController.getInstance().resetContext(screenContext);
 
                 LOGGER.info("SCREEN EVENT: Screen opened: {}", screenContext);
             }
@@ -201,6 +207,9 @@ public class ViewStateEventHandler {
         }
 
         try {
+            // Tick typewriter animations
+            net.tysontheember.emberstextapi.typewriter.TypewriterController.getInstance().tick();
+
             Minecraft mc = Minecraft.getInstance();
 
             // Check if we're still on the same screen
