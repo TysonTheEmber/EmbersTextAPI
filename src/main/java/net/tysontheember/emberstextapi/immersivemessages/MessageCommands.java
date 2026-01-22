@@ -102,7 +102,7 @@ public class MessageCommands {
                                     keys.put(k.toLowerCase(java.util.Locale.ROOT), k);
                                 }
 
-                                MutableComponent component = Component.literal(text);
+                                MutableComponent component = Component.translatable(text);
                                 if (tag.contains("font")) {
                                     ResourceLocation font = ResourceLocation.tryParse(tag.getString("font"));
                                     if (font != null) {
