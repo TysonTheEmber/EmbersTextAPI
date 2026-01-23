@@ -14,6 +14,7 @@ import net.tysontheember.emberstextapi.duck.ETABakedGlyph;
 import net.tysontheember.emberstextapi.duck.ETAStyle;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
+import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
 import net.tysontheember.emberstextapi.util.EffectUtil;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Final;
@@ -180,7 +181,20 @@ public abstract class StringRenderOutputMixin {
                     this.dropShadow         // isShadow
             );
             settings.shadowOffset = shadowOffset;
-            settings.absoluteIndex = index; // For global effects, set absolute index
+
+            // Get typewriter data from Style if present
+            TypewriterTrack track = etaStyle.emberstextapi$getTypewriterTrack();
+
+            if (track != null) {
+                // Get the typewriter index that was set during parsing
+                // This index is sequential (0, 1, 2...) and was assigned in LiteralContentsMixin
+                int typingIndex = etaStyle.emberstextapi$getTypewriterIndex();
+                settings.absoluteIndex = typingIndex >= 0 ? typingIndex : index;
+                settings.typewriterTrack = track;
+                settings.typewriterIndex = typingIndex;
+            } else {
+                settings.absoluteIndex = index; // Fallback for non-typewriter effects
+            }
 
             // Initialize siblings list with the main settings
             // This allows effects to operate on the base layer

@@ -5,8 +5,13 @@ import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import java.util.List;
 
 /**
- * Handles typewriter animation logic for progressive text reveal.
- * Supports both global (whole-message) and per-span typewriter effects.
+ * Utility class for ImmersiveMessage typewriter animation calculations.
+ * <p>
+ * This provides helper methods for the message-level typewriter feature
+ * (when {@code typewriter=true} is set on an ImmersiveMessage). This is
+ * separate from the {@code <typewriter>} effect tag which works through
+ * the effect system.
+ * </p>
  */
 public class TypewriterAnimator {
 

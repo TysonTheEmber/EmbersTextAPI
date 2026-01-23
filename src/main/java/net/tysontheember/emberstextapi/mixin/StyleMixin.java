@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import net.minecraft.network.chat.Style;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.duck.ETAStyle;
+import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -53,6 +54,19 @@ public class StyleMixin implements ETAStyle {
 
     @Unique
     private Float emberstextapi$itemOffsetY = null;
+
+    /**
+     * Typewriter track for animation state.
+     */
+    @Unique
+    private TypewriterTrack emberstextapi$typewriterTrack = null;
+
+    /**
+     * Typewriter index (global character position).
+     * -1 means uninitialized/not applicable.
+     */
+    @Unique
+    private int emberstextapi$typewriterIndex = -1;
 
     @Override
     public ImmutableList<Effect> emberstextapi$getEffects() {
@@ -119,6 +133,147 @@ public class StyleMixin implements ETAStyle {
         this.emberstextapi$itemOffsetY = offsetY;
     }
 
+    @Override
+    public TypewriterTrack emberstextapi$getTypewriterTrack() {
+        return emberstextapi$typewriterTrack;
+    }
+
+    @Override
+    public void emberstextapi$setTypewriterTrack(TypewriterTrack track) {
+        this.emberstextapi$typewriterTrack = track;
+    }
+
+    @Override
+    public int emberstextapi$getTypewriterIndex() {
+        return emberstextapi$typewriterIndex;
+    }
+
+    @Override
+    public void emberstextapi$setTypewriterIndex(int index) {
+        this.emberstextapi$typewriterIndex = index;
+    }
+
+    /**
+     * Propagate effects and typewriter data when Style methods return a new Style.
+     * <p>
+     * This ensures that when Style's withX() methods create a new Style instance,
+     * the effects and typewriter data are copied to the new instance.
+     * </p>
+     */
+    @Inject(method = "withColor(Lnet/minecraft/network/chat/TextColor;)Lnet/minecraft/network/chat/Style;", at = @At("RETURN"))
+    private void emberstextapi$propagateOnWithColor(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "withBold", at = @At("RETURN"))
+    private void emberstextapi$propagateOnWithBold(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "withItalic", at = @At("RETURN"))
+    private void emberstextapi$propagateOnWithItalic(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "withUnderlined", at = @At("RETURN"))
+    private void emberstextapi$propagateOnWithUnderlined(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "withStrikethrough", at = @At("RETURN"))
+    private void emberstextapi$propagateOnWithStrikethrough(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "withObfuscated", at = @At("RETURN"))
+    private void emberstextapi$propagateOnWithObfuscated(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "withClickEvent", at = @At("RETURN"))
+    private void emberstextapi$propagateOnWithClickEvent(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "withHoverEvent", at = @At("RETURN"))
+    private void emberstextapi$propagateOnWithHoverEvent(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "withInsertion", at = @At("RETURN"))
+    private void emberstextapi$propagateOnWithInsertion(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "withFont", at = @At("RETURN"))
+    private void emberstextapi$propagateOnWithFont(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "applyFormat", at = @At("RETURN"))
+    private void emberstextapi$propagateOnApplyFormat(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "applyLegacyFormat", at = @At("RETURN"))
+    private void emberstextapi$propagateOnApplyLegacyFormat(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "applyFormats", at = @At("RETURN"))
+    private void emberstextapi$propagateOnApplyFormats(CallbackInfoReturnable<Style> cir) {
+        emberstextapi$propagateData(cir.getReturnValue());
+    }
+
+    @Inject(method = "applyTo", at = @At("RETURN"))
+    private void emberstextapi$propagateOnApplyTo(Style that, CallbackInfoReturnable<Style> cir) {
+        Style result = cir.getReturnValue();
+        Style self = (Style) (Object) this;
+        if (self == result || that == result) {
+            return;
+        }
+        ETAStyle thatStyle = (ETAStyle) that;
+        ETAStyle resultStyle = (ETAStyle) result;
+
+        // Use our effects if we have them, otherwise use the other style's effects
+        ImmutableList<Effect> effects = emberstextapi$effects.isEmpty()
+                ? thatStyle.emberstextapi$getEffects()
+                : emberstextapi$effects;
+        resultStyle.emberstextapi$setEffects(effects);
+
+        // Use our track if we have it, otherwise use the other style's track
+        TypewriterTrack track = emberstextapi$typewriterTrack != null
+                ? emberstextapi$typewriterTrack
+                : thatStyle.emberstextapi$getTypewriterTrack();
+        int index = emberstextapi$typewriterIndex >= 0
+                ? emberstextapi$typewriterIndex
+                : thatStyle.emberstextapi$getTypewriterIndex();
+
+        resultStyle.emberstextapi$setTypewriterTrack(track);
+        resultStyle.emberstextapi$setTypewriterIndex(index);
+    }
+
+    /**
+     * Helper method to propagate data to a result Style.
+     */
+    @Unique
+    private void emberstextapi$propagateData(Style result) {
+        Style self = (Style) (Object) this;
+        if (self == result) {
+            return;
+        }
+        // Only propagate if we have data to propagate
+        if (emberstextapi$effects.isEmpty() && emberstextapi$typewriterTrack == null) {
+            return;
+        }
+        ETAStyle resultStyle = (ETAStyle) result;
+        resultStyle.emberstextapi$setEffects(emberstextapi$effects);
+        if (emberstextapi$typewriterTrack != null) {
+            resultStyle.emberstextapi$setTypewriterTrack(emberstextapi$typewriterTrack);
+            resultStyle.emberstextapi$setTypewriterIndex(emberstextapi$typewriterIndex);
+        }
+    }
+
     /**
      * Extend the equals() method to include effect comparison.
      * <p>
@@ -157,6 +312,12 @@ public class StyleMixin implements ETAStyle {
                 return;
             }
             if (!Objects.equals(this.emberstextapi$itemOffsetY, otherStyle.emberstextapi$getItemOffsetY())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            // If typewriter index doesn't match, styles are not equal
+            // This is critical to prevent characters with different indices from being merged
+            if (this.emberstextapi$typewriterIndex != otherStyle.emberstextapi$getTypewriterIndex()) {
                 cir.setReturnValue(false);
             }
         }

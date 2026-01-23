@@ -2,6 +2,7 @@ package net.tysontheember.emberstextapi.duck;
 
 import com.google.common.collect.ImmutableList;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
+import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
 
 /**
  * Duck interface for augmenting Minecraft's Style class with effect storage.
@@ -107,4 +108,46 @@ public interface ETAStyle {
      * @param offsetY Y offset in pixels
      */
     void emberstextapi$setItemOffsetY(Float offsetY);
+
+    // ===== Typewriter Effect Support =====
+
+    /**
+     * Get the typewriter track for this style.
+     * <p>
+     * The track manages animation state (timing, revealed character count).
+     * Multiple characters sharing the same track will animate together.
+     * </p>
+     *
+     * @return TypewriterTrack instance, or null if no typewriter effect
+     */
+    TypewriterTrack emberstextapi$getTypewriterTrack();
+
+    /**
+     * Set the typewriter track for this style.
+     *
+     * @param track TypewriterTrack instance
+     */
+    void emberstextapi$setTypewriterTrack(TypewriterTrack track);
+
+    /**
+     * Get the typewriter index (global character position) for this style.
+     * <p>
+     * This represents the ABSOLUTE position of this character in the full text,
+     * used to determine when this character should be revealed relative to
+     * the track's current reveal index.
+     * </p>
+     * <p>
+     * A value of -1 indicates uninitialized/not applicable.
+     * </p>
+     *
+     * @return Global character index, or -1 if not set
+     */
+    int emberstextapi$getTypewriterIndex();
+
+    /**
+     * Set the typewriter index (global character position) for this style.
+     *
+     * @param index Global character position (0-based)
+     */
+    void emberstextapi$setTypewriterIndex(int index);
 }

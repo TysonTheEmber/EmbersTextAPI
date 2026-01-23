@@ -1,5 +1,7 @@
 package net.tysontheember.emberstextapi.immersivemessages.effects;
 
+import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -112,6 +114,29 @@ public class EffectSettings {
      */
     public float shadowOffset;
 
+    // ===== Typewriter Effect Support =====
+
+    /**
+     * Typewriter track for animation state.
+     * <p>
+     * Set when the Style has a typewriter effect attached.
+     * Null if no typewriter effect is active.
+     * </p>
+     */
+    public TypewriterTrack typewriterTrack;
+
+    /**
+     * Typewriter index (global character position offset).
+     * <p>
+     * Combined with {@code index}, this gives the absolute character position
+     * in the full text for typewriter animation ordering.
+     * </p>
+     * <p>
+     * A value of -1 indicates uninitialized/not applicable.
+     * </p>
+     */
+    public int typewriterIndex;
+
     // ===== Multi-Layer Rendering =====
 
     /**
@@ -158,6 +183,8 @@ public class EffectSettings {
         this.codepoint = 0;
         this.isShadow = false;
         this.shadowOffset = 1f;
+        this.typewriterTrack = null;
+        this.typewriterIndex = -1;
         this.siblings = new ArrayList<>();
         this.maskTop = 0f;
         this.maskBottom = 0f;
@@ -191,6 +218,8 @@ public class EffectSettings {
         this.codepoint = codepoint;
         this.isShadow = isShadow;
         this.shadowOffset = 1f;
+        this.typewriterTrack = null;
+        this.typewriterIndex = -1;
         this.siblings = new ArrayList<>();
         this.maskTop = 0f;
         this.maskBottom = 0f;
@@ -220,6 +249,8 @@ public class EffectSettings {
         copy.codepoint = this.codepoint;
         copy.isShadow = this.isShadow;
         copy.shadowOffset = this.shadowOffset;
+        copy.typewriterTrack = this.typewriterTrack;
+        copy.typewriterIndex = this.typewriterIndex;
         copy.maskTop = this.maskTop;
         copy.maskBottom = this.maskBottom;
         // Intentionally create new empty siblings list
