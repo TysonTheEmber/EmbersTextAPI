@@ -78,6 +78,35 @@ public class TypewriterTrack {
     private int[] sortedPositionsCache;
 
     /**
+     * Maximum number of times to play the animation.
+     * -1 = infinite, 1 = play once, N = play N times.
+     */
+    private int maxPlays;
+
+    /**
+     * Number of times the animation has completed (index reached totalChars).
+     */
+    private int playCount;
+
+    /**
+     * Total number of characters in the text. Used to detect when a play completes.
+     * -1 means unknown (not yet set).
+     */
+    private int totalChars;
+
+    /**
+     * Whether we've already counted the current play as complete.
+     * Prevents counting the same play multiple times.
+     */
+    private boolean currentPlayCounted;
+
+    /**
+     * The cache key for this track, used to mark completion in TypewriterTracks.
+     * Set by TypewriterTracks when creating the track.
+     */
+    private Object cacheKey;
+
+    /**
      * Create a new typewriter track with default settings.
      * <p>
      * Initializes with current time and uses the global default speed.
@@ -101,6 +130,28 @@ public class TypewriterTrack {
         this.previousFramePositions = new TreeSet<>();
         this.lastPositionFrame = 0;
         this.sortedPositionsCache = new int[0];
+        this.maxPlays = TypewriterConfig.getDefaultMaxPlays();
+        this.playCount = 0;
+        this.totalChars = -1;
+        this.currentPlayCounted = false;
+    }
+
+    /**
+     * Create a track that's already in a completed state.
+     * <p>
+     * Used when restoring a track for a key that was previously marked as completed.
+     * This ensures the animation doesn't replay even after cache expiration.
+     * </p>
+     *
+     * @return a track with completed state (all text visible, won't replay)
+     */
+    public static TypewriterTrack createCompleted() {
+        TypewriterTrack track = new TypewriterTrack();
+        track.maxPlays = 1;
+        track.playCount = 1;
+        track.currentPlayCounted = true;
+        track.index = Integer.MAX_VALUE; // Ensure all characters are visible
+        return track;
     }
 
     /**
@@ -113,8 +164,12 @@ public class TypewriterTrack {
      * <p>
      * This method should be called during rendering to update the animation state.
      * </p>
+     * <p>
+     * This method is synchronized to ensure thread-safe updates when called from
+     * multiple render passes (shadow and main).
+     * </p>
      */
-    public void update() {
+    public synchronized void update() {
         long now = System.currentTimeMillis();
         int previousIndex = index;
 
@@ -129,6 +184,20 @@ public class TypewriterTrack {
             if (now - lastSoundMs >= MIN_SOUND_INTERVAL_MS) {
                 playSound();
                 lastSoundMs = now;
+            }
+        }
+
+        // Check if this play has completed (all characters revealed)
+        if (totalChars > 0 && index >= totalChars && !currentPlayCounted) {
+            playCount++;
+            currentPlayCounted = true;
+            LOGGER.debug("Play completed: playCount={}, maxPlays={}, totalChars={}, index={}",
+                    playCount, maxPlays, totalChars, index);
+
+            // If we've reached max plays, mark this key as permanently completed
+            if (maxPlays != -1 && playCount >= maxPlays && cacheKey != null) {
+                LOGGER.debug("Max plays reached, marking as completed");
+                TypewriterTracks.getInstance().markCompleted(cacheKey);
             }
         }
     }
@@ -203,7 +272,8 @@ public class TypewriterTrack {
      * Check if the track should reset based on time since last access.
      * <p>
      * If the time since last access exceeds the reset delay, this method
-     * resets the track and returns true.
+     * resets the track and returns true. However, if max plays has been
+     * reached, the track will not reset.
      * </p>
      *
      * @return true if the track was reset, false otherwise
@@ -213,6 +283,11 @@ public class TypewriterTrack {
         long timeSinceAccess = now - lastAccessTime;
 
         if (timeSinceAccess > resetDelayMs) {
+            // Don't reset if we've reached max plays
+            if (maxPlays != -1 && playCount >= maxPlays) {
+                lastAccessTime = now;
+                return false;
+            }
             reset();
             return true;
         }
@@ -223,9 +298,23 @@ public class TypewriterTrack {
     }
 
     /**
+     * Check if the animation has completed all allowed plays.
+     * <p>
+     * When this returns true, all characters should remain visible
+     * and the animation should not restart.
+     * </p>
+     *
+     * @return true if max plays reached and animation is complete
+     */
+    public boolean isCompleted() {
+        return maxPlays != -1 && playCount >= maxPlays && currentPlayCounted;
+    }
+
+    /**
      * Reset the track to start the animation over.
      * <p>
      * Used for repeat mode when the UI element reappears.
+     * Note: playCount is NOT reset - it persists to track total plays.
      * </p>
      */
     public void reset() {
@@ -239,6 +328,72 @@ public class TypewriterTrack {
         this.currentFramePositions.clear();
         this.previousFramePositions.clear();
         this.sortedPositionsCache = new int[0];
+        this.currentPlayCounted = false; // Allow next play to be counted
+        // Note: playCount is intentionally NOT reset
+    }
+
+    /**
+     * Get the maximum number of plays allowed.
+     *
+     * @return -1 for infinite, or a positive number
+     */
+    public int getMaxPlays() {
+        return maxPlays;
+    }
+
+    /**
+     * Set the maximum number of plays allowed.
+     * <p>
+     * Use -1 for infinite repeats, or a positive number to limit plays.
+     * </p>
+     *
+     * @param maxPlays -1 for infinite, or a positive number
+     */
+    public void setMaxPlays(int maxPlays) {
+        this.maxPlays = maxPlays < 0 ? -1 : Math.max(1, maxPlays);
+    }
+
+    /**
+     * Get the total number of characters in the text.
+     *
+     * @return total characters, or -1 if unknown
+     */
+    public int getTotalChars() {
+        return totalChars;
+    }
+
+    /**
+     * Set the total number of characters in the text.
+     * <p>
+     * This is used to detect when a play has completed.
+     * </p>
+     *
+     * @param totalChars total character count
+     */
+    public void setTotalChars(int totalChars) {
+        this.totalChars = Math.max(0, totalChars);
+    }
+
+    /**
+     * Get the number of times the animation has completed.
+     *
+     * @return play count
+     */
+    public int getPlayCount() {
+        return playCount;
+    }
+
+    /**
+     * Set the cache key for this track.
+     * <p>
+     * This is used to mark the track as permanently completed in TypewriterTracks
+     * when max plays is reached.
+     * </p>
+     *
+     * @param key the cache key
+     */
+    public void setCacheKey(Object key) {
+        this.cacheKey = key;
     }
 
     /**
@@ -256,12 +411,15 @@ public class TypewriterTrack {
      * Frame detection uses a time threshold (1ms) to group characters
      * rendered close together as part of the same frame.
      * </p>
+     * <p>
+     * This method is synchronized to ensure thread-safe counter updates.
+     * </p>
      *
      * @param frameTime current frame time for reset detection (use System.nanoTime())
      * @param isShadow whether this is the shadow pass
      * @return the render index for this character
      */
-    public int nextRenderIndex(long frameTime, boolean isShadow) {
+    public synchronized int nextRenderIndex(long frameTime, boolean isShadow) {
         // Use 1ms threshold for frame detection (1,000,000 nanoseconds)
         // Characters rendered within 1ms are considered part of the same frame
         long frameThresholdNs = 1_000_000;
@@ -296,12 +454,15 @@ public class TypewriterTrack {
      * compute stable indices for the current frame. This handles arbitrary render
      * order (e.g., chat rendering bottom-to-top).
      * </p>
+     * <p>
+     * This method is synchronized to ensure thread-safe position tracking.
+     * </p>
      *
      * @param positionOrdinal position-based ordinal (Y*10000+X)
      * @param frameTime current frame time for reset detection (use System.nanoTime())
      * @return sequential index based on position order
      */
-    public int getSequentialOrdinal(int positionOrdinal, long frameTime) {
+    public synchronized int getSequentialOrdinal(int positionOrdinal, long frameTime) {
         // Use 1ms threshold for frame detection
         long frameThresholdNs = 1_000_000;
 

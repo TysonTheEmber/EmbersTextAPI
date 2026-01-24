@@ -1,8 +1,11 @@
 package net.tysontheember.emberstextapi.mixin.client.ftbquests;
 
 import net.tysontheember.emberstextapi.util.ViewStateTracker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -42,10 +45,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 }, remap = false)
 public class QuestScreenMixin {
 
+    @Unique
+    private static final Logger emberstextapi$LOGGER = LoggerFactory.getLogger("EmbersTextAPI/QuestScreenMixin");
+
     /**
      * Track the last quest context to detect changes.
      * Only mark quest as viewed when it changes, not every frame.
      */
+    @Unique
     private String emberstextapi$lastQuestContext = null;
 
     /**
@@ -72,14 +79,13 @@ public class QuestScreenMixin {
 
             // Only mark as viewed if this is a NEW quest context (changed from last frame)
             if (!questContext.equals(emberstextapi$lastQuestContext)) {
-                System.out.println("QUEST MIXIN: Quest context changed to: " + questContext);
+                emberstextapi$LOGGER.debug("Quest context changed to: {}", questContext);
                 ViewStateTracker.markQuestViewed(questContext);
                 emberstextapi$lastQuestContext = questContext;
             }
 
         } catch (Exception e) {
-            System.err.println("QUEST MIXIN ERROR: " + e.getMessage());
-            e.printStackTrace();
+            emberstextapi$LOGGER.debug("Failed to track quest context: {}", e.getMessage());
         }
     }
 
@@ -127,14 +133,19 @@ public class QuestScreenMixin {
     }
 
     /**
-     * Simple reflective field getter that ignores exceptions.
+     * Simple reflective field getter that logs failures at debug level.
      */
+    @Unique
     private Object emberstextapi$getField(Object target, String name) {
         try {
             var field = target.getClass().getDeclaredField(name);
             field.setAccessible(true);
             return field.get(target);
-        } catch (Exception ignored) {
+        } catch (NoSuchFieldException e) {
+            // Field doesn't exist in this version - expected for version compatibility
+            return null;
+        } catch (Exception e) {
+            emberstextapi$LOGGER.debug("Could not access field '{}': {}", name, e.getMessage());
             return null;
         }
     }

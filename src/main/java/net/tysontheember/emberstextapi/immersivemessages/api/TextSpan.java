@@ -263,13 +263,13 @@ public class TextSpan {
     public TextSpan effect(String tagContent) {
         if (tagContent != null && !tagContent.isEmpty()) {
             try {
-                net.tysontheember.emberstextapi.EmbersTextAPI.LOGGER.info("EFFECT DEBUG: Parsing effect tag: '{}'", tagContent);
+                net.tysontheember.emberstextapi.EmbersTextAPI.LOGGER.debug("Parsing effect tag: '{}'", tagContent);
                 Effect effect = EffectRegistry.parseTag(tagContent);
-                net.tysontheember.emberstextapi.EmbersTextAPI.LOGGER.info("EFFECT DEBUG: Created effect: {}", effect.getName());
+                net.tysontheember.emberstextapi.EmbersTextAPI.LOGGER.debug("Created effect: {}", effect.getName());
                 addEffect(effect);
             } catch (IllegalArgumentException e) {
-                // Silently ignore unknown effects to avoid breaking rendering
-                net.tysontheember.emberstextapi.EmbersTextAPI.LOGGER.warn("EFFECT DEBUG: Failed to parse effect: '{}' - {}", tagContent, e.getMessage());
+                // Log at debug level - unknown effects are not errors, just unsupported markup
+                net.tysontheember.emberstextapi.EmbersTextAPI.LOGGER.debug("Failed to parse effect: '{}' - {}", tagContent, e.getMessage());
             }
         }
         return this;

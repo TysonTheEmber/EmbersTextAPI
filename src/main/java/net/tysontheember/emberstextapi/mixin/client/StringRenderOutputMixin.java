@@ -17,6 +17,8 @@ import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
 import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
 import net.tysontheember.emberstextapi.util.EffectUtil;
 import org.joml.Matrix4f;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -47,6 +49,9 @@ import java.util.List;
  */
 @Mixin(targets = "net.minecraft.client.gui.Font$StringRenderOutput", priority = 1200)
 public abstract class StringRenderOutputMixin {
+
+    @Unique
+    private static final Logger emberstextapi$LOGGER = LoggerFactory.getLogger("EmbersTextAPI/StringRenderOutput");
 
     // ===== Shadow Fields from StringRenderOutput =====
 
@@ -211,8 +216,7 @@ public abstract class StringRenderOutputMixin {
                     }
                 } catch (Exception e) {
                     // Log but don't crash - one broken effect shouldn't break all rendering
-                    // LOGGER would be better but keeping it simple for now
-                    e.printStackTrace();
+                    emberstextapi$LOGGER.warn("Effect {} failed to apply: {}", effect.getName(), e.getMessage());
                 }
             }
 

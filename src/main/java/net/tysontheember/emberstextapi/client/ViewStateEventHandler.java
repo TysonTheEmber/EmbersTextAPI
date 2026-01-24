@@ -119,7 +119,7 @@ public class ViewStateEventHandler {
             // Generate tooltip context ID from item
             String tooltipContext = generateTooltipContext(stack);
 
-            LOGGER.info("TOOLTIP EVENT: Tooltip pre-render for context: {}", tooltipContext);
+            LOGGER.debug("Tooltip pre-render for context: {}", tooltipContext);
 
             // Update view state tracker
             ViewStateTracker.updateTooltipContext(tooltipContext);
@@ -155,7 +155,7 @@ public class ViewStateEventHandler {
                 ViewStateTracker.markScreenOpened(screenContext);
                 lastScreen = newScreen;
 
-                LOGGER.info("SCREEN EVENT: Screen opened: {}", screenContext);
+                LOGGER.debug("Screen opened: {}", screenContext);
             }
 
         } catch (Exception e) {
@@ -288,7 +288,7 @@ public class ViewStateEventHandler {
         String className = screen.getClass().getSimpleName();
         String fullClassName = screen.getClass().getName();
 
-        LOGGER.info("SCREEN CONTEXT DEBUG: Simple class: {}, Full class: {}", className, fullClassName);
+        LOGGER.debug("Screen context: class={}, fullClass={}", className, fullClassName);
 
         // Check if this is an FTB Quests screen (by package or class name)
         if (fullClassName.contains("ftbquests") || className.contains("Quest")) {
@@ -297,7 +297,7 @@ public class ViewStateEventHandler {
             try {
                 // For now, use class name + title hash as context
                 String title = screen.getTitle().getString();
-                LOGGER.info("SCREEN CONTEXT DEBUG: Quest screen detected, title: {}", title);
+                LOGGER.debug("Quest screen detected, title: {}", title);
                 if (!title.isEmpty()) {
                     // Use "quest:" prefix for compatibility with existing quest context tracking
                     return "quest:screen:" + title.hashCode();
