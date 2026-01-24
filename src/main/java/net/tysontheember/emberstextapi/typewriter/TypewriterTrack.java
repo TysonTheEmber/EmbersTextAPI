@@ -26,8 +26,26 @@ public class TypewriterTrack {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TypewriterTrack.class);
 
-    /** Minimum interval between sound plays to prevent audio spam. */
+    // ===== Configuration Constants =====
+
+    /**
+     * Minimum interval between sound plays to prevent audio spam.
+     * 30ms is approximately the limit of human perception for discrete sounds.
+     */
     private static final long MIN_SOUND_INTERVAL_MS = 30;
+
+    /**
+     * Frame detection threshold in nanoseconds (1 millisecond).
+     * Characters rendered within this time window are considered part of the same frame.
+     * This accounts for rendering jitter while still detecting true frame boundaries.
+     */
+    private static final long FRAME_THRESHOLD_NS = 1_000_000;
+
+    /**
+     * Default reset delay in milliseconds.
+     * When a typewriter track isn't accessed for this duration, it resets on next access.
+     */
+    private static final long DEFAULT_RESET_DELAY_MS = 1000;
 
     /** Timestamp when this track was created/reset (milliseconds). */
     public long startedAt;
@@ -125,7 +143,7 @@ public class TypewriterTrack {
         this.lastShadowRenderFrame = 0;
         this.lastMainRenderFrame = 0;
         this.lastAccessTime = now;
-        this.resetDelayMs = 1000; // Default 1 second
+        this.resetDelayMs = DEFAULT_RESET_DELAY_MS;
         this.currentFramePositions = new TreeSet<>();
         this.previousFramePositions = new TreeSet<>();
         this.lastPositionFrame = 0;
@@ -420,20 +438,16 @@ public class TypewriterTrack {
      * @return the render index for this character
      */
     public synchronized int nextRenderIndex(long frameTime, boolean isShadow) {
-        // Use 1ms threshold for frame detection (1,000,000 nanoseconds)
-        // Characters rendered within 1ms are considered part of the same frame
-        long frameThresholdNs = 1_000_000;
-
         if (isShadow) {
             // Reset shadow counter at frame boundaries
-            if (Math.abs(frameTime - lastShadowRenderFrame) > frameThresholdNs) {
+            if (Math.abs(frameTime - lastShadowRenderFrame) > FRAME_THRESHOLD_NS) {
                 shadowRenderCounter = 0;
                 lastShadowRenderFrame = frameTime;
             }
             return shadowRenderCounter++;
         } else {
             // Reset main counter at frame boundaries
-            if (Math.abs(frameTime - lastMainRenderFrame) > frameThresholdNs) {
+            if (Math.abs(frameTime - lastMainRenderFrame) > FRAME_THRESHOLD_NS) {
                 mainRenderCounter = 0;
                 lastMainRenderFrame = frameTime;
             }
@@ -463,11 +477,8 @@ public class TypewriterTrack {
      * @return sequential index based on position order
      */
     public synchronized int getSequentialOrdinal(int positionOrdinal, long frameTime) {
-        // Use 1ms threshold for frame detection
-        long frameThresholdNs = 1_000_000;
-
         // Check for frame boundary
-        if (Math.abs(frameTime - lastPositionFrame) > frameThresholdNs) {
+        if (Math.abs(frameTime - lastPositionFrame) > FRAME_THRESHOLD_NS) {
             // Swap current to previous, start fresh current
             previousFramePositions.clear();
             previousFramePositions.addAll(currentFramePositions);

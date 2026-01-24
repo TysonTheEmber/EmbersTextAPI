@@ -201,18 +201,19 @@ public abstract class StringRenderOutputMixin {
                 settings.absoluteIndex = index; // Fallback for non-typewriter effects
             }
 
-            // Initialize siblings list with the main settings
-            // This allows effects to operate on the base layer
-            settings.siblings = Lists.newArrayList(settings);
-
             // Apply all effects in order
-            // Each effect can modify the main settings and/or its siblings
+            // Effects can modify the main settings and optionally add sibling layers
+            // Note: siblings list is lazily initialized - not created unless an effect adds siblings
             for (Effect effect : effects) {
                 try {
-                    // Apply effect to all current siblings
-                    int siblingCount = settings.siblings.size();
-                    for (int i = 0; i < siblingCount; i++) {
-                        effect.apply(settings.siblings.get(i));
+                    // Apply effect to main settings first
+                    effect.apply(settings);
+
+                    // Apply effect to any siblings that have been added by previous effects
+                    // Use getSiblingsOrEmpty() to avoid creating list when not needed
+                    java.util.List<EffectSettings> currentSiblings = settings.getSiblingsOrEmpty();
+                    for (int i = 0; i < currentSiblings.size(); i++) {
+                        effect.apply(currentSiblings.get(i));
                     }
                 } catch (Exception e) {
                     // Log but don't crash - one broken effect shouldn't break all rendering
@@ -220,9 +221,14 @@ public abstract class StringRenderOutputMixin {
                 }
             }
 
-            // Render all sibling layers
-            for (EffectSettings sibling : settings.siblings) {
-                emberstextapi$renderChar(sibling, codepoint, style, fontSet, glyphInfo, bakedGlyph);
+            // Render main character
+            emberstextapi$renderChar(settings, codepoint, style, fontSet, glyphInfo, bakedGlyph);
+
+            // Render any sibling layers (only if effects added them)
+            if (settings.hasSiblings()) {
+                for (EffectSettings sibling : settings.getSiblingsOrEmpty()) {
+                    emberstextapi$renderChar(sibling, codepoint, style, fontSet, glyphInfo, bakedGlyph);
+                }
             }
 
             // Update color values for decorations (strikethrough/underline)

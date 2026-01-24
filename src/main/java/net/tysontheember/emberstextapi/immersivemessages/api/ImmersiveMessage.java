@@ -27,6 +27,7 @@ import net.tysontheember.emberstextapi.immersivemessages.effects.position.ShakeC
 import net.tysontheember.emberstextapi.immersivemessages.effects.rendering.BackgroundRenderer;
 import net.tysontheember.emberstextapi.immersivemessages.effects.util.ColorUtil;
 import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
+import net.tysontheember.emberstextapi.immersivemessages.util.ColorParser;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
 
@@ -329,32 +330,15 @@ public class ImmersiveMessage {
     }
 
     // ----- Background color/border customization -----
+    /**
+     * Parse a color string to ImmersiveColor.
+     * Delegates to centralized {@link ColorParser} utility.
+     *
+     * @param value Color string to parse
+     * @return ImmersiveColor or null if parsing fails
+     */
     private ImmersiveColor parseColour(String value) {
-        if (value == null) return null;
-
-        String v = value.trim();
-        try {
-            if (v.startsWith("#")) v = v.substring(1);
-            if (v.startsWith("0x")) v = v.substring(2);
-            if (v.length() == 8) {
-                return new ImmersiveColor((int) Long.parseLong(v, 16));
-            } else if (v.length() == 6) {
-                return new ImmersiveColor(0xFF000000 | Integer.parseInt(v, 16));
-            }
-        } catch (NumberFormatException ignored) {
-        }
-
-        ChatFormatting fmt = ChatFormatting.getByName(value);
-        if (fmt != null && fmt.getColor() != null) {
-            return new ImmersiveColor(0xFF000000 | fmt.getColor());
-        }
-        TextColor parsed = TextColor.parseColor(value);
-        if (parsed != null) {
-            int c = parsed.getValue();
-            if ((c & 0xFF000000) == 0) c |= 0xFF000000;
-            return new ImmersiveColor(c);
-        }
-        return null;
+        return ColorParser.parseImmersiveColor(value);
     }
 
     public ImmersiveMessage bgAlpha(float alpha) {

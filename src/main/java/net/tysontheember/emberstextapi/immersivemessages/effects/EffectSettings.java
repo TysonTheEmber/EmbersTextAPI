@@ -3,6 +3,7 @@ package net.tysontheember.emberstextapi.immersivemessages.effects;
 import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -29,6 +30,17 @@ import java.util.List;
  * @see EffectContext
  */
 public class EffectSettings {
+
+    // ===== Default Values (documented magic numbers) =====
+
+    /** Default shadow offset in pixels (Minecraft's standard shadow offset) */
+    public static final float DEFAULT_SHADOW_OFFSET = 1.0f;
+
+    /** Default scale multiplier (no scaling) */
+    public static final float DEFAULT_SCALE = 1.0f;
+
+    /** Initial capacity for siblings list when multi-layer effects are used */
+    private static final int SIBLINGS_INITIAL_CAPACITY = 4;
 
     // ===== Position & Rotation =====
 
@@ -149,6 +161,11 @@ public class EffectSettings {
      * Each sibling is a complete copy of the settings at the time it was created,
      * and will be rendered after the main character.
      * </p>
+     * <p>
+     * <b>Performance note:</b> This list is lazily initialized. Use {@link #getSiblings()}
+     * or {@link #addSibling(EffectSettings)} to access/modify. Direct field access is
+     * allowed but may be null if no siblings have been added.
+     * </p>
      */
     public List<EffectSettings> siblings;
 
@@ -168,12 +185,16 @@ public class EffectSettings {
 
     /**
      * Creates a new EffectSettings with default values.
+     * <p>
+     * Note: The siblings list is lazily initialized to avoid allocation overhead
+     * when multi-layer effects are not used.
+     * </p>
      */
     public EffectSettings() {
         this.x = 0f;
         this.y = 0f;
         this.rot = 0f;
-        this.scale = 1f;
+        this.scale = DEFAULT_SCALE;
         this.r = 1f;
         this.g = 1f;
         this.b = 1f;
@@ -182,16 +203,20 @@ public class EffectSettings {
         this.absoluteIndex = 0;
         this.codepoint = 0;
         this.isShadow = false;
-        this.shadowOffset = 1f;
+        this.shadowOffset = DEFAULT_SHADOW_OFFSET;
         this.typewriterTrack = null;
         this.typewriterIndex = -1;
-        this.siblings = new ArrayList<>();
+        this.siblings = null; // Lazy initialization
         this.maskTop = 0f;
         this.maskBottom = 0f;
     }
 
     /**
      * Creates a new EffectSettings with specified initial values.
+     * <p>
+     * Note: The siblings list is lazily initialized to avoid allocation overhead
+     * when multi-layer effects are not used.
+     * </p>
      *
      * @param x Horizontal position offset
      * @param y Vertical position offset
@@ -208,7 +233,7 @@ public class EffectSettings {
         this.x = x;
         this.y = y;
         this.rot = 0f;
-        this.scale = 1f;
+        this.scale = DEFAULT_SCALE;
         this.r = r;
         this.g = g;
         this.b = b;
@@ -217,18 +242,68 @@ public class EffectSettings {
         this.absoluteIndex = index; // Default to same as index
         this.codepoint = codepoint;
         this.isShadow = isShadow;
-        this.shadowOffset = 1f;
+        this.shadowOffset = DEFAULT_SHADOW_OFFSET;
         this.typewriterTrack = null;
         this.typewriterIndex = -1;
-        this.siblings = new ArrayList<>();
+        this.siblings = null; // Lazy initialization
         this.maskTop = 0f;
         this.maskBottom = 0f;
     }
 
     /**
+     * Get the siblings list, creating it if necessary.
+     * <p>
+     * This method ensures the list exists before returning it.
+     * Use this when you need to add siblings or iterate over them.
+     * </p>
+     *
+     * @return The siblings list (never null after this call)
+     */
+    public List<EffectSettings> getSiblings() {
+        if (siblings == null) {
+            siblings = new ArrayList<>(SIBLINGS_INITIAL_CAPACITY);
+        }
+        return siblings;
+    }
+
+    /**
+     * Add a sibling to this settings.
+     * <p>
+     * Lazily initializes the siblings list if needed.
+     * </p>
+     *
+     * @param sibling The sibling settings to add
+     */
+    public void addSibling(EffectSettings sibling) {
+        getSiblings().add(sibling);
+    }
+
+    /**
+     * Check if this settings has any siblings.
+     *
+     * @return true if siblings list exists and is non-empty
+     */
+    public boolean hasSiblings() {
+        return siblings != null && !siblings.isEmpty();
+    }
+
+    /**
+     * Get siblings list for iteration, returning empty list if none exist.
+     * <p>
+     * This method does NOT create the list if it doesn't exist, making it
+     * safe for iteration without side effects.
+     * </p>
+     *
+     * @return The siblings list, or an empty list if no siblings
+     */
+    public List<EffectSettings> getSiblingsOrEmpty() {
+        return siblings != null ? siblings : Collections.emptyList();
+    }
+
+    /**
      * Creates a deep copy of this EffectSettings.
      * <p>
-     * Note: The siblings list is NOT copied (new empty list is created).
+     * Note: The siblings list is NOT copied (left as null for lazy init).
      * This prevents infinite recursion and is the intended behavior for sibling creation.
      * </p>
      *
@@ -253,7 +328,7 @@ public class EffectSettings {
         copy.typewriterIndex = this.typewriterIndex;
         copy.maskTop = this.maskTop;
         copy.maskBottom = this.maskBottom;
-        // Intentionally create new empty siblings list
+        // siblings intentionally left as null (lazy init)
         return copy;
     }
 
@@ -268,12 +343,14 @@ public class EffectSettings {
         this.x = 0f;
         this.y = 0f;
         this.rot = 0f;
-        this.scale = 1f;
+        this.scale = DEFAULT_SCALE;
         this.r = 1f;
         this.g = 1f;
         this.b = 1f;
         this.a = 1f;
-        this.siblings.clear();
+        if (this.siblings != null) {
+            this.siblings.clear();
+        }
         this.maskTop = 0f;
         this.maskBottom = 0f;
     }
@@ -305,7 +382,8 @@ public class EffectSettings {
 
     @Override
     public String toString() {
+        int siblingCount = siblings != null ? siblings.size() : 0;
         return String.format("EffectSettings[pos=(%.1f,%.1f) rot=%.2f scale=%.2f rgba=(%.2f,%.2f,%.2f,%.2f) idx=%d abs=%d cp=%d shadow=%b siblings=%d]",
-                x, y, rot, scale, r, g, b, a, index, absoluteIndex, codepoint, isShadow, siblings.size());
+                x, y, rot, scale, r, g, b, a, index, absoluteIndex, codepoint, isShadow, siblingCount);
     }
 }

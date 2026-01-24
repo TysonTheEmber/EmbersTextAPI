@@ -80,7 +80,7 @@ public class NeonEffect extends BaseEffect {
             glowLayer.y += offsetY;
             glowLayer.a *= alphaMul;
 
-            settings.siblings.add(glowLayer);
+            settings.addSibling(glowLayer);
         }
     }
 

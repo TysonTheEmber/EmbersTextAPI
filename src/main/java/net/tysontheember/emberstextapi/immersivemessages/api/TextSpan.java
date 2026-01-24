@@ -855,83 +855,107 @@ public class TextSpan {
         }
     }
     
+    // ===== Network Packet Validation Constants =====
+    /** Maximum allowed content string length (64KB should be more than enough for any text span) */
+    private static final int MAX_CONTENT_LENGTH = 65536;
+    /** Maximum allowed ID string length (ResourceLocation format: namespace:path) */
+    private static final int MAX_ID_LENGTH = 256;
+    /** Maximum allowed effect tag length */
+    private static final int MAX_EFFECT_TAG_LENGTH = 512;
+    /** Maximum allowed array size for colors/effects to prevent memory abuse */
+    private static final int MAX_ARRAY_SIZE = 256;
+    /** Maximum allowed item count */
+    private static final int MAX_ITEM_COUNT = 64;
+    /** Maximum allowed scale value */
+    private static final float MAX_SCALE = 100.0f;
+    /** Maximum allowed offset value (pixels) */
+    private static final float MAX_OFFSET = 10000.0f;
+
     public static TextSpan decode(net.minecraft.network.FriendlyByteBuf buf) {
-        String content = buf.readUtf();
+        // Validate and read content with length limit
+        String content = buf.readUtf(MAX_CONTENT_LENGTH);
         TextSpan span = new TextSpan(content);
-        
+
         // Decode style properties
         if (buf.readBoolean()) span.bold = true;
         if (buf.readBoolean()) span.italic = true;
         if (buf.readBoolean()) span.underline = true;
         if (buf.readBoolean()) span.strikethrough = true;
         if (buf.readBoolean()) span.obfuscated = true;
-        
+
         if (buf.readBoolean()) {
             span.color = net.minecraft.network.chat.TextColor.fromRgb(buf.readInt());
         }
         if (buf.readBoolean()) {
             span.font = buf.readResourceLocation();
         }
-        
-        // Decode gradient colors
+
+        // Decode gradient colors with size validation
         if (buf.readBoolean()) {
             int colorCount = buf.readVarInt();
+            if (colorCount < 0 || colorCount > MAX_ARRAY_SIZE) {
+                throw new IllegalArgumentException("Invalid gradient color count: " + colorCount);
+            }
             net.minecraft.network.chat.TextColor[] colors = new net.minecraft.network.chat.TextColor[colorCount];
             for (int i = 0; i < colorCount; i++) {
                 colors[i] = net.minecraft.network.chat.TextColor.fromRgb(buf.readInt());
             }
             span.gradientColors = colors;
         }
-        
+
         // Decode other effect properties
         if (buf.readBoolean()) {
-            span.typewriterSpeed = buf.readFloat();
+            span.typewriterSpeed = clampFloat(buf.readFloat(), 0.001f, 1000f);
             span.typewriterCenter = buf.readBoolean();
         }
-        
+
         if (buf.readBoolean()) {
             span.shakeType = buf.readEnum(ShakeType.class);
-            span.shakeAmplitude = buf.readFloat();
+            span.shakeAmplitude = clampFloat(buf.readFloat(), 0f, MAX_OFFSET);
             if (buf.readBoolean()) {
-                span.shakeSpeed = buf.readFloat();
+                span.shakeSpeed = clampFloat(buf.readFloat(), -1000f, 1000f);
             }
             if (buf.readBoolean()) {
-                span.shakeWavelength = buf.readFloat();
+                span.shakeWavelength = clampFloat(buf.readFloat(), 0.001f, 1000f);
             }
         }
-        
+
         if (buf.readBoolean()) {
             span.charShakeType = buf.readEnum(ShakeType.class);
-            span.charShakeAmplitude = buf.readFloat();
+            span.charShakeAmplitude = clampFloat(buf.readFloat(), 0f, MAX_OFFSET);
             if (buf.readBoolean()) {
-                span.charShakeSpeed = buf.readFloat();
+                span.charShakeSpeed = clampFloat(buf.readFloat(), -1000f, 1000f);
             }
             if (buf.readBoolean()) {
-                span.charShakeWavelength = buf.readFloat();
+                span.charShakeWavelength = clampFloat(buf.readFloat(), 0.001f, 1000f);
             }
         }
-        
+
         if (buf.readBoolean()) {
             span.obfuscateMode = buf.readEnum(ObfuscateMode.class);
-            span.obfuscateSpeed = buf.readFloat();
+            span.obfuscateSpeed = clampFloat(buf.readFloat(), 0f, 1000f);
         }
-        
+
         if (buf.readBoolean()) {
             span.hasBackground = true;
         }
         if (buf.readBoolean()) {
             span.backgroundColor = new ImmersiveColor(buf.readInt());
         }
-        
+
+        // Decode background gradient with size validation
         if (buf.readBoolean()) {
             int bgColorCount = buf.readVarInt();
+            if (bgColorCount < 0 || bgColorCount > MAX_ARRAY_SIZE) {
+                throw new IllegalArgumentException("Invalid background gradient color count: " + bgColorCount);
+            }
             ImmersiveColor[] bgColors = new ImmersiveColor[bgColorCount];
             for (int i = 0; i < bgColorCount; i++) {
                 bgColors[i] = new ImmersiveColor(buf.readInt());
             }
             span.backgroundGradient = bgColors;
         }
-        
+
         // Decode global message attributes
         if (buf.readBoolean()) {
             span.globalBackground = true;
@@ -939,98 +963,105 @@ public class TextSpan {
         if (buf.readBoolean()) {
             span.globalBackgroundColor = new ImmersiveColor(buf.readInt());
         }
-        
+
+        // Decode global background gradient with size validation
         if (buf.readBoolean()) {
             int globalBgColorCount = buf.readVarInt();
+            if (globalBgColorCount < 0 || globalBgColorCount > MAX_ARRAY_SIZE) {
+                throw new IllegalArgumentException("Invalid global background gradient color count: " + globalBgColorCount);
+            }
             ImmersiveColor[] globalBgColors = new ImmersiveColor[globalBgColorCount];
             for (int i = 0; i < globalBgColorCount; i++) {
                 globalBgColors[i] = new ImmersiveColor(buf.readInt());
             }
             span.globalBackgroundGradient = globalBgColors;
         }
-        
+
         if (buf.readBoolean()) {
             span.globalBorderStart = new ImmersiveColor(buf.readInt());
         }
         if (buf.readBoolean()) {
             span.globalBorderEnd = new ImmersiveColor(buf.readInt());
         }
-        
+
         if (buf.readBoolean()) {
-            span.globalXOffset = buf.readFloat();
+            span.globalXOffset = clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET);
         }
         if (buf.readBoolean()) {
-            span.globalYOffset = buf.readFloat();
+            span.globalYOffset = clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET);
         }
-        
+
         if (buf.readBoolean()) {
             span.globalAnchor = buf.readEnum(TextAnchor.class);
         }
         if (buf.readBoolean()) {
             span.globalAlign = buf.readEnum(TextAnchor.class);
         }
-        
+
         if (buf.readBoolean()) {
-            span.globalScale = buf.readFloat();
+            span.globalScale = clampFloat(buf.readFloat(), 0.01f, MAX_SCALE);
         }
-        
+
         if (buf.readBoolean()) {
             span.globalShadow = buf.readBoolean();
         }
-        
+
         if (buf.readBoolean()) {
-            span.globalFadeInTicks = buf.readInt();
+            span.globalFadeInTicks = Math.max(0, buf.readInt());
         }
         if (buf.readBoolean()) {
-            span.globalFadeOutTicks = buf.readInt();
+            span.globalFadeOutTicks = Math.max(0, buf.readInt());
         }
-        
+
         // Decode per-span fade effects
         if (buf.readBoolean()) {
-            span.fadeInTicks = buf.readInt();
+            span.fadeInTicks = Math.max(0, buf.readInt());
         }
         if (buf.readBoolean()) {
-            span.fadeOutTicks = buf.readInt();
+            span.fadeOutTicks = Math.max(0, buf.readInt());
         }
-        
-        // Decode item rendering
+
+        // Decode item rendering with validation
         if (buf.readBoolean()) {
-            span.itemId = buf.readUtf();
-            span.itemCount = buf.readVarInt();
+            span.itemId = buf.readUtf(MAX_ID_LENGTH);
+            span.itemCount = Math.min(Math.max(1, buf.readVarInt()), MAX_ITEM_COUNT);
             if (buf.readBoolean()) {
-                span.itemOffsetX = buf.readFloat();
+                span.itemOffsetX = clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET);
             }
             if (buf.readBoolean()) {
-                span.itemOffsetY = buf.readFloat();
-            }
-        }
-        
-        // Decode entity rendering
-        if (buf.readBoolean()) {
-            span.entityId = buf.readUtf();
-            span.entityScale = buf.readFloat();
-            if (buf.readBoolean()) {
-                span.entityOffsetX = buf.readFloat();
-            }
-            if (buf.readBoolean()) {
-                span.entityOffsetY = buf.readFloat();
-            }
-            if (buf.readBoolean()) {
-                span.entityYaw = buf.readFloat();
-            }
-            if (buf.readBoolean()) {
-                span.entityPitch = buf.readFloat();
-            }
-            if (buf.readBoolean()) {
-                span.entityAnimation = buf.readUtf();
+                span.itemOffsetY = clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET);
             }
         }
 
-        // NEW: Decode effects (v2.1.0)
+        // Decode entity rendering with validation
+        if (buf.readBoolean()) {
+            span.entityId = buf.readUtf(MAX_ID_LENGTH);
+            span.entityScale = clampFloat(buf.readFloat(), 0.01f, MAX_SCALE);
+            if (buf.readBoolean()) {
+                span.entityOffsetX = clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET);
+            }
+            if (buf.readBoolean()) {
+                span.entityOffsetY = clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET);
+            }
+            if (buf.readBoolean()) {
+                span.entityYaw = clampFloat(buf.readFloat(), -360f, 360f);
+            }
+            if (buf.readBoolean()) {
+                span.entityPitch = clampFloat(buf.readFloat(), -90f, 90f);
+            }
+            if (buf.readBoolean()) {
+                span.entityAnimation = buf.readUtf(MAX_ID_LENGTH);
+            }
+        }
+
+        // Decode effects with count and length validation (v2.1.0)
         int effectCount = buf.readVarInt();
+        if (effectCount < 0 || effectCount > MAX_ARRAY_SIZE) {
+            throw new IllegalArgumentException("Invalid effect count: " + effectCount);
+        }
         if (effectCount > 0) {
             for (int i = 0; i < effectCount; i++) {
-                String effectTag = buf.readUtf();
+                String effectTag = buf.readUtf(MAX_EFFECT_TAG_LENGTH);
                 try {
                     Effect effect = net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry.parseTag(effectTag);
                     span.addEffect(effect);
@@ -1042,5 +1073,20 @@ public class TextSpan {
         }
 
         return span;
+    }
+
+    /**
+     * Clamp a float value to a valid range, handling NaN and Infinity.
+     *
+     * @param value Value to clamp
+     * @param min Minimum allowed value
+     * @param max Maximum allowed value
+     * @return Clamped value, or min if value is NaN
+     */
+    private static float clampFloat(float value, float min, float max) {
+        if (Float.isNaN(value) || Float.isInfinite(value)) {
+            return min;
+        }
+        return Math.max(min, Math.min(max, value));
     }
 }

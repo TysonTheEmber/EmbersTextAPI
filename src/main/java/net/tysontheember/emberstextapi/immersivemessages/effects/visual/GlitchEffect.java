@@ -6,8 +6,6 @@ import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
 import net.tysontheember.emberstextapi.immersivemessages.effects.params.Params;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Random;
-
 /**
  * Glitch effect that creates digital distortion with slicing, jitter, and flicker.
  * <p>
@@ -83,51 +81,66 @@ public class GlitchEffect extends BaseEffect {
         // 3-phase pulse system (0, 1, 2)
         int pulse = (int) time % 3;
 
-        // Per-character random seed for consistent but varied effects
-        Random random = new Random(settings.index + settings.codepoint + (long) (time * 1000));
-        random.nextFloat(); // Skip one for variety
+        // Compute deterministic seed for consistent per-character effects
+        long seed = settings.index + settings.codepoint + (long) (time * 1000);
+
+        // Generate deterministic pseudo-random values using seed mixing
+        // This avoids creating new Random instances while maintaining reproducibility
+        float rand1 = seedToFloat(seed);
+        float rand2 = seedToFloat(seed * 31 + 1);
+        float rand3 = seedToFloat(seed * 31 + 2);
+        float rand4 = seedToFloat(seed * 31 + 3);
+        float rand5 = seedToFloat(seed * 31 + 4);
 
         // === JITTER EFFECT ===
         // Only jitters during pulse phase 1
-        if (pulse == 1 && random.nextFloat() < jitterChance) {
-            settings.x += (random.nextFloat() - 0.5f) * 8f;  // ±4px horizontal
-            settings.y += (random.nextFloat() - 0.5f) * 4f;  // ±2px vertical
+        if (pulse == 1 && rand1 < jitterChance) {
+            settings.x += (rand2 - 0.5f) * 8f;  // ±4px horizontal
+            settings.y += (rand3 - 0.5f) * 4f;  // ±2px vertical
         }
 
         // === BLINK EFFECT ===
         // Randomly makes character mostly or fully transparent
-        if (random.nextFloat() < blinkChance) {
-            settings.a *= random.nextFloat() < 0.3f ? 0.0f : 0.3f;
+        if (rand4 < blinkChance) {
+            settings.a *= rand5 < 0.3f ? 0.0f : 0.3f;
         }
 
         // === SLICE/SHIFT EFFECT ===
         // Create horizontal slicing with sibling layers
         time *= 2;  // Double speed for slicing
-        Random random2 = new Random((long) time * 1000L * hashCode());
+        long seed2 = (long) time * 1000L * hashCode();
 
-        if (random2.nextFloat() < shiftChance) {
+        // Generate deterministic values for slice effect
+        float sliceRand1 = seedToFloat(seed2);
+        float sliceRand2 = seedToFloat(seed2 * 31 + 1);
+        float sliceRand3 = seedToFloat(seed2 * 31 + 2);
+        float sliceRand4 = seedToFloat(seed2 * 31 + 3);
+        float sliceRand5 = seedToFloat(seed2 * 31 + 4);
+        float sliceRand6 = seedToFloat(seed2 * 31 + 5);
+
+        if (sliceRand1 < shiftChance) {
             // If this is a shadow, adjust for shadow offset first
             if (settings.isShadow) {
                 // Create sibling for full character (before slicing)
-                settings.siblings.add(settings.copy());
+                settings.addSibling(settings.copy());
                 settings.x -= settings.shadowOffset;
                 settings.y -= settings.shadowOffset;
             }
 
             // Calculate mask split point (where to slice the character)
             // 0.5 ± 0.25 = range of 0.25 to 0.75 (avoids slicing too close to edges)
-            float mask = 0.5f + (random2.nextFloat() - 0.5f) * 0.5f;
+            float mask = 0.5f + (sliceRand2 - 0.5f) * 0.5f;
 
             // Calculate horizontal offset for the slice
-            float offset = 0.75f + random2.nextFloat() * 0.75f;  // 0.75 to 1.5
-            if (random2.nextBoolean()) {
+            float offset = 0.75f + sliceRand3 * 0.75f;  // 0.75 to 1.5
+            if (sliceRand4 < 0.5f) {
                 offset = -offset;  // Random direction
             }
 
             // === CREATE TOP SLICE ===
             EffectSettings topSlice = settings.copy();
             topSlice.x += offset;
-            topSlice.a *= Math.min(1f, 0.5f + random2.nextFloat());  // Random alpha
+            topSlice.a *= Math.min(1f, 0.5f + sliceRand5);  // Random alpha
 
             // Shadow layer gets special color shifting
             if (topSlice.isShadow) {
@@ -138,12 +151,12 @@ public class GlitchEffect extends BaseEffect {
             }
 
             topSlice.maskBottom = mask;  // Top portion: show from 0 to mask
-            settings.siblings.add(topSlice);
+            settings.addSibling(topSlice);
 
             // === MODIFY MAIN (BOTTOM SLICE) ===
             settings.maskTop = 1 - mask;  // Bottom portion: show from mask to 1
             settings.x -= offset;  // Opposite direction
-            settings.a *= Math.min(1f, 0.5f + random2.nextFloat());
+            settings.a *= Math.min(1f, 0.5f + sliceRand6);
 
             if (settings.isShadow) {
                 settings.y += 1;
@@ -152,6 +165,23 @@ public class GlitchEffect extends BaseEffect {
                 settings.b = settings.b > 0.5f ? settings.b - 0.5f : settings.b + 0.5f;
             }
         }
+    }
+
+    /**
+     * Convert a seed to a deterministic float in range [0.0, 1.0).
+     * Uses a simple but effective hash mixing function.
+     *
+     * @param seed Input seed value
+     * @return Pseudo-random float between 0.0 (inclusive) and 1.0 (exclusive)
+     */
+    private static float seedToFloat(long seed) {
+        // Mix the seed using a simple but effective hash function
+        // Based on splitmix64 algorithm
+        seed = (seed ^ (seed >>> 33)) * 0xff51afd7ed558ccdL;
+        seed = (seed ^ (seed >>> 33)) * 0xc4ceb9fe1a85ec53L;
+        seed = seed ^ (seed >>> 33);
+        // Convert to float in [0, 1) range
+        return (seed & 0x7FFFFFFFL) / (float) 0x80000000L;
     }
 
     @NotNull
