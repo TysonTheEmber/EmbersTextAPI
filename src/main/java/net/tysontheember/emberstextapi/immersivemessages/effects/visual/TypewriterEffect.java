@@ -7,6 +7,8 @@ import net.tysontheember.emberstextapi.typewriter.TypewriterConfig;
 import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Typewriter effect that reveals text character by character.
@@ -22,6 +24,7 @@ import org.jetbrains.annotations.Nullable;
  *   <li>{@code sound=ID} - Sound resource to play per character (e.g., "minecraft:block.note_block.hat")</li>
  *   <li>{@code sound=off} - Explicitly disable sound</li>
  *   <li>{@code resetDelay=N} - Seconds before animation resets when UI hidden (default: 1.0)</li>
+ *   <li>{@code repeat=yes|no|N} - How many times to play: "yes" (infinite), "no" (once), or a number</li>
  * </ul>
  *
  * <h3>Examples:</h3>
@@ -31,6 +34,8 @@ import org.jetbrains.annotations.Nullable;
  * &lt;typewriter speed=80 sound="minecraft:block.note_block.hat"&gt;With click sound&lt;/typewriter&gt;
  * &lt;typewriter resetDelay=0.5&gt;Quick reset (500ms)&lt;/typewriter&gt;
  * &lt;typewriter resetDelay=2&gt;Slow reset (2 seconds)&lt;/typewriter&gt;
+ * &lt;typewriter repeat=no&gt;Plays once, stays revealed&lt;/typewriter&gt;
+ * &lt;typewriter repeat=3&gt;Plays 3 times then stays revealed&lt;/typewriter&gt;
  * </pre>
  *
  * <h3>Track Management:</h3>
@@ -49,6 +54,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public class TypewriterEffect extends BaseEffect {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(TypewriterEffect.class);
+
     /** Milliseconds per character for this effect instance. */
     private final int speedMs;
 
@@ -58,6 +65,12 @@ public class TypewriterEffect extends BaseEffect {
 
     /** Reset delay in milliseconds. When UI is hidden longer than this, animation restarts. */
     private final long resetDelayMs;
+
+    /**
+     * Maximum number of times to play the animation.
+     * -1 = infinite, 1 = play once, N = play N times.
+     */
+    private final int maxPlays;
 
     /**
      * Create a new typewriter effect with the given parameters.
@@ -83,6 +96,46 @@ public class TypewriterEffect extends BaseEffect {
                 .map(seconds -> (long) (seconds * 1000))
                 .filter(ms -> ms >= 0)
                 .orElse(1000L);
+
+        // Parse repeat parameter: "yes" (infinite), "no" (once), or a number
+        this.maxPlays = params.getString("repeat")
+                .map(TypewriterEffect::parseRepeat)
+                .orElse(TypewriterConfig.getDefaultMaxPlays());
+
+        LOGGER.debug("TypewriterEffect created: speedMs={}, maxPlays={}, repeat param={}",
+                speedMs, this.maxPlays, params.getString("repeat").orElse("(not set)"));
+    }
+
+    /**
+     * Parse the repeat parameter value.
+     *
+     * @param value "yes", "no", or a number
+     * @return -1 for infinite, or a positive number
+     */
+    private static int parseRepeat(String value) {
+        if (value == null || value.isEmpty()) {
+            return TypewriterConfig.getDefaultMaxPlays();
+        }
+
+        String lower = value.toLowerCase().trim();
+
+        // "yes", "true", "infinite" = infinite repeats
+        if ("yes".equals(lower) || "true".equals(lower) || "infinite".equals(lower)) {
+            return -1;
+        }
+
+        // "no", "false", "once" = play once
+        if ("no".equals(lower) || "false".equals(lower) || "once".equals(lower)) {
+            return 1;
+        }
+
+        // Try to parse as a number
+        try {
+            int n = Integer.parseInt(lower);
+            return n <= 0 ? -1 : n; // Treat 0 or negative as infinite
+        } catch (NumberFormatException e) {
+            return TypewriterConfig.getDefaultMaxPlays();
+        }
     }
 
     @Override
@@ -104,8 +157,25 @@ public class TypewriterEffect extends BaseEffect {
         // Configure track with this effect's parameters
         track.setInterval(speedMs);
         track.setResetDelayMs(resetDelayMs);
+        track.setMaxPlays(maxPlays);
         if (sound != null && track.getSound() == null) {
             track.setSound(sound);
+        }
+
+        // Debug log at first character only
+        if (settings.absoluteIndex == 0) {
+            LOGGER.debug("TypewriterEffect.apply: effect.maxPlays={}, track.maxPlays={}, track.playCount={}, track.index={}, track.totalChars={}",
+                    this.maxPlays, track.getMaxPlays(), track.getPlayCount(), track.index, track.getTotalChars());
+        }
+
+        // If animation has completed all plays, show all text
+        if (track.isCompleted()) {
+            // Only log once per track at index 0
+            if (settings.absoluteIndex == 0) {
+                LOGGER.debug("Track already completed: maxPlays={}, playCount={}, totalChars={}",
+                        track.getMaxPlays(), track.getPlayCount(), track.getTotalChars());
+            }
+            return; // All text visible
         }
 
         // Check if track should reset based on time since last access
@@ -149,6 +219,15 @@ public class TypewriterEffect extends BaseEffect {
      */
     public long getResetDelayMs() {
         return resetDelayMs;
+    }
+
+    /**
+     * Get the configured max plays.
+     *
+     * @return -1 for infinite, or a positive number
+     */
+    public int getMaxPlays() {
+        return maxPlays;
     }
 
     @NotNull

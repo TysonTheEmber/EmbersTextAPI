@@ -11,6 +11,8 @@ import net.tysontheember.emberstextapi.immersivemessages.effects.visual.Typewrit
 import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
 import net.tysontheember.emberstextapi.typewriter.TypewriterTracks;
 import net.tysontheember.emberstextapi.util.StyleUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -40,6 +42,8 @@ import java.util.Optional;
  */
 @Mixin(LiteralContents.class)
 public abstract class LiteralContentsMixin {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/LiteralContentsMixin");
 
     /**
      * Shadow the text field to access the literal text content.
@@ -79,21 +83,17 @@ public abstract class LiteralContentsMixin {
             return;
         }
 
-        // Debug logging
-        if (text.contains("item")) {
-            System.out.println("[EmbersTextAPI] LiteralContentsMixin detected item markup: " + text);
-        }
-
         // Parse the markup into spans with effects
         List<TextSpan> spans = MarkupParser.parse(text);
 
-        // Debug logging
-        if (text.contains("item")) {
-            System.out.println("[EmbersTextAPI] Parsed " + (spans != null ? spans.size() : 0) + " spans");
+        // Debug logging (only when debug level is enabled)
+        if (LOGGER.isDebugEnabled() && text.contains("item")) {
+            LOGGER.debug("Detected item markup: {}", text);
+            LOGGER.debug("Parsed {} spans", spans != null ? spans.size() : 0);
             if (spans != null) {
                 for (int i = 0; i < spans.size(); i++) {
                     TextSpan span = spans.get(i);
-                    System.out.println("[EmbersTextAPI]   Span " + i + ": content='" + span.getContent() + "', itemId=" + span.getItemId());
+                    LOGGER.debug("  Span {}: content='{}', itemId={}", i, span.getContent(), span.getItemId());
                 }
             }
         }
@@ -139,6 +139,18 @@ public abstract class LiteralContentsMixin {
         TypewriterTrack track = null;
         if (hasTypewriter) {
             track = TypewriterTracks.getInstance().get(text.intern());
+
+            // Calculate total character count for play completion detection
+            int totalChars = 0;
+            for (TextSpan s : spans) {
+                String c = s.getContent();
+                if (c != null && !c.isEmpty()) {
+                    totalChars += c.length();
+                } else if (s.getItemId() != null) {
+                    totalChars += 1; // Space for item
+                }
+            }
+            track.setTotalChars(totalChars);
         }
 
         // Track global character index for typewriter effect

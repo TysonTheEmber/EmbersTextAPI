@@ -79,7 +79,7 @@ public class StyleMixin implements ETAStyle {
     }
 
     @Override
-    public void emberstextapi$addEffect(Effect effect) {
+    public synchronized void emberstextapi$addEffect(Effect effect) {
         if (effect == null) {
             return;
         }

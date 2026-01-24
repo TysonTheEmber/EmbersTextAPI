@@ -1575,18 +1575,18 @@ public class ImmersiveMessage {
         boolean hasGlobalEffects = globalEffects != null && !globalEffects.isEmpty();
         boolean hasSpanEffects = spanMode && spans != null && spans.stream().anyMatch(s -> s.getEffects() != null && !s.getEffects().isEmpty());
 
-        // DEBUG: Log effect detection
+        // Debug: Log effect detection
         if (EmbersTextAPI.LOGGER.isDebugEnabled() && (hasGlobalEffects || hasSpanEffects)) {
-            EmbersTextAPI.LOGGER.debug("EFFECT DEBUG: hasGlobalEffects={}, hasSpanEffects={}, spanMode={}, spans={}",
+            EmbersTextAPI.LOGGER.debug("Effect rendering: hasGlobalEffects={}, hasSpanEffects={}, spanMode={}, spans={}",
                 hasGlobalEffects, hasSpanEffects, spanMode, spans != null ? spans.size() : 0);
             if (hasGlobalEffects && globalEffects != null) {
-                EmbersTextAPI.LOGGER.debug("EFFECT DEBUG: Global effects count: {}", globalEffects.size());
+                EmbersTextAPI.LOGGER.debug("Global effects count: {}", globalEffects.size());
             }
             if (hasSpanEffects && spans != null) {
                 long effectSpanCount = spans.stream()
                         .filter(s -> s.getEffects() != null && !s.getEffects().isEmpty())
                         .count();
-                EmbersTextAPI.LOGGER.debug("EFFECT DEBUG: Spans with effects: {}", effectSpanCount);
+                EmbersTextAPI.LOGGER.debug("Spans with effects: {}", effectSpanCount);
             }
         }
 
@@ -1594,7 +1594,7 @@ public class ImmersiveMessage {
             onRender.render(graphics, this, 0, 0, alpha);
         } else if (hasGlobalEffects || hasSpanEffects) {
             // Use new effect rendering system (v2.1.0)
-            EmbersTextAPI.LOGGER.info("EFFECT DEBUG: Calling renderWithEffects");
+            EmbersTextAPI.LOGGER.debug("Calling renderWithEffects");
             renderWithEffects(graphics, lines, draw, colour, textStartX, textStartY);
         } else if ((charShake || hasCharShakeSpans()) && !hasInlineItems) {
             renderCharShake(graphics, lines, draw, colour, textStartX, textStartY);
