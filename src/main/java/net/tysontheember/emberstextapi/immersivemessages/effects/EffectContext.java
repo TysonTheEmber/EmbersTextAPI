@@ -84,9 +84,11 @@ public class EffectContext {
         applyEffects(effects, settings);
 
         // Apply to all siblings (they may generate more siblings)
-        int siblingCount = settings.siblings.size();
+        // Use getSiblingsOrEmpty() to avoid creating list if no siblings exist
+        List<EffectSettings> siblings = settings.getSiblingsOrEmpty();
+        int siblingCount = siblings.size();
         for (int i = 0; i < siblingCount; i++) {
-            EffectSettings sibling = settings.siblings.get(i);
+            EffectSettings sibling = siblings.get(i);
             applyEffects(effects, sibling);
         }
     }

@@ -3,7 +3,11 @@ package net.tysontheember.emberstextapi.immersivemessages.api;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
+import net.tysontheember.emberstextapi.immersivemessages.util.ColorParser;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -14,6 +18,8 @@ import java.util.regex.Pattern;
  * Supports tags like &lt;grad from=#ff0000 to=#00ff00&gt;, &lt;bold&gt;, &lt;shake&gt;, etc.
  */
 public class MarkupParser {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MarkupParser.class);
 
     // Updated pattern to handle self-closing tags: captures trailing / before >
     // Attribute values must not include / to avoid capturing it as part of the value
@@ -375,7 +381,9 @@ public class MarkupParser {
                     ObfuscateMode mode = ObfuscateMode.valueOf(modeStr.toUpperCase());
                     float speed = Float.parseFloat(speedStr);
                     span.obfuscate(mode, speed);
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    LOGGER.debug("Failed to parse obfuscate tag: mode='{}', speed='{}' - {}", modeStr, speedStr, e.getMessage());
+                }
             }
             
             // Global message attributes
@@ -427,7 +435,9 @@ public class MarkupParser {
                 try {
                     float scale = Float.parseFloat(scaleStr);
                     span.globalScale(scale);
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException e) {
+                    LOGGER.debug("Failed to parse scale value '{}': {}", scaleStr, e.getMessage());
+                }
             }
             
             case "offset" -> {
@@ -437,7 +447,9 @@ public class MarkupParser {
                     float x = Float.parseFloat(xStr);
                     float y = Float.parseFloat(yStr);
                     span.globalOffset(x, y);
-                } catch (NumberFormatException ignored) {}
+                } catch (NumberFormatException e) {
+                    LOGGER.debug("Failed to parse offset values x='{}', y='{}': {}", xStr, yStr, e.getMessage());
+                }
             }
             
             case "anchor" -> {
@@ -445,15 +457,19 @@ public class MarkupParser {
                 try {
                     TextAnchor anchor = TextAnchor.valueOf(anchorStr.toUpperCase());
                     span.globalAnchor(anchor);
-                } catch (IllegalArgumentException ignored) {}
+                } catch (IllegalArgumentException e) {
+                    LOGGER.debug("Invalid anchor value '{}': {}", anchorStr, e.getMessage());
+                }
             }
-            
+
             case "align" -> {
                 String alignStr = attrs.getOrDefault("value", "TOP_CENTER");
                 try {
                     TextAnchor align = TextAnchor.valueOf(alignStr.toUpperCase());
                     span.globalAlign(align);
-                } catch (IllegalArgumentException ignored) {}
+                } catch (IllegalArgumentException e) {
+                    LOGGER.debug("Invalid align value '{}': {}", alignStr, e.getMessage());
+                }
             }
             
             case "shadow" -> {
@@ -492,14 +508,18 @@ public class MarkupParser {
                         try {
                             int inTicks = Integer.parseInt(inStr);
                             span.globalFadeIn(inTicks);
-                        } catch (NumberFormatException ignored) {}
+                        } catch (NumberFormatException e) {
+                            LOGGER.debug("Failed to parse fade-in value '{}': {}", inStr, e.getMessage());
+                        }
                     }
 
                     if (outStr != null) {
                         try {
                             int outTicks = Integer.parseInt(outStr);
                             span.globalFadeOut(outTicks);
-                        } catch (NumberFormatException ignored) {}
+                        } catch (NumberFormatException e) {
+                            LOGGER.debug("Failed to parse fade-out value '{}': {}", outStr, e.getMessage());
+                        }
                     }
                 }
             }
@@ -514,10 +534,11 @@ public class MarkupParser {
                     try {
                         int size = Integer.parseInt(sizeStr);
                         span.item(itemId, size);
-                    } catch (NumberFormatException ignored) {
+                    } catch (NumberFormatException e) {
+                        LOGGER.debug("Failed to parse item size '{}', using default: {}", sizeStr, e.getMessage());
                         span.item(itemId);
                     }
-                    
+
                     // Parse offsets
                     try {
                         float offsetX = Float.parseFloat(offsetXStr);
@@ -525,7 +546,9 @@ public class MarkupParser {
                         if (offsetX != 0 || offsetY != 0) {
                             span.itemOffset(offsetX, offsetY);
                         }
-                    } catch (NumberFormatException ignored) {}
+                    } catch (NumberFormatException e) {
+                        LOGGER.debug("Failed to parse item offset x='{}', y='{}': {}", offsetXStr, offsetYStr, e.getMessage());
+                    }
                 }
             }
             
@@ -542,10 +565,11 @@ public class MarkupParser {
                     try {
                         float scale = Float.parseFloat(scaleStr);
                         span.entity(entityId, scale);
-                    } catch (NumberFormatException ignored) {
+                    } catch (NumberFormatException e) {
+                        LOGGER.debug("Failed to parse entity scale '{}', using default: {}", scaleStr, e.getMessage());
                         span.entity(entityId);
                     }
-                    
+
                     // Parse offsets
                     try {
                         float offsetX = Float.parseFloat(offsetXStr);
@@ -553,14 +577,18 @@ public class MarkupParser {
                         if (offsetX != 0 || offsetY != 0) {
                             span.entityOffset(offsetX, offsetY);
                         }
-                    } catch (NumberFormatException ignored) {}
-                    
+                    } catch (NumberFormatException e) {
+                        LOGGER.debug("Failed to parse entity offset x='{}', y='{}': {}", offsetXStr, offsetYStr, e.getMessage());
+                    }
+
                     // Parse rotation
                     try {
                         float yaw = Float.parseFloat(yawStr);
                         float pitch = Float.parseFloat(pitchStr);
                         span.entityRotation(yaw, pitch);
-                    } catch (NumberFormatException ignored) {}
+                    } catch (NumberFormatException e) {
+                        LOGGER.debug("Failed to parse entity rotation yaw='{}', pitch='{}': {}", yawStr, pitchStr, e.getMessage());
+                    }
                     
                     // Set animation
                     if (animation != null && !animation.isEmpty()) {
@@ -668,35 +696,19 @@ public class MarkupParser {
         return attributes;
     }
     
+    /**
+     * Parse a color string to ImmersiveColor.
+     * Delegates to centralized ColorParser utility.
+     *
+     * @param value Color string to parse
+     * @return ImmersiveColor or null if parsing fails
+     */
     private static ImmersiveColor parseImmersiveColor(String value) {
-        if (value == null || value.trim().isEmpty()) return null;
-        
-        String v = value.trim();
-        try {
-            if (v.startsWith("#")) v = v.substring(1);
-            if (v.startsWith("0x")) v = v.substring(2);
-            if (v.length() == 8) {
-                return new ImmersiveColor((int) Long.parseLong(v, 16));
-            } else if (v.length() == 6) {
-                return new ImmersiveColor(0xFF000000 | Integer.parseInt(v, 16));
-            }
-        } catch (NumberFormatException ignored) {}
-        
-        // Try to parse as named color
-        ChatFormatting fmt = ChatFormatting.getByName(value);
-        if (fmt != null && fmt.getColor() != null) {
-            return new ImmersiveColor(0xFF000000 | fmt.getColor());
+        ImmersiveColor result = ColorParser.parseImmersiveColor(value);
+        if (result == null && value != null && !value.trim().isEmpty()) {
+            LOGGER.debug("Failed to parse color value '{}'", value);
         }
-        
-        // Try to parse as TextColor
-        TextColor parsed = TextColor.parseColor(value);
-        if (parsed != null) {
-            int c = parsed.getValue();
-            if ((c & 0xFF000000) == 0) c |= 0xFF000000;
-            return new ImmersiveColor(c);
-        }
-        
-        return null;
+        return result;
     }
     
     /**

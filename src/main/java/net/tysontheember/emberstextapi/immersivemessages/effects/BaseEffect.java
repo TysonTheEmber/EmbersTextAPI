@@ -1,6 +1,7 @@
 package net.tysontheember.emberstextapi.immersivemessages.effects;
 
 import net.tysontheember.emberstextapi.immersivemessages.effects.params.Params;
+import net.tysontheember.emberstextapi.immersivemessages.util.ColorParser;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
@@ -62,9 +63,11 @@ public abstract class BaseEffect implements Effect {
     /**
      * Parse a color from parameters.
      * <p>
+     * Delegates to centralized {@link ColorParser} utility.
      * Color format can be:
      * <ul>
      *   <li>Hex string: "FF0000" or "#FF0000" for red</li>
+     *   <li>Short form: "F00" (expanded to FF0000)</li>
      *   <li>Hex value: 0xFF0000</li>
      * </ul>
      * </p>
@@ -76,18 +79,13 @@ public abstract class BaseEffect implements Effect {
      */
     @NotNull
     protected static float[] parseColor(@NotNull Params params, @NotNull String key, @NotNull float[] def) {
-        return params.getString(key).flatMap(BaseEffect::parseColor).orElse(def);
+        return params.getString(key).flatMap(ColorParser::parseToRgbFloats).orElse(def);
     }
 
     /**
      * Parse a hex color string to RGB float array.
      * <p>
-     * Accepts formats:
-     * <ul>
-     *   <li>"FF0000" - hex without hash</li>
-     *   <li>"#FF0000" - hex with hash</li>
-     *   <li>"F00" - short form (will be expanded to FF0000)</li>
-     * </ul>
+     * Delegates to centralized {@link ColorParser} utility.
      * </p>
      *
      * @param s Color string to parse
@@ -95,51 +93,28 @@ public abstract class BaseEffect implements Effect {
      */
     @NotNull
     protected static Optional<float[]> parseColor(@NotNull String s) {
-        s = s.trim();
-
-        // Remove leading # if present
-        if (s.startsWith("#")) {
-            s = s.substring(1);
-        }
-
-        try {
-            // Handle short form (F00 -> FF0000)
-            if (s.length() == 3) {
-                s = String.valueOf(s.charAt(0)) + s.charAt(0) +
-                    s.charAt(1) + s.charAt(1) +
-                    s.charAt(2) + s.charAt(2);
-            }
-
-            // Parse as hex number (support long for large values)
-            int val = (int) Long.parseLong(s, 16);
-
-            // Extract RGB components
-            float r = ((val >> 16) & 0xFF) / 255f;
-            float g = ((val >> 8) & 0xFF) / 255f;
-            float b = (val & 0xFF) / 255f;
-
-            return Optional.of(new float[]{r, g, b});
-        } catch (NumberFormatException e) {
-            return Optional.empty();
-        }
+        return ColorParser.parseToRgbFloats(s);
     }
 
     /**
      * Parse an integer color value to RGB float array.
+     * <p>
+     * Delegates to centralized {@link ColorParser} utility.
+     * </p>
      *
      * @param color Packed RGB integer (0xRRGGBB format)
      * @return RGB array [r, g, b] in range 0.0-1.0
      */
     @NotNull
     protected static float[] intToRGB(int color) {
-        float r = ((color >> 16) & 0xFF) / 255f;
-        float g = ((color >> 8) & 0xFF) / 255f;
-        float b = (color & 0xFF) / 255f;
-        return new float[]{r, g, b};
+        return ColorParser.intToRgbFloats(color);
     }
 
     /**
      * Pack RGB floats to integer color.
+     * <p>
+     * Delegates to centralized {@link ColorParser} utility.
+     * </p>
      *
      * @param r Red (0.0-1.0)
      * @param g Green (0.0-1.0)
@@ -147,10 +122,7 @@ public abstract class BaseEffect implements Effect {
      * @return Packed RGB integer (0xRRGGBB format)
      */
     protected static int rgbToInt(float r, float g, float b) {
-        int ri = (int) (Math.max(0f, Math.min(1f, r)) * 255);
-        int gi = (int) (Math.max(0f, Math.min(1f, g)) * 255);
-        int bi = (int) (Math.max(0f, Math.min(1f, b)) * 255);
-        return (ri << 16) | (gi << 8) | bi;
+        return ColorParser.rgbFloatsToInt(r, g, b);
     }
 
     @NotNull

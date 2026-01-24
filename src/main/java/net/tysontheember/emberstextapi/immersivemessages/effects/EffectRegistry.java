@@ -9,8 +9,8 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 /**
@@ -43,9 +43,14 @@ public class EffectRegistry {
 
     /**
      * Map of effect names to factory functions.
-     * Thread-safe for concurrent reads.
+     * Thread-safe for concurrent reads and writes using ConcurrentHashMap.
      */
-    private static final Map<String, Function<Params, Effect>> EFFECTS = new HashMap<>();
+    private static final Map<String, Function<Params, Effect>> EFFECTS = new ConcurrentHashMap<>();
+
+    /**
+     * Set of built-in effect names that are protected from overwriting after lock.
+     */
+    private static final java.util.Set<String> BUILT_IN_EFFECTS = ConcurrentHashMap.newKeySet();
 
     /**
      * Whether the registry has been initialized with default effects.
@@ -53,24 +58,55 @@ public class EffectRegistry {
     private static boolean initialized = false;
 
     /**
+     * Whether the registry is locked. When locked, built-in effects cannot be overwritten.
+     */
+    private static volatile boolean locked = false;
+
+    /**
      * Register an effect factory function.
      * <p>
      * Effect names are case-insensitive and will be normalized to lowercase.
-     * Duplicate registrations will overwrite previous registrations with a warning.
+     * </p>
+     * <p>
+     * <b>Important:</b> After the registry is locked (which happens at the end of
+     * {@link #initializeDefaultEffects()}), built-in effects cannot be overwritten.
+     * Other mods can still register new effects with unique names.
      * </p>
      *
      * @param name The effect name (e.g., "rainbow", "glitch")
      * @param factory Factory function that creates effect instances from parameters
+     * @throws IllegalStateException if attempting to overwrite a built-in effect after locking
      */
     public static synchronized void register(@NotNull String name, @NotNull Function<Params, Effect> factory) {
         String normalizedName = name.toLowerCase();
 
         if (EFFECTS.containsKey(normalizedName)) {
+            // Check if this is a protected built-in effect
+            if (locked && BUILT_IN_EFFECTS.contains(normalizedName)) {
+                LOGGER.error("Cannot overwrite built-in effect '{}' after registry is locked", normalizedName);
+                throw new IllegalStateException("Cannot overwrite built-in effect: " + normalizedName);
+            }
             LOGGER.warn("Overwriting existing effect registration: {}", normalizedName);
         }
 
         EFFECTS.put(normalizedName, factory);
         LOGGER.debug("Registered effect: {}", normalizedName);
+    }
+
+    /**
+     * Register a built-in effect (protected from overwriting after lock).
+     * <p>
+     * This should only be used internally during initialization.
+     * </p>
+     *
+     * @param name The effect name
+     * @param factory Factory function
+     */
+    private static void registerBuiltIn(@NotNull String name, @NotNull Function<Params, Effect> factory) {
+        String normalizedName = name.toLowerCase();
+        EFFECTS.put(normalizedName, factory);
+        BUILT_IN_EFFECTS.add(normalizedName);
+        LOGGER.debug("Registered built-in effect: {}", normalizedName);
     }
 
     /**
@@ -194,6 +230,11 @@ public class EffectRegistry {
      * This method should be called during mod initialization.
      * It is safe to call multiple times (subsequent calls are ignored).
      * </p>
+     * <p>
+     * After initialization completes, the registry is locked to prevent
+     * overwriting built-in effects. Other mods can still register new effects
+     * with unique names.
+     * </p>
      */
     public static synchronized void initializeDefaultEffects() {
         if (initialized) {
@@ -204,45 +245,73 @@ public class EffectRegistry {
         LOGGER.info("Initializing effect registry with default effects");
 
         // === Color Effects ===
-        register("rainbow", net.tysontheember.emberstextapi.immersivemessages.effects.visual.RainbowEffect::new);
-        register("rainb", net.tysontheember.emberstextapi.immersivemessages.effects.visual.RainbowEffect::new); // Alias
-        register("grad", net.tysontheember.emberstextapi.immersivemessages.effects.visual.GradientEffect::new);
-        register("gradient", net.tysontheember.emberstextapi.immersivemessages.effects.visual.GradientEffect::new); // Alias
-        register("pulse", net.tysontheember.emberstextapi.immersivemessages.effects.visual.PulseEffect::new);
-        register("fade", net.tysontheember.emberstextapi.immersivemessages.effects.visual.FadeEffect::new);
+        registerBuiltIn("rainbow", net.tysontheember.emberstextapi.immersivemessages.effects.visual.RainbowEffect::new);
+        registerBuiltIn("rainb", net.tysontheember.emberstextapi.immersivemessages.effects.visual.RainbowEffect::new); // Alias
+        registerBuiltIn("grad", net.tysontheember.emberstextapi.immersivemessages.effects.visual.GradientEffect::new);
+        registerBuiltIn("gradient", net.tysontheember.emberstextapi.immersivemessages.effects.visual.GradientEffect::new); // Alias
+        registerBuiltIn("pulse", net.tysontheember.emberstextapi.immersivemessages.effects.visual.PulseEffect::new);
+        registerBuiltIn("fade", net.tysontheember.emberstextapi.immersivemessages.effects.visual.FadeEffect::new);
 
         // === Motion Effects ===
-        register("wave", net.tysontheember.emberstextapi.immersivemessages.effects.visual.WaveEffect::new);
-        register("bounce", net.tysontheember.emberstextapi.immersivemessages.effects.visual.BounceEffect::new);
-        register("swing", net.tysontheember.emberstextapi.immersivemessages.effects.visual.SwingEffect::new);
-        register("turb", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TurbulenceEffect::new);
-        register("turbulence", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TurbulenceEffect::new); // Alias
-        register("shake", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ShakeEffect::new);
-        register("circle", net.tysontheember.emberstextapi.immersivemessages.effects.visual.CircleEffect::new);
-        register("wiggle", net.tysontheember.emberstextapi.immersivemessages.effects.visual.WiggleEffect::new);
-        register("pend", net.tysontheember.emberstextapi.immersivemessages.effects.visual.PendulumEffect::new);
-        register("pendulum", net.tysontheember.emberstextapi.immersivemessages.effects.visual.PendulumEffect::new); // Alias
-        register("scroll", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ScrollEffect::new);
+        registerBuiltIn("wave", net.tysontheember.emberstextapi.immersivemessages.effects.visual.WaveEffect::new);
+        registerBuiltIn("bounce", net.tysontheember.emberstextapi.immersivemessages.effects.visual.BounceEffect::new);
+        registerBuiltIn("swing", net.tysontheember.emberstextapi.immersivemessages.effects.visual.SwingEffect::new);
+        registerBuiltIn("turb", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TurbulenceEffect::new);
+        registerBuiltIn("turbulence", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TurbulenceEffect::new); // Alias
+        registerBuiltIn("shake", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ShakeEffect::new);
+        registerBuiltIn("circle", net.tysontheember.emberstextapi.immersivemessages.effects.visual.CircleEffect::new);
+        registerBuiltIn("wiggle", net.tysontheember.emberstextapi.immersivemessages.effects.visual.WiggleEffect::new);
+        registerBuiltIn("pend", net.tysontheember.emberstextapi.immersivemessages.effects.visual.PendulumEffect::new);
+        registerBuiltIn("pendulum", net.tysontheember.emberstextapi.immersivemessages.effects.visual.PendulumEffect::new); // Alias
+        registerBuiltIn("scroll", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ScrollEffect::new);
 
         // === Special Effects ===
-        register("glitch", net.tysontheember.emberstextapi.immersivemessages.effects.visual.GlitchEffect::new);
-        register("neon", net.tysontheember.emberstextapi.immersivemessages.effects.visual.NeonEffect::new);
-        register("shadow", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ShadowEffect::new);
+        registerBuiltIn("glitch", net.tysontheember.emberstextapi.immersivemessages.effects.visual.GlitchEffect::new);
+        registerBuiltIn("neon", net.tysontheember.emberstextapi.immersivemessages.effects.visual.NeonEffect::new);
+        registerBuiltIn("shadow", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ShadowEffect::new);
 
         // === Animation Effects ===
-        register("typewriter", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect::new);
-        register("type", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect::new); // Alias
+        registerBuiltIn("typewriter", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect::new);
+        registerBuiltIn("type", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect::new); // Alias
 
         initialized = true;
-        LOGGER.info("Registered {} effects", EFFECTS.size());
+        locked = true; // Lock registry to protect built-in effects
+        LOGGER.info("Registered {} effects (registry locked)", EFFECTS.size());
+    }
+
+    /**
+     * Check if the registry is locked.
+     * <p>
+     * When locked, built-in effects cannot be overwritten.
+     * </p>
+     *
+     * @return true if locked, false otherwise
+     */
+    public static boolean isLocked() {
+        return locked;
+    }
+
+    /**
+     * Check if an effect is a built-in effect.
+     *
+     * @param name Effect name
+     * @return true if built-in, false otherwise
+     */
+    public static boolean isBuiltIn(@NotNull String name) {
+        return BUILT_IN_EFFECTS.contains(name.toLowerCase());
     }
 
     /**
      * Clear all registrations (primarily for testing).
+     * <p>
+     * This also resets the initialized and locked states.
+     * </p>
      */
     public static synchronized void clear() {
         EFFECTS.clear();
+        BUILT_IN_EFFECTS.clear();
         initialized = false;
+        locked = false;
         LOGGER.debug("Cleared effect registry");
     }
 }
