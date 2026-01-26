@@ -1,5 +1,6 @@
 package net.tysontheember.emberstextapi.immersivemessages;
 
+import com.google.gson.JsonSyntaxException;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -29,6 +30,8 @@ import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage.TextureSizingMode;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import org.slf4j.Logger;
+
+import java.util.Objects;
 
 @Mod.EventBusSubscriber(modid = EmbersTextAPI.MODID)
 public class MessageCommands {
@@ -102,7 +105,13 @@ public class MessageCommands {
                                     keys.put(k.toLowerCase(java.util.Locale.ROOT), k);
                                 }
 
-                                MutableComponent component = Component.translatable(text);
+                                MutableComponent component;
+                                try {
+                                    component = Component.Serializer.fromJson(text);
+                                    if (component == null) component = Component.literal(text);
+                                } catch (JsonSyntaxException ignore) {
+                                    component = Component.literal(text);
+                                }
                                 if (tag.contains("font")) {
                                     ResourceLocation font = ResourceLocation.tryParse(tag.getString("font"));
                                     if (font != null) {
