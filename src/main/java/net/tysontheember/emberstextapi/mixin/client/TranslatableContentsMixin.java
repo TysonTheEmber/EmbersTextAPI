@@ -11,9 +11,11 @@ import net.tysontheember.emberstextapi.immersivemessages.effects.visual.Typewrit
 import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
 import net.tysontheember.emberstextapi.typewriter.TypewriterTracks;
 import net.tysontheember.emberstextapi.util.StyleUtil;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfKey;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -44,6 +46,9 @@ import java.util.Optional;
  */
 @Mixin(TranslatableContents.class)
 public abstract class TranslatableContentsMixin {
+
+    @Unique
+    private final long emberstextapi$obfInstanceId = java.util.concurrent.ThreadLocalRandom.current().nextLong();
 
     /**
      * Shadow the fallback field (the raw translation string when no translation is available).
@@ -104,6 +109,7 @@ public abstract class TranslatableContentsMixin {
         // Check if any span has effects, formatting, or item data - if not, let vanilla handle it
         boolean hasEffectsOrFormattingOrItems = false;
         boolean hasTypewriter = false;
+        boolean hasObfuscate = false;
         for (TextSpan span : spans) {
             List<Effect> effects = span.getEffects();
             boolean hasEffects = effects != null && !effects.isEmpty();
@@ -112,18 +118,18 @@ public abstract class TranslatableContentsMixin {
                                    (span.getUnderline() != null && span.getUnderline()) ||
                                    (span.getStrikethrough() != null && span.getStrikethrough()) ||
                                    (span.getObfuscated() != null && span.getObfuscated());
+            boolean hasFont = span.getFont() != null;
             boolean hasItem = span.getItemId() != null;
 
-            if (hasEffects || hasFormatting || hasItem) {
+            if (hasEffects || hasFormatting || hasFont || hasItem) {
                 hasEffectsOrFormattingOrItems = true;
             }
 
-            // Check for typewriter effect
+            // Check for typewriter / obfuscate effects
             if (effects != null) {
                 for (Effect effect : effects) {
                     if (effect instanceof TypewriterEffect) {
                         hasTypewriter = true;
-                        break;
                     }
                 }
             }
@@ -153,9 +159,12 @@ public abstract class TranslatableContentsMixin {
 
         // Track global character index for typewriter effect
         int globalCharIndex = 0;
+        // Obfuscate base key stable per component (per instance) so tooltips persist
+        Object baseObfKey = null;
 
         // Process each span with its effects
-        for (TextSpan span : spans) {
+        for (int spanIdx = 0; spanIdx < spans.size(); spanIdx++) {
+            TextSpan span = spans.get(spanIdx);
             String content = span.getContent();
 
             // For item spans with empty content, use a space so the item has something to render on
@@ -173,17 +182,27 @@ public abstract class TranslatableContentsMixin {
 
             // Emit each character with the modified style
             // For typewriter, each character needs its own Style with the correct index
+            int spanStartIndex = globalCharIndex;
+            int spanLength = content.length();
+
             for (int i = 0; i < content.length(); i++) {
                 int codePoint = content.codePointAt(i);
 
                 // For typewriter effect, clone the style and set the index for THIS character
                 Style charStyle = spanStyle;
-                if (track != null) {
-                    // Clone the style so each character has its own index
+                if (track != null || hasObfuscate) {
+                    // Clone the style so each character has its own per-char data
                     charStyle = spanStyle.withClickEvent(spanStyle.getClickEvent()); // Force clone
                     ETAStyle etaCharStyle = (ETAStyle) charStyle;
-                    etaCharStyle.emberstextapi$setTypewriterTrack(track);
-                    etaCharStyle.emberstextapi$setTypewriterIndex(globalCharIndex);
+                    if (track != null) {
+                        etaCharStyle.emberstextapi$setTypewriterTrack(track);
+                        etaCharStyle.emberstextapi$setTypewriterIndex(globalCharIndex);
+                    }
+                    if (hasObfuscate) {
+                        etaCharStyle.emberstextapi$setObfuscateKey(new ObfKey(baseObfKey, spanIdx));
+                    }
+                    etaCharStyle.emberstextapi$setObfuscateSpanStart(spanStartIndex);
+                    etaCharStyle.emberstextapi$setObfuscateSpanLength(spanLength);
                 }
 
                 // Accept the character with the styled content consumer

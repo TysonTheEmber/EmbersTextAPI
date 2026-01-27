@@ -5,6 +5,7 @@ import net.minecraft.util.Mth;
 import net.tysontheember.emberstextapi.immersivemessages.effects.BaseEffect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
 import net.tysontheember.emberstextapi.immersivemessages.effects.params.Params;
+import net.tysontheember.emberstextapi.immersivemessages.effects.params.ValidationHelper;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -48,8 +49,10 @@ public class ShakeEffect extends BaseEffect {
      */
     public ShakeEffect(@NotNull Params params) {
         super(params);
-        this.amp = params.getDouble("a").map(Number::floatValue).orElse(1.0f);
-        this.speed = params.getDouble("f").map(Number::floatValue).orElse(1.0f);
+        this.amp = ValidationHelper.clamp("shake", "a",
+                params.getDouble("a").map(Number::floatValue).orElse(1.0f), 0f, 50f);
+        this.speed = ValidationHelper.clamp("shake", "f",
+                params.getDouble("f").map(Number::floatValue).orElse(1.0f), 0.01f, 100f);
     }
 
     @Override

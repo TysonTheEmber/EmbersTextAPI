@@ -5,6 +5,7 @@ import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
 import net.tysontheember.emberstextapi.immersivemessages.network.TooltipPacket;
+import net.tysontheember.emberstextapi.net.S2C_ClearQueuePacket;
 import net.tysontheember.emberstextapi.net.S2C_CloseAllMessagesPacket;
 import net.tysontheember.emberstextapi.net.S2C_CloseMessagePacket;
 import net.tysontheember.emberstextapi.net.S2C_OpenMessagePacket;
@@ -27,6 +28,7 @@ public final class Network {
         CHANNEL.registerMessage(id++, S2C_OpenMessagePacket.class, S2C_OpenMessagePacket::encode, S2C_OpenMessagePacket::decode, S2C_OpenMessagePacket::handle);
         CHANNEL.registerMessage(id++, S2C_UpdateMessagePacket.class, S2C_UpdateMessagePacket::encode, S2C_UpdateMessagePacket::decode, S2C_UpdateMessagePacket::handle);
         CHANNEL.registerMessage(id++, S2C_CloseMessagePacket.class, S2C_CloseMessagePacket::encode, S2C_CloseMessagePacket::decode, S2C_CloseMessagePacket::handle);
-        CHANNEL.registerMessage(id, S2C_CloseAllMessagesPacket.class, S2C_CloseAllMessagesPacket::encode, S2C_CloseAllMessagesPacket::decode, S2C_CloseAllMessagesPacket::handle);
+        CHANNEL.registerMessage(id++, S2C_CloseAllMessagesPacket.class, S2C_CloseAllMessagesPacket::encode, S2C_CloseAllMessagesPacket::decode, S2C_CloseAllMessagesPacket::handle);
+        CHANNEL.registerMessage(id, S2C_ClearQueuePacket.class, S2C_ClearQueuePacket::encode, S2C_ClearQueuePacket::decode, S2C_ClearQueuePacket::handle);
     }
 }

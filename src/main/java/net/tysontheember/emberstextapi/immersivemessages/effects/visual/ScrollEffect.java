@@ -4,6 +4,7 @@ import net.minecraft.Util;
 import net.tysontheember.emberstextapi.immersivemessages.effects.BaseEffect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
 import net.tysontheember.emberstextapi.immersivemessages.effects.params.Params;
+import net.tysontheember.emberstextapi.immersivemessages.effects.params.ValidationHelper;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -44,7 +45,8 @@ public class ScrollEffect extends BaseEffect {
      */
     public ScrollEffect(@NotNull Params params) {
         super(params);
-        this.speed = params.getDouble("f").map(Number::floatValue).orElse(1.0f);
+        this.speed = ValidationHelper.clamp("scroll", "f",
+                params.getDouble("f").map(Number::floatValue).orElse(1.0f), 0.1f, 100f);
     }
 
     @Override

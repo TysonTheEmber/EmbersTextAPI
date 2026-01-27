@@ -202,6 +202,11 @@ public class StyleUtil {
             result = result.withObfuscated(true);
         }
 
+        // Apply font (if any)
+        if (span.getFont() != null) {
+            result = result.withFont(span.getFont());
+        }
+
         // Apply effects (if any)
         List<Effect> effects = span.getEffects();
         if (effects != null && !effects.isEmpty()) {
@@ -217,6 +222,23 @@ public class StyleUtil {
                 span.getItemCount() != null ? span.getItemCount() : 1,
                 span.getItemOffsetX() != null ? span.getItemOffsetX() : -4.0f,
                 span.getItemOffsetY() != null ? span.getItemOffsetY() : -4.0f
+            );
+        }
+
+        // Apply entity data (if any)
+        if (span.getEntityId() != null) {
+            result = cloneAndAddEntity(
+                result,
+                span.getEntityId(),
+                span.getEntityScale() != null ? span.getEntityScale() : 1.0f,
+                span.getEntityOffsetX() != null ? span.getEntityOffsetX() : 0f,
+                span.getEntityOffsetY() != null ? span.getEntityOffsetY() : 0f,
+                span.getEntityYaw() != null ? span.getEntityYaw() : 45f,
+                span.getEntityPitch() != null ? span.getEntityPitch() : 0f,
+                span.getEntityRoll() != null ? span.getEntityRoll() : 0f,
+                span.getEntityLighting() != null ? span.getEntityLighting() : 15,
+                span.getEntitySpin(),
+                span.getEntityAnimation()
             );
         }
 
@@ -328,6 +350,84 @@ public class StyleUtil {
         etaStyle.emberstextapi$setItemCount(Math.max(1, count));
         etaStyle.emberstextapi$setItemOffsetX(offsetX);
         etaStyle.emberstextapi$setItemOffsetY(offsetY);
+
+        return cloned;
+    }
+
+    /**
+     * Clone a style and add entity rendering data.
+     * <p>
+     * Creates a copy of the original style with all properties preserved,
+     * then adds entity rendering properties for inline entity display.
+     * </p>
+     *
+     * @param original The style to clone
+     * @param entityId Entity resource location (e.g., "minecraft:creeper")
+     * @param scale Scale multiplier for entity size
+     * @param offsetX X offset in pixels
+     * @param offsetY Y offset in pixels
+     * @param yaw Y-axis rotation in degrees
+     * @param pitch X-axis rotation in degrees
+     * @param roll Z-axis rotation in degrees
+     * @param lighting Light level 0-15
+     * @param spin Spin speed in degrees per tick (null for no spin)
+     * @param animation Animation state (optional)
+     * @return A new style with entity data attached
+     */
+    public static Style cloneAndAddEntity(
+            Style original,
+            String entityId,
+            float scale,
+            float offsetX,
+            float offsetY,
+            float yaw,
+            float pitch,
+            float roll,
+            int lighting,
+            Float spin,
+            String animation
+    ) {
+        if (entityId == null || entityId.isEmpty()) {
+            return original;
+        }
+
+        // Clone the style with all properties
+        Style cloned = Style.EMPTY
+                .withColor(original.getColor())
+                .withBold(original.isBold())
+                .withItalic(original.isItalic())
+                .withUnderlined(original.isUnderlined())
+                .withStrikethrough(original.isStrikethrough())
+                .withObfuscated(original.isObfuscated())
+                .withClickEvent(original.getClickEvent())
+                .withHoverEvent(original.getHoverEvent())
+                .withInsertion(original.getInsertion())
+                .withFont(original.getFont());
+
+        ETAStyle etaStyle = (ETAStyle) cloned;
+        ETAStyle originalEta = (ETAStyle) original;
+
+        // Copy effects from original if any
+        ImmutableList<Effect> existingEffects = originalEta.emberstextapi$getEffects();
+        if (!existingEffects.isEmpty()) {
+            etaStyle.emberstextapi$setEffects(existingEffects);
+        }
+
+        // Set entity properties
+        etaStyle.emberstextapi$setEntityId(entityId);
+        etaStyle.emberstextapi$setEntityScale(scale);
+        etaStyle.emberstextapi$setEntityOffsetX(offsetX);
+        etaStyle.emberstextapi$setEntityOffsetY(offsetY);
+        etaStyle.emberstextapi$setEntityYaw(yaw);
+        etaStyle.emberstextapi$setEntityPitch(pitch);
+        etaStyle.emberstextapi$setEntityRoll(roll);
+        etaStyle.emberstextapi$setEntityLighting(Math.max(0, Math.min(15, lighting)));
+        if (spin != null) {
+            etaStyle.emberstextapi$setEntitySpin(spin);
+        }
+        if (animation != null && !animation.isEmpty()) {
+            etaStyle.emberstextapi$setEntityAnimation(animation);
+        }
 
         return cloned;
     }

@@ -8,6 +8,7 @@ import net.tysontheember.emberstextapi.immersivemessages.api.MarkupParser;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfKey;
 import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
 import net.tysontheember.emberstextapi.typewriter.TypewriterTracks;
 import net.tysontheember.emberstextapi.util.StyleUtil;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -44,6 +46,9 @@ import java.util.Optional;
 public abstract class LiteralContentsMixin {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/LiteralContentsMixin");
+
+    @Unique
+    private final long emberstextapi$obfInstanceId = java.util.concurrent.ThreadLocalRandom.current().nextLong();
 
     /**
      * Shadow the text field to access the literal text content.
@@ -103,9 +108,10 @@ public abstract class LiteralContentsMixin {
             return;
         }
 
-        // Check if any span has effects, formatting, or item data - if not, let vanilla handle it
+        // Check if any span has effects, formatting, item data, or entity data - if not, let vanilla handle it
         boolean hasEffectsOrFormattingOrItems = false;
         boolean hasTypewriter = false;
+        boolean hasObfuscate = false;
         for (TextSpan span : spans) {
             boolean hasEffects = span.getEffects() != null && !span.getEffects().isEmpty();
             boolean hasFormatting = (span.getBold() != null && span.getBold()) ||
@@ -113,18 +119,22 @@ public abstract class LiteralContentsMixin {
                                    (span.getUnderline() != null && span.getUnderline()) ||
                                    (span.getStrikethrough() != null && span.getStrikethrough()) ||
                                    (span.getObfuscated() != null && span.getObfuscated());
+            boolean hasFont = span.getFont() != null;
             boolean hasItem = span.getItemId() != null;
+            boolean hasEntity = span.getEntityId() != null;
 
-            if (hasEffects || hasFormatting || hasItem) {
+            if (hasEffects || hasFormatting || hasFont || hasItem || hasEntity) {
                 hasEffectsOrFormattingOrItems = true;
             }
 
-            // Check for typewriter effect
+            // Check for typewriter and obfuscate effects
             if (hasEffects) {
                 for (Effect effect : span.getEffects()) {
                     if (effect instanceof TypewriterEffect) {
                         hasTypewriter = true;
-                        break;
+                    }
+                    if (effect instanceof net.tysontheember.emberstextapi.immersivemessages.effects.visual.ObfuscateEffect) {
+                        hasObfuscate = true;
                     }
                 }
             }
@@ -146,8 +156,8 @@ public abstract class LiteralContentsMixin {
                 String c = s.getContent();
                 if (c != null && !c.isEmpty()) {
                     totalChars += c.length();
-                } else if (s.getItemId() != null) {
-                    totalChars += 1; // Space for item
+                } else if (s.getItemId() != null || s.getEntityId() != null) {
+                    totalChars += 1; // Space for item/entity
                 }
             }
             track.setTotalChars(totalChars);
@@ -155,16 +165,23 @@ public abstract class LiteralContentsMixin {
 
         // Track global character index for typewriter effect
         int globalCharIndex = 0;
+        // Obfuscate: unique base key per render to avoid cross-message linkage
+        // Each span gets baseKey + spanIndex
+        // Obfuscate keys: per-component stable id to persist across frames, per span index
+        Object baseObfKey = hasObfuscate ? this.emberstextapi$obfInstanceId : null;
+        Object stableObfKey = hasObfuscate ? text.intern() : null;
 
         // Process each span with its effects
-        for (TextSpan span : spans) {
+        for (int spanIdx = 0; spanIdx < spans.size(); spanIdx++) {
+            TextSpan span = spans.get(spanIdx);
             String content = span.getContent();
 
-            // For item spans with empty content, use a space so the item has something to render on
+            // For item/entity spans with empty content, use a space so they have something to render on
             boolean isItemSpan = span.getItemId() != null;
+            boolean isEntitySpan = span.getEntityId() != null;
             if (content == null || content.isEmpty()) {
-                if (isItemSpan) {
-                    content = " "; // Emit a space for the item to replace
+                if (isItemSpan || isEntitySpan) {
+                    content = " "; // Emit a space for the item/entity to replace
                 } else {
                     continue; // Skip truly empty spans
                 }
@@ -175,17 +192,34 @@ public abstract class LiteralContentsMixin {
 
             // Emit each character with the modified style
             // For typewriter, each character needs its own Style with the correct index
+            int spanStartIndex = globalCharIndex;
+            int spanLength = content.length();
+
+            if (LOGGER.isInfoEnabled() && span.getEffects() != null && !span.getEffects().isEmpty()) {
+                LOGGER.info("LiteralContentsMixin: span {} content='{}' effects={}", spanIdx, content, span.getEffects());
+            }
+
             for (int i = 0; i < content.length(); i++) {
                 int codePoint = content.codePointAt(i);
 
                 // For typewriter effect, clone the style and set the index for THIS character
                 Style charStyle = spanStyle;
-                if (track != null) {
-                    // Clone the style so each character has its own index
+                if (track != null || hasObfuscate) {
+                    // Clone the style so each character has its own per-char data
                     charStyle = spanStyle.withClickEvent(spanStyle.getClickEvent()); // Force clone
                     ETAStyle etaCharStyle = (ETAStyle) charStyle;
-                    etaCharStyle.emberstextapi$setTypewriterTrack(track);
-                    etaCharStyle.emberstextapi$setTypewriterIndex(globalCharIndex);
+                    if (track != null) {
+                        etaCharStyle.emberstextapi$setTypewriterTrack(track);
+                        etaCharStyle.emberstextapi$setTypewriterIndex(globalCharIndex);
+                    }
+                    if (hasObfuscate) {
+                        // Per-span obfuscate key; base is stable per component to persist across frames
+                        etaCharStyle.emberstextapi$setObfuscateKey(new ObfKey(baseObfKey, spanIdx));
+                        // Stable key for tooltips: uses text content so same text = same animation
+                        etaCharStyle.emberstextapi$setObfuscateStableKey(new ObfKey(stableObfKey, spanIdx));
+                        etaCharStyle.emberstextapi$setObfuscateSpanStart(spanStartIndex);
+                        etaCharStyle.emberstextapi$setObfuscateSpanLength(spanLength);
+                    }
                 }
 
                 // Accept the character with the styled content consumer

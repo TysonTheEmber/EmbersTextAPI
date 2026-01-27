@@ -79,6 +79,9 @@ public class TextSpan {
     private Float entityOffsetY;  // Y offset for entity rendering (pixels)
     private Float entityYaw;  // Y-axis rotation in degrees (default: 45)
     private Float entityPitch;  // X-axis rotation in degrees (default: 0)
+    private Float entityRoll;  // Z-axis rotation in degrees (default: 0)
+    private Integer entityLighting;  // Light level 0-15 (default: 15 = full bright)
+    private Float entitySpin;  // Continuous rotation speed in degrees/tick (positive=clockwise, negative=counter-clockwise)
     private String entityAnimation;  // Animation state: "idle", "walk", "attack", "hurt" (default: "idle")
     
     // Global message attributes (only used by top-level/wrapper spans)
@@ -141,6 +144,9 @@ public class TextSpan {
         this.entityOffsetY = other.entityOffsetY;
         this.entityYaw = other.entityYaw;
         this.entityPitch = other.entityPitch;
+        this.entityRoll = other.entityRoll;
+        this.entityLighting = other.entityLighting;
+        this.entitySpin = other.entitySpin;
         this.entityAnimation = other.entityAnimation;
         this.globalBackground = other.globalBackground;
         this.globalBackgroundColor = other.globalBackgroundColor;
@@ -200,6 +206,9 @@ public class TextSpan {
     public Float getEntityOffsetY() { return entityOffsetY; }
     public Float getEntityYaw() { return entityYaw; }
     public Float getEntityPitch() { return entityPitch; }
+    public Float getEntityRoll() { return entityRoll; }
+    public Integer getEntityLighting() { return entityLighting; }
+    public Float getEntitySpin() { return entitySpin; }
     public String getEntityAnimation() { return entityAnimation; }
     
     // Global message attribute getters
@@ -537,7 +546,29 @@ public class TextSpan {
         this.entityPitch = pitch;
         return this;
     }
-    
+
+    public TextSpan entityRotation(float yaw, float pitch, float roll) {
+        this.entityYaw = yaw;
+        this.entityPitch = pitch;
+        this.entityRoll = roll;
+        return this;
+    }
+
+    public TextSpan entityRoll(float roll) {
+        this.entityRoll = roll;
+        return this;
+    }
+
+    public TextSpan entityLighting(int lighting) {
+        this.entityLighting = Math.max(0, Math.min(15, lighting));
+        return this;
+    }
+
+    public TextSpan entitySpin(float degreesPerTick) {
+        this.entitySpin = degreesPerTick;
+        return this;
+    }
+
     public TextSpan entityAnimation(String animation) {
         this.entityAnimation = animation;
         return this;
@@ -840,6 +871,18 @@ public class TextSpan {
             if (entityPitch != null) {
                 buf.writeFloat(entityPitch);
             }
+            buf.writeBoolean(entityRoll != null);
+            if (entityRoll != null) {
+                buf.writeFloat(entityRoll);
+            }
+            buf.writeBoolean(entityLighting != null);
+            if (entityLighting != null) {
+                buf.writeVarInt(entityLighting);
+            }
+            buf.writeBoolean(entitySpin != null);
+            if (entitySpin != null) {
+                buf.writeFloat(entitySpin);
+            }
             buf.writeBoolean(entityAnimation != null);
             if (entityAnimation != null) {
                 buf.writeUtf(entityAnimation);
@@ -1048,6 +1091,15 @@ public class TextSpan {
             }
             if (buf.readBoolean()) {
                 span.entityPitch = clampFloat(buf.readFloat(), -90f, 90f);
+            }
+            if (buf.readBoolean()) {
+                span.entityRoll = clampFloat(buf.readFloat(), -360f, 360f);
+            }
+            if (buf.readBoolean()) {
+                span.entityLighting = Math.max(0, Math.min(15, buf.readVarInt()));
+            }
+            if (buf.readBoolean()) {
+                span.entitySpin = buf.readFloat(); // No clamping - allow any rotation speed
             }
             if (buf.readBoolean()) {
                 span.entityAnimation = buf.readUtf(MAX_ID_LENGTH);

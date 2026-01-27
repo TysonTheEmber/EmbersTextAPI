@@ -20,13 +20,13 @@ import net.tysontheember.emberstextapi.client.TextLayoutCache;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfuscateAnimator;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfKey;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterAnimator;
 import net.tysontheember.emberstextapi.immersivemessages.effects.color.FadeCalculator;
 import net.tysontheember.emberstextapi.immersivemessages.effects.color.GradientCalculator;
 import net.tysontheember.emberstextapi.immersivemessages.effects.position.ShakeCalculator;
 import net.tysontheember.emberstextapi.immersivemessages.effects.rendering.BackgroundRenderer;
 import net.tysontheember.emberstextapi.immersivemessages.effects.util.ColorUtil;
-import net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat;
 import net.tysontheember.emberstextapi.immersivemessages.util.ColorParser;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
@@ -1433,7 +1433,6 @@ public class ImmersiveMessage {
 
     public TextLayoutCache.Layout buildLayout(Component draw) {
         var font = Minecraft.getInstance().font;
-        var caxtonHandler = CaxtonCompat.getHandler();
         List<FormattedCharSequence> lines = null;
         int baseWidth;
         int baseHeight;
@@ -1442,12 +1441,6 @@ public class ImmersiveMessage {
             float maxWidth = 0f;
             for (FormattedCharSequence line : lines) {
                 float width = font.getSplitter().stringWidth(line);
-                if (caxtonHandler != null) {
-                    float caxtonWidth = caxtonHandler.getWidth(line);
-                    if (!Float.isNaN(caxtonWidth)) {
-                        width = caxtonWidth;
-                    }
-                }
                 maxWidth = Math.max(maxWidth, width);
             }
             baseWidth = Mth.ceil(maxWidth);
@@ -1455,12 +1448,6 @@ public class ImmersiveMessage {
         } else {
             FormattedCharSequence sequence = draw.getVisualOrderText();
             float width = font.getSplitter().stringWidth(sequence);
-            if (caxtonHandler != null) {
-                float caxtonWidth = caxtonHandler.getWidth(sequence);
-                if (!Float.isNaN(caxtonWidth)) {
-                    width = caxtonWidth;
-                }
-            }
             baseWidth = Mth.ceil(width);
             baseHeight = font.lineHeight;
         }
@@ -1469,7 +1456,6 @@ public class ImmersiveMessage {
 
     public void renderWithLayout(GuiGraphics graphics, Component draw, TextLayoutCache.Layout layout, int screenW, int screenH, float partialTick) {
         var font = Minecraft.getInstance().font;
-        var caxtonHandler = CaxtonCompat.getHandler();
         List<FormattedCharSequence> lines = layout.lines();
         int baseWidth = layout.width();
         int baseHeight = layout.height();
@@ -1519,19 +1505,7 @@ public class ImmersiveMessage {
 
         if (typewriter && typewriterCenter && wrapMaxWidth <= 0) {
             float fullWidth = font.width(text);
-            if (caxtonHandler != null) {
-                float caxtonWidth = caxtonHandler.getWidth(text.getVisualOrderText());
-                if (!Float.isNaN(caxtonWidth)) {
-                    fullWidth = caxtonWidth;
-                }
-            }
             float currentWidth = font.width(draw);
-            if (caxtonHandler != null) {
-                float caxtonWidth = caxtonHandler.getWidth(draw.getVisualOrderText());
-                if (!Float.isNaN(caxtonWidth)) {
-                    currentWidth = caxtonWidth;
-                }
-            }
             x += (fullWidth - currentWidth) / 2f * textScale;
         }
 
@@ -1726,14 +1700,16 @@ public class ImmersiveMessage {
 
         List<EffectSegment> segments = new ArrayList<>();
         int charIndex = 0;
-        for (TextSpan span : spans) {
+        for (int spanIdx = 0; spanIdx < spans.size(); spanIdx++) {
+            TextSpan span = spans.get(spanIdx);
             String content = span.getContent();
             int length = content != null ? content.length() : 0;
             if (length > 0 && span.getEffects() != null && !span.getEffects().isEmpty()) {
                 segments.add(new EffectSegment(
                     charIndex,
                     charIndex + length,
-                    span.getEffects()
+                    span.getEffects(),
+                    spanIdx
                 ));
             }
             charIndex += length;
@@ -1741,6 +1717,18 @@ public class ImmersiveMessage {
         if (!segments.isEmpty()) {
             spanEffectSegments = segments;
         }
+    }
+
+    private EffectSegment findEffectSegmentForChar(int charIndex) {
+        if (spanEffectSegments == null || spanEffectSegments.isEmpty()) {
+            return null;
+        }
+        for (EffectSegment segment : spanEffectSegments) {
+            if (charIndex >= segment.startIndex && charIndex < segment.endIndex) {
+                return segment;
+            }
+        }
+        return null;
     }
 
     private static class CharShakeSegment {
@@ -1769,11 +1757,13 @@ public class ImmersiveMessage {
         final int startIndex;
         final int endIndex;
         final List<Effect> effects;
+        final int spanIndex;
 
-        EffectSegment(int startIndex, int endIndex, List<Effect> effects) {
+        EffectSegment(int startIndex, int endIndex, List<Effect> effects, int spanIndex) {
             this.startIndex = startIndex;
             this.endIndex = endIndex;
             this.effects = effects;
+            this.spanIndex = spanIndex;
         }
     }
 
@@ -1820,49 +1810,39 @@ public class ImmersiveMessage {
                     // If item rendering fails, just skip it
                 }
             } else if (span.getEntityId() != null) {
-                // Render entity (static; no animations)
-                try {
-                    ResourceLocation entityLocation = ResourceLocation.tryParse(span.getEntityId());
-                    if (entityLocation != null) {
-                        net.minecraft.world.entity.EntityType<?> entityType = net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES.getValue(entityLocation);
-                        if (entityType != null) {
-                            // Create a dummy entity for rendering
-                            net.minecraft.world.entity.Entity entity = entityType.create(mc.level);
-                            if (entity != null) {
-                                float entityScale = span.getEntityScale() != null ? span.getEntityScale() : 1.0f;
-                                int entitySize = (int)(16 * entityScale); // Base size scaled
+                // Render entity using EntityRenderer utility
+                float entityScale = span.getEntityScale() != null ? span.getEntityScale() : 1.0f;
+                int entitySize = (int)(16 * entityScale);
 
-                                // Center entity vertically with text
-                                float entityYOffset = yOffset - (entitySize - font.lineHeight) / 2.0f;
+                // Center entity vertically with text
+                float entityYOffset = yOffset - (entitySize - font.lineHeight) / 2.0f;
 
-                                // Apply custom offsets if specified
-                                float customOffsetX = span.getEntityOffsetX() != null ? span.getEntityOffsetX() : 0f;
-                                float customOffsetY = span.getEntityOffsetY() != null ? span.getEntityOffsetY() : 0f;
+                // Get parameters with defaults
+                float customOffsetX = span.getEntityOffsetX() != null ? span.getEntityOffsetX() : 0f;
+                float customOffsetY = span.getEntityOffsetY() != null ? span.getEntityOffsetY() : 0f;
+                float yaw = span.getEntityYaw() != null ? span.getEntityYaw() : 45f;
+                float pitch = span.getEntityPitch() != null ? span.getEntityPitch() : 0f;
+                float roll = span.getEntityRoll() != null ? span.getEntityRoll() : 0f;
+                int lighting = span.getEntityLighting() != null ? span.getEntityLighting() : 15;
+                Float spin = span.getEntitySpin(); // null if not set
 
-                                // Get rotation values (defaults: yaw=45, pitch=0)
-                                float yaw = span.getEntityYaw() != null ? span.getEntityYaw() : 45f;
-                                float pitch = span.getEntityPitch() != null ? span.getEntityPitch() : 0f;
+                int renderedWidth = net.tysontheember.emberstextapi.immersivemessages.util.EntityRenderer.render(
+                        graphics,
+                        span.getEntityId(),
+                        xOffset,
+                        entityYOffset,
+                        entityScale,
+                        customOffsetX,
+                        customOffsetY,
+                        yaw,
+                        pitch,
+                        roll,
+                        lighting,
+                        spin
+                );
 
-                                graphics.pose().pushPose();
-                                graphics.pose().translate(xOffset + customOffsetX + entitySize / 2.0f, entityYOffset + customOffsetY + entitySize, 100); // Z=100 for depth
-                                graphics.pose().scale(entityScale * 10, entityScale * 10, entityScale * 10);
-                                graphics.pose().mulPose(com.mojang.math.Axis.XP.rotationDegrees(180)); // Flip upright
-                                graphics.pose().mulPose(com.mojang.math.Axis.YP.rotationDegrees(180 + yaw)); // Yaw rotation (180 offset so 0=front)
-                                graphics.pose().mulPose(com.mojang.math.Axis.XP.rotationDegrees(pitch)); // Pitch rotation
-
-                                // Render the entity
-                                var entityRenderDispatcher = mc.getEntityRenderDispatcher();
-                                entityRenderDispatcher.render(entity, 0, 0, 0, 0, 0, graphics.pose(), mc.renderBuffers().bufferSource(), 15728880);
-                                mc.renderBuffers().bufferSource().endBatch();
-
-                                graphics.pose().popPose();
-
-                                xOffset += entitySize + 2; // Add spacing after entity
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    // If entity rendering fails, just skip it
+                if (renderedWidth > 0) {
+                    xOffset += renderedWidth + 2; // Add spacing after entity
                 }
             } else {
                 // Render text span
@@ -1899,7 +1879,6 @@ public class ImmersiveMessage {
 
     private void renderCharShake(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int colour, float baseX, float baseY) {
         var font = Minecraft.getInstance().font;
-        var handler = CaxtonCompat.getHandler();
         int[] index = {0};
         boolean useSegmentShake = !charShake && !spanCharShakeSegments.isEmpty();
         int[] segmentCursor = {0};
@@ -1945,12 +1924,6 @@ public class ImmersiveMessage {
                     Component comp = Component.literal(ch).withStyle(style);
                     FormattedCharSequence charSeq = comp.getVisualOrderText();
                     float cw = font.width(charSeq);
-                    if (handler != null) {
-                        float caxtonWidth = handler.getWidth(charSeq);
-                        if (!Float.isNaN(caxtonWidth)) {
-                            cw = caxtonWidth;
-                        }
-                    }
                     graphics.pose().pushPose();
                     graphics.pose().translate(xAdvance[0] + sx, lineBaseY + sy, 0);
                     graphics.drawString(font, charSeq, 0, 0, colour, shadow);
@@ -2009,12 +1982,6 @@ public class ImmersiveMessage {
                 Component comp = Component.literal(ch).withStyle(style);
                 FormattedCharSequence charSeq = comp.getVisualOrderText();
                 float cw = font.width(charSeq);
-                if (handler != null) {
-                    float caxtonWidth = handler.getWidth(charSeq);
-                    if (!Float.isNaN(caxtonWidth)) {
-                        cw = caxtonWidth;
-                    }
-                }
                 graphics.pose().pushPose();
                 graphics.pose().translate(xAdvance[0] + sx, baseY + sy, 0);
                 graphics.drawString(font, charSeq, 0, 0, colour, shadow);
@@ -2032,7 +1999,6 @@ public class ImmersiveMessage {
      */
     private void renderWithEffects(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int baseColour, float baseX, float baseY) {
         var font = Minecraft.getInstance().font;
-        var handler = CaxtonCompat.getHandler();
         int[] index = {0};
 
         // Extract base color components from baseColour
@@ -2048,7 +2014,7 @@ public class ImmersiveMessage {
                 FormattedCharSequence lineSeq = lines.get(i);
 
                 lineSeq.accept((pos, style, codePoint) -> {
-                    renderCharWithEffects(graphics, font, handler, codePoint, style,
+                    renderCharWithEffects(graphics, font, codePoint, style,
                             xAdvance[0], lineBaseY, baseRed, baseGreen, baseBlue, baseAlpha,
                             index[0], false, xAdvance);
                     index[0]++;
@@ -2058,7 +2024,7 @@ public class ImmersiveMessage {
         } else {
             final float[] xAdvance = {baseX};
             draw.getVisualOrderText().accept((pos, style, codePoint) -> {
-                renderCharWithEffects(graphics, font, handler, codePoint, style,
+                renderCharWithEffects(graphics, font, codePoint, style,
                         xAdvance[0], baseY, baseRed, baseGreen, baseBlue, baseAlpha,
                         index[0], false, xAdvance);
                 index[0]++;
@@ -2071,7 +2037,7 @@ public class ImmersiveMessage {
      * Render a single character with effects applied.
      */
     private void renderCharWithEffects(GuiGraphics graphics, net.minecraft.client.gui.Font font,
-                                        Object handler, int codePoint, net.minecraft.network.chat.Style style,
+                                        int codePoint, net.minecraft.network.chat.Style style,
                                         float baseX, float baseY,
                                         float baseR, float baseG, float baseB, float baseA,
                                         int charIndex, boolean isShadow, float[] xAdvanceOut) {
@@ -2081,6 +2047,17 @@ public class ImmersiveMessage {
                 baseR, baseG, baseB, baseA,
                 charIndex, codePoint, isShadow
         );
+        // Set obfuscate identity and span bounds when applicable
+        EffectSegment obfSegment = findEffectSegmentForChar(charIndex);
+        if (obfSegment != null) {
+            settings.obfuscateSpanStart = obfSegment.startIndex;
+            settings.obfuscateSpanLength = obfSegment.endIndex - obfSegment.startIndex;
+            settings.obfuscateKey = new ObfKey(this.messageContextId, obfSegment.spanIndex);
+            settings.obfuscateStableKey = settings.obfuscateKey;
+        } else {
+            // Fallback: persist across frames while this message is displayed
+            settings.obfuscateKey = this;
+        }
 
         // Set message context ID for persistent effects (prevents tooltip hovers from resetting)
         // TODO: Re-enable when messageContextId field is added back to EffectSettings
@@ -2107,14 +2084,15 @@ public class ImmersiveMessage {
         settings.clampColors();
 
         // Render main character with effect-modified settings
-        renderSingleChar(graphics, font, handler, codePoint, style,
+        renderSingleChar(graphics, font, codePoint, style,
                 baseX + settings.x, baseY + settings.y,
                 settings.rot, settings.getPackedColor(), xAdvanceOut);
 
-        // Render sibling layers (for multi-layer effects like glitch)
-        for (var sibling : settings.siblings) {
+        // Render sibling layers (for multi-layer effects like glitch, neon)
+        // Use getSiblingsOrEmpty() to avoid NPE when no siblings exist
+        for (var sibling : settings.getSiblingsOrEmpty()) {
             sibling.clampColors();
-            renderSingleChar(graphics, font, handler, codePoint, style,
+            renderSingleChar(graphics, font, codePoint, style,
                     baseX + sibling.x, baseY + sibling.y,
                     sibling.rot, sibling.getPackedColor(), null);
         }
@@ -2124,7 +2102,7 @@ public class ImmersiveMessage {
      * Render a single character at the specified position with optional rotation.
      */
     private void renderSingleChar(GuiGraphics graphics, net.minecraft.client.gui.Font font,
-                                   Object handler, int codePoint, net.minecraft.network.chat.Style style,
+                                   int codePoint, net.minecraft.network.chat.Style style,
                                    float x, float y, float rotation, int color,
                                    float[] xAdvanceOut) {
         String ch = new String(Character.toChars(codePoint));
@@ -2133,13 +2111,6 @@ public class ImmersiveMessage {
 
         // Calculate character width
         float cw = font.width(charSeq);
-        if (handler != null) {
-            var caxtonHandler = (net.tysontheember.emberstextapi.immersivemessages.util.CaxtonCompat.WidthProvider) handler;
-            float caxtonWidth = caxtonHandler.getWidth(charSeq);
-            if (!Float.isNaN(caxtonWidth)) {
-                cw = caxtonWidth;
-            }
-        }
 
         graphics.pose().pushPose();
 

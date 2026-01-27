@@ -150,4 +150,157 @@ public interface ETAStyle {
      * @param index Global character position (0-based)
      */
     void emberstextapi$setTypewriterIndex(int index);
+
+    // ===== Obfuscate Effect Support =====
+    Object emberstextapi$getObfuscateKey();
+    void emberstextapi$setObfuscateKey(Object key);
+    Object emberstextapi$getObfuscateStableKey();
+    void emberstextapi$setObfuscateStableKey(Object key);
+
+    int emberstextapi$getObfuscateSpanStart();
+    void emberstextapi$setObfuscateSpanStart(int start);
+    int emberstextapi$getObfuscateSpanLength();
+    void emberstextapi$setObfuscateSpanLength(int length);
+
+    // ===== Entity Rendering Support =====
+
+    /**
+     * Get the entity ID attached to this style for inline entity rendering.
+     *
+     * @return Entity resource location string (e.g., "minecraft:creeper"), or null if no entity
+     */
+    String emberstextapi$getEntityId();
+
+    /**
+     * Set the entity ID for inline entity rendering.
+     *
+     * @param entityId Entity resource location string (e.g., "minecraft:creeper")
+     */
+    void emberstextapi$setEntityId(String entityId);
+
+    /**
+     * Get the entity scale multiplier.
+     *
+     * @return Scale multiplier (defaults to 1.0 if not set)
+     */
+    Float emberstextapi$getEntityScale();
+
+    /**
+     * Set the entity scale multiplier.
+     *
+     * @param scale Scale multiplier
+     */
+    void emberstextapi$setEntityScale(Float scale);
+
+    /**
+     * Get the X offset for entity rendering.
+     *
+     * @return X offset in pixels, or null if not set
+     */
+    Float emberstextapi$getEntityOffsetX();
+
+    /**
+     * Set the X offset for entity rendering.
+     *
+     * @param offsetX X offset in pixels
+     */
+    void emberstextapi$setEntityOffsetX(Float offsetX);
+
+    /**
+     * Get the Y offset for entity rendering.
+     *
+     * @return Y offset in pixels, or null if not set
+     */
+    Float emberstextapi$getEntityOffsetY();
+
+    /**
+     * Set the Y offset for entity rendering.
+     *
+     * @param offsetY Y offset in pixels
+     */
+    void emberstextapi$setEntityOffsetY(Float offsetY);
+
+    /**
+     * Get the entity yaw (Y-axis rotation).
+     *
+     * @return Yaw in degrees (defaults to 45 if not set)
+     */
+    Float emberstextapi$getEntityYaw();
+
+    /**
+     * Set the entity yaw (Y-axis rotation).
+     *
+     * @param yaw Yaw in degrees
+     */
+    void emberstextapi$setEntityYaw(Float yaw);
+
+    /**
+     * Get the entity pitch (X-axis rotation).
+     *
+     * @return Pitch in degrees (defaults to 0 if not set)
+     */
+    Float emberstextapi$getEntityPitch();
+
+    /**
+     * Set the entity pitch (X-axis rotation).
+     *
+     * @param pitch Pitch in degrees
+     */
+    void emberstextapi$setEntityPitch(Float pitch);
+
+    /**
+     * Get the entity roll (Z-axis rotation).
+     *
+     * @return Roll in degrees (defaults to 0 if not set)
+     */
+    Float emberstextapi$getEntityRoll();
+
+    /**
+     * Set the entity roll (Z-axis rotation).
+     *
+     * @param roll Roll in degrees
+     */
+    void emberstextapi$setEntityRoll(Float roll);
+
+    /**
+     * Get the entity lighting level.
+     *
+     * @return Light level 0-15 (defaults to 15 = full bright if not set)
+     */
+    Integer emberstextapi$getEntityLighting();
+
+    /**
+     * Set the entity lighting level.
+     *
+     * @param lighting Light level 0-15
+     */
+    void emberstextapi$setEntityLighting(Integer lighting);
+
+    /**
+     * Get the entity spin speed (continuous rotation).
+     *
+     * @return Spin speed in degrees per tick (positive=clockwise, negative=counter-clockwise)
+     */
+    Float emberstextapi$getEntitySpin();
+
+    /**
+     * Set the entity spin speed (continuous rotation).
+     *
+     * @param spin Spin speed in degrees per tick
+     */
+    void emberstextapi$setEntitySpin(Float spin);
+
+    /**
+     * Get the entity animation state.
+     *
+     * @return Animation state string, or null if not set
+     */
+    String emberstextapi$getEntityAnimation();
+
+    /**
+     * Set the entity animation state.
+     *
+     * @param animation Animation state string
+     */
+    void emberstextapi$setEntityAnimation(String animation);
 }
