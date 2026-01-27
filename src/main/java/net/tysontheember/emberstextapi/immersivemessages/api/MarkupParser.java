@@ -3,6 +3,8 @@ package net.tysontheember.emberstextapi.immersivemessages.api;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
+import net.tysontheember.emberstextapi.immersivemessages.effects.preset.PresetDefinition;
+import net.tysontheember.emberstextapi.immersivemessages.effects.preset.PresetRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.util.ColorParser;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 
@@ -82,11 +84,18 @@ public class MarkupParser {
                             currentStyle.getEntityOffsetY() != null ? currentStyle.getEntityOffsetY() : 0f
                         );
                     }
-                    if (currentStyle.getEntityYaw() != null || currentStyle.getEntityPitch() != null) {
+                    if (currentStyle.getEntityYaw() != null || currentStyle.getEntityPitch() != null || currentStyle.getEntityRoll() != null) {
                         entitySpan.entityRotation(
                             currentStyle.getEntityYaw() != null ? currentStyle.getEntityYaw() : 45f,
-                            currentStyle.getEntityPitch() != null ? currentStyle.getEntityPitch() : 0f
+                            currentStyle.getEntityPitch() != null ? currentStyle.getEntityPitch() : 0f,
+                            currentStyle.getEntityRoll() != null ? currentStyle.getEntityRoll() : 0f
                         );
+                    }
+                    if (currentStyle.getEntityLighting() != null) {
+                        entitySpan.entityLighting(currentStyle.getEntityLighting());
+                    }
+                    if (currentStyle.getEntitySpin() != null) {
+                        entitySpan.entitySpin(currentStyle.getEntitySpin());
                     }
                     if (currentStyle.getEntityAnimation() != null) {
                         entitySpan.entityAnimation(currentStyle.getEntityAnimation());
@@ -295,7 +304,11 @@ public class MarkupParser {
             }
             
             case "font" -> {
-                String fontValue = attrs.getOrDefault("value", attrs.get("font"));
+                // Support multiple attribute names: id, value, font, name
+                String fontValue = attrs.get("id");
+                if (fontValue == null) fontValue = attrs.get("value");
+                if (fontValue == null) fontValue = attrs.get("font");
+                if (fontValue == null) fontValue = attrs.get("name");
                 if (fontValue != null) {
                     ResourceLocation font = ResourceLocation.tryParse(fontValue);
                     if (font != null) span.font(font);
@@ -372,18 +385,6 @@ public class MarkupParser {
                 //         span.charShake(ShakeType.WAVE, amplitude);
                 //     }
                 // } catch (NumberFormatException ignored) {}
-            }
-            
-            case "obfuscate", "scramble" -> {
-                String modeStr = attrs.getOrDefault("mode", "random");
-                String speedStr = attrs.getOrDefault("speed", "1.0");
-                try {
-                    ObfuscateMode mode = ObfuscateMode.valueOf(modeStr.toUpperCase());
-                    float speed = Float.parseFloat(speedStr);
-                    span.obfuscate(mode, speed);
-                } catch (Exception e) {
-                    LOGGER.debug("Failed to parse obfuscate tag: mode='{}', speed='{}' - {}", modeStr, speedStr, e.getMessage());
-                }
             }
             
             // Global message attributes
@@ -559,8 +560,11 @@ public class MarkupParser {
                 String offsetYStr = attrs.getOrDefault("offsety", attrs.getOrDefault("y", "0"));
                 String yawStr = attrs.getOrDefault("yaw", "45");
                 String pitchStr = attrs.getOrDefault("pitch", "0");
+                String rollStr = attrs.getOrDefault("roll", "0");
+                String lightingStr = attrs.getOrDefault("lighting", attrs.getOrDefault("light", "15"));
+                String spinStr = attrs.getOrDefault("spin", attrs.getOrDefault("rotate", null));
                 String animation = attrs.getOrDefault("animation", attrs.getOrDefault("anim", "idle"));
-                
+
                 if (entityId != null) {
                     try {
                         float scale = Float.parseFloat(scaleStr);
@@ -581,15 +585,34 @@ public class MarkupParser {
                         LOGGER.debug("Failed to parse entity offset x='{}', y='{}': {}", offsetXStr, offsetYStr, e.getMessage());
                     }
 
-                    // Parse rotation
+                    // Parse rotation (yaw, pitch, roll)
                     try {
                         float yaw = Float.parseFloat(yawStr);
                         float pitch = Float.parseFloat(pitchStr);
-                        span.entityRotation(yaw, pitch);
+                        float roll = Float.parseFloat(rollStr);
+                        span.entityRotation(yaw, pitch, roll);
                     } catch (NumberFormatException e) {
-                        LOGGER.debug("Failed to parse entity rotation yaw='{}', pitch='{}': {}", yawStr, pitchStr, e.getMessage());
+                        LOGGER.debug("Failed to parse entity rotation yaw='{}', pitch='{}', roll='{}': {}", yawStr, pitchStr, rollStr, e.getMessage());
                     }
-                    
+
+                    // Parse lighting
+                    try {
+                        int lighting = Integer.parseInt(lightingStr);
+                        span.entityLighting(lighting);
+                    } catch (NumberFormatException e) {
+                        LOGGER.debug("Failed to parse entity lighting '{}', using default: {}", lightingStr, e.getMessage());
+                    }
+
+                    // Parse spin (continuous rotation speed)
+                    if (spinStr != null) {
+                        try {
+                            float spin = Float.parseFloat(spinStr);
+                            span.entitySpin(spin);
+                        } catch (NumberFormatException e) {
+                            LOGGER.debug("Failed to parse entity spin '{}': {}", spinStr, e.getMessage());
+                        }
+                    }
+
                     // Set animation
                     if (animation != null && !animation.isEmpty()) {
                         span.entityAnimation(animation);
@@ -650,8 +673,13 @@ public class MarkupParser {
                 span.effect(tagContent);
             }
 
-            case "neon" -> {
+            case "neon", "glow" -> {
                 String tagContent = buildEffectTag("neon", attributes);
+                span.effect(tagContent);
+            }
+
+            case "obfuscate" -> {
+                String tagContent = buildEffectTag("obfuscate", attributes);
                 span.effect(tagContent);
             }
 
@@ -660,6 +688,43 @@ public class MarkupParser {
             // Note: "shake" already exists above as charShake-based effect
             // To use the new ShakeEffect, users can use <effect>shake</effect> or we keep the old for compatibility
             // Note: "fade" and "shadow" handle both old and new systems dynamically based on parameters
+
+            default -> {
+                // Check if this tag name matches a registered effect preset
+                PresetDefinition preset = PresetRegistry.get(tagName);
+                if (preset != null) {
+                    applyPresetToSpan(span, preset, attrs);
+                }
+            }
+        }
+    }
+
+    /**
+     * Apply an effect preset to a span: sets style overrides then adds each effect.
+     */
+    private static void applyPresetToSpan(TextSpan span, PresetDefinition preset, Map<String, String> attributes) {
+        // Apply style overrides
+        PresetDefinition.StyleOverrides styles = preset.getStyles();
+        if (styles != null) {
+            if (styles.bold() != null) span.bold(styles.bold());
+            if (styles.italic() != null) span.italic(styles.italic());
+            if (styles.underline() != null) span.underline(styles.underline());
+            if (styles.strikethrough() != null) span.strikethrough(styles.strikethrough());
+            if (styles.obfuscated() != null) span.obfuscated(styles.obfuscated());
+            if (styles.color() != null) span.color(styles.color());
+            if (styles.font() != null) {
+                ResourceLocation font = ResourceLocation.tryParse(styles.font());
+                if (font != null) span.font(font);
+            }
+        }
+
+        // Apply each effect entry
+        for (PresetDefinition.EffectEntry entry : preset.getEffects()) {
+            StringBuilder tagContent = new StringBuilder(entry.type());
+            for (Map.Entry<String, Object> param : entry.params().entrySet()) {
+                tagContent.append(' ').append(param.getKey()).append('=').append(param.getValue());
+            }
+            span.effect(tagContent.toString());
         }
     }
 

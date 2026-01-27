@@ -3,8 +3,10 @@ package net.tysontheember.emberstextapi.immersivemessages.effects.visual;
 import net.tysontheember.emberstextapi.immersivemessages.effects.BaseEffect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
 import net.tysontheember.emberstextapi.immersivemessages.effects.params.Params;
+import net.tysontheember.emberstextapi.immersivemessages.effects.params.ValidationHelper;
 import net.tysontheember.emberstextapi.typewriter.TypewriterConfig;
 import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
+import net.tysontheember.emberstextapi.typewriter.TypewriterTracks;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -19,12 +21,13 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Parameters:</h3>
  * <ul>
- *   <li>{@code speed=N} - Milliseconds per character (default: 20)</li>
+ *   <li>{@code speed=N} - Milliseconds per character (default: 20, range: 1-10000)</li>
  *   <li>{@code s=N} - Characters per second (legacy, converted to ms)</li>
  *   <li>{@code sound=ID} - Sound resource to play per character (e.g., "minecraft:block.note_block.hat")</li>
  *   <li>{@code sound=off} - Explicitly disable sound</li>
- *   <li>{@code resetDelay=N} - Seconds before animation resets when UI hidden (default: 1.0)</li>
- *   <li>{@code repeat=yes|no|N} - How many times to play: "yes" (infinite), "no" (once), or a number</li>
+ *   <li>{@code resetDelay=N} - Seconds before animation resets when UI hidden (default: 1.0, range: 0-60)</li>
+ *   <li>{@code loop=true|false} - Whether to loop infinitely (true) or play once (false)</li>
+ *   <li>{@code repeat=yes|no|N} - (Legacy) How many times to play: "yes" (infinite), "no" (once), or a number</li>
  * </ul>
  *
  * <h3>Examples:</h3>
@@ -34,8 +37,9 @@ import org.slf4j.LoggerFactory;
  * &lt;typewriter speed=80 sound="minecraft:block.note_block.hat"&gt;With click sound&lt;/typewriter&gt;
  * &lt;typewriter resetDelay=0.5&gt;Quick reset (500ms)&lt;/typewriter&gt;
  * &lt;typewriter resetDelay=2&gt;Slow reset (2 seconds)&lt;/typewriter&gt;
- * &lt;typewriter repeat=no&gt;Plays once, stays revealed&lt;/typewriter&gt;
- * &lt;typewriter repeat=3&gt;Plays 3 times then stays revealed&lt;/typewriter&gt;
+ * &lt;typewriter loop=false&gt;Plays once, stays revealed&lt;/typewriter&gt;
+ * &lt;typewriter loop=true&gt;Loops infinitely&lt;/typewriter&gt;
+ * &lt;typewriter repeat=3&gt;Plays 3 times then stays revealed (legacy)&lt;/typewriter&gt;
  * </pre>
  *
  * <h3>Track Management:</h3>
@@ -81,29 +85,35 @@ public class TypewriterEffect extends BaseEffect {
         super(params);
 
         // Parse speed: prefer "speed" in ms, fallback to legacy "s" in chars/sec
-        this.speedMs = params.getDouble("speed")
+        int rawSpeed = params.getDouble("speed")
                 .or(() -> params.getDouble("s").map(s -> s > 0 ? 1000.0 / s : 1000.0))
                 .map(Number::intValue)
                 .filter(ms -> ms > 0)
                 .orElse(TypewriterConfig.getDefaultSpeedMs());
+        this.speedMs = ValidationHelper.clamp("typewriter", "speed", rawSpeed, 1, 10000);
 
         // Parse sound parameter
         this.sound = params.getString("sound").orElse(null);
 
         // Parse reset delay: in seconds (e.g., resetDelay=0.5 for 500ms)
         // Default is 1 second (1000ms)
-        this.resetDelayMs = params.getDouble("resetDelay")
+        long rawResetDelay = params.getDouble("resetDelay")
                 .map(seconds -> (long) (seconds * 1000))
                 .filter(ms -> ms >= 0)
                 .orElse(1000L);
+        this.resetDelayMs = Math.min(rawResetDelay, 60000L); // Max 60 seconds
 
-        // Parse repeat parameter: "yes" (infinite), "no" (once), or a number
-        this.maxPlays = params.getString("repeat")
-                .map(TypewriterEffect::parseRepeat)
+        // Parse loop/repeat parameter: prefer "loop" boolean, fallback to legacy "repeat"
+        // loop=true -> infinite (-1), loop=false -> once (1)
+        this.maxPlays = params.getBoolean("loop")
+                .map(loop -> loop ? -1 : 1)
+                .or(() -> params.getString("repeat").map(TypewriterEffect::parseRepeat))
                 .orElse(TypewriterConfig.getDefaultMaxPlays());
 
-        LOGGER.debug("TypewriterEffect created: speedMs={}, maxPlays={}, repeat param={}",
-                speedMs, this.maxPlays, params.getString("repeat").orElse("(not set)"));
+        LOGGER.debug("TypewriterEffect created: speedMs={}, maxPlays={}, loop={}, repeat={}",
+                speedMs, this.maxPlays,
+                params.getBoolean("loop").orElse(null),
+                params.getString("repeat").orElse("(not set)"));
     }
 
     /**
@@ -146,12 +156,11 @@ public class TypewriterEffect extends BaseEffect {
         }
 
         // Get track from EffectSettings (set by StringRenderOutputMixin from Style)
+        // If no track was set (e.g., ImmersiveMessage rendering), create our own
         TypewriterTrack track = settings.typewriterTrack;
-
-        // If no track was set on Style, typewriter won't work
-        // This can happen for non-LiteralContents text or edge cases
         if (track == null) {
-            return;
+            // Create a track keyed by this effect instance for ImmersiveMessage support
+            track = TypewriterTracks.getInstance().get(this);
         }
 
         // Configure track with this effect's parameters

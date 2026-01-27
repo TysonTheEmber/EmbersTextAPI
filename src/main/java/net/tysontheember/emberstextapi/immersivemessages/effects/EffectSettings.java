@@ -115,6 +115,19 @@ public class EffectSettings {
     public int codepoint;
 
     /**
+     * Use Minecraft's native random glyph system (§k obfuscation).
+     * <p>
+     * When true, the renderer will use {@code fontSet.getRandomGlyph(glyphInfo)}
+     * instead of {@code fontSet.getGlyph(codepoint)} to get a random character
+     * from the font, exactly matching Minecraft's §k formatting code behavior.
+     * </p>
+     * <p>
+     * This is used by ObfuscateEffect to provide authentic §k obfuscation.
+     * </p>
+     */
+    public boolean useRandomGlyph;
+
+    /**
      * Whether this rendering pass is for the shadow layer.
      * Some effects skip or modify behavior for shadows (e.g., rainbow, pulse).
      */
@@ -136,6 +149,23 @@ public class EffectSettings {
      * </p>
      */
     public TypewriterTrack typewriterTrack;
+
+    /**
+     * Context key for obfuscate animation persistence (tooltip/GUI reopen).
+     */
+    public Object obfuscateKey; // context-specific key (unique per message/span)
+    public Object obfuscateStableKey; // stable key (e.g., text.intern) for tooltips
+
+    /**
+     * Cached track for obfuscate animation.
+     */
+    public net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfuscateTrack obfuscateTrack;
+
+    /** Span-local start index (for obfuscate to keep spans independent). */
+    public int obfuscateSpanStart;
+
+    /** Span-local length. */
+    public int obfuscateSpanLength;
 
     /**
      * Typewriter index (global character position offset).
@@ -202,9 +232,15 @@ public class EffectSettings {
         this.index = 0;
         this.absoluteIndex = 0;
         this.codepoint = 0;
+        this.useRandomGlyph = false;
         this.isShadow = false;
         this.shadowOffset = DEFAULT_SHADOW_OFFSET;
         this.typewriterTrack = null;
+        this.obfuscateKey = null;
+        this.obfuscateStableKey = null;
+        this.obfuscateTrack = null;
+        this.obfuscateSpanStart = -1;
+        this.obfuscateSpanLength = -1;
         this.typewriterIndex = -1;
         this.siblings = null; // Lazy initialization
         this.maskTop = 0f;
@@ -241,9 +277,15 @@ public class EffectSettings {
         this.index = index;
         this.absoluteIndex = index; // Default to same as index
         this.codepoint = codepoint;
+        this.useRandomGlyph = false;
         this.isShadow = isShadow;
         this.shadowOffset = DEFAULT_SHADOW_OFFSET;
         this.typewriterTrack = null;
+        this.obfuscateKey = null;
+        this.obfuscateStableKey = null;
+        this.obfuscateTrack = null;
+        this.obfuscateSpanStart = -1;
+        this.obfuscateSpanLength = -1;
         this.typewriterIndex = -1;
         this.siblings = null; // Lazy initialization
         this.maskTop = 0f;
@@ -322,9 +364,15 @@ public class EffectSettings {
         copy.index = this.index;
         copy.absoluteIndex = this.absoluteIndex;
         copy.codepoint = this.codepoint;
+        copy.useRandomGlyph = this.useRandomGlyph;
         copy.isShadow = this.isShadow;
         copy.shadowOffset = this.shadowOffset;
         copy.typewriterTrack = this.typewriterTrack;
+        copy.obfuscateKey = this.obfuscateKey;
+        copy.obfuscateStableKey = this.obfuscateStableKey;
+        copy.obfuscateTrack = this.obfuscateTrack;
+        copy.obfuscateSpanStart = this.obfuscateSpanStart;
+        copy.obfuscateSpanLength = this.obfuscateSpanLength;
         copy.typewriterIndex = this.typewriterIndex;
         copy.maskTop = this.maskTop;
         copy.maskBottom = this.maskBottom;

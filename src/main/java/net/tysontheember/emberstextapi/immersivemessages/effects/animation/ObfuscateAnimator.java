@@ -38,6 +38,15 @@ public class ObfuscateAnimator {
                     if (right < textLength) revealOrder.add(right++);
                 }
             }
+            case EDGES -> {
+                revealOrder.clear();
+                int left = 0;
+                int right = textLength - 1;
+                while (left <= right) {
+                    if (left <= right) revealOrder.add(left++);
+                    if (left <= right) revealOrder.add(right--);
+                }
+            }
             case RANDOM -> Collections.shuffle(revealOrder, random);
             // LEFT is the default (no modification needed)
         }

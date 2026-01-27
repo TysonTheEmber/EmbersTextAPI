@@ -56,6 +56,39 @@ public class StyleMixin implements ETAStyle {
     private Float emberstextapi$itemOffsetY = null;
 
     /**
+     * Entity rendering properties
+     */
+    @Unique
+    private String emberstextapi$entityId = null;
+
+    @Unique
+    private Float emberstextapi$entityScale = null;
+
+    @Unique
+    private Float emberstextapi$entityOffsetX = null;
+
+    @Unique
+    private Float emberstextapi$entityOffsetY = null;
+
+    @Unique
+    private Float emberstextapi$entityYaw = null;
+
+    @Unique
+    private Float emberstextapi$entityPitch = null;
+
+    @Unique
+    private Float emberstextapi$entityRoll = null;
+
+    @Unique
+    private Integer emberstextapi$entityLighting = null;
+
+    @Unique
+    private Float emberstextapi$entitySpin = null;
+
+    @Unique
+    private String emberstextapi$entityAnimation = null;
+
+    /**
      * Typewriter track for animation state.
      */
     @Unique
@@ -67,6 +100,21 @@ public class StyleMixin implements ETAStyle {
      */
     @Unique
     private int emberstextapi$typewriterIndex = -1;
+
+    /**
+     * Obfuscate key used for caching animation state across renders.
+     */
+    @Unique
+    private Object emberstextapi$obfuscateKey = null;
+
+    @Unique
+    private Object emberstextapi$obfuscateStableKey = null;
+
+    @Unique
+    private int emberstextapi$obfuscateSpanStart = -1;
+
+    @Unique
+    private int emberstextapi$obfuscateSpanLength = -1;
 
     @Override
     public ImmutableList<Effect> emberstextapi$getEffects() {
@@ -133,6 +181,108 @@ public class StyleMixin implements ETAStyle {
         this.emberstextapi$itemOffsetY = offsetY;
     }
 
+    // Entity rendering getters/setters
+
+    @Override
+    public String emberstextapi$getEntityId() {
+        return emberstextapi$entityId;
+    }
+
+    @Override
+    public void emberstextapi$setEntityId(String entityId) {
+        this.emberstextapi$entityId = entityId;
+    }
+
+    @Override
+    public Float emberstextapi$getEntityScale() {
+        return emberstextapi$entityScale;
+    }
+
+    @Override
+    public void emberstextapi$setEntityScale(Float scale) {
+        this.emberstextapi$entityScale = scale;
+    }
+
+    @Override
+    public Float emberstextapi$getEntityOffsetX() {
+        return emberstextapi$entityOffsetX;
+    }
+
+    @Override
+    public void emberstextapi$setEntityOffsetX(Float offsetX) {
+        this.emberstextapi$entityOffsetX = offsetX;
+    }
+
+    @Override
+    public Float emberstextapi$getEntityOffsetY() {
+        return emberstextapi$entityOffsetY;
+    }
+
+    @Override
+    public void emberstextapi$setEntityOffsetY(Float offsetY) {
+        this.emberstextapi$entityOffsetY = offsetY;
+    }
+
+    @Override
+    public Float emberstextapi$getEntityYaw() {
+        return emberstextapi$entityYaw;
+    }
+
+    @Override
+    public void emberstextapi$setEntityYaw(Float yaw) {
+        this.emberstextapi$entityYaw = yaw;
+    }
+
+    @Override
+    public Float emberstextapi$getEntityPitch() {
+        return emberstextapi$entityPitch;
+    }
+
+    @Override
+    public void emberstextapi$setEntityPitch(Float pitch) {
+        this.emberstextapi$entityPitch = pitch;
+    }
+
+    @Override
+    public Float emberstextapi$getEntityRoll() {
+        return emberstextapi$entityRoll;
+    }
+
+    @Override
+    public void emberstextapi$setEntityRoll(Float roll) {
+        this.emberstextapi$entityRoll = roll;
+    }
+
+    @Override
+    public Integer emberstextapi$getEntityLighting() {
+        return emberstextapi$entityLighting;
+    }
+
+    @Override
+    public void emberstextapi$setEntityLighting(Integer lighting) {
+        this.emberstextapi$entityLighting = lighting;
+    }
+
+    @Override
+    public Float emberstextapi$getEntitySpin() {
+        return emberstextapi$entitySpin;
+    }
+
+    @Override
+    public void emberstextapi$setEntitySpin(Float spin) {
+        this.emberstextapi$entitySpin = spin;
+    }
+
+    @Override
+    public String emberstextapi$getEntityAnimation() {
+        return emberstextapi$entityAnimation;
+    }
+
+    @Override
+    public void emberstextapi$setEntityAnimation(String animation) {
+        this.emberstextapi$entityAnimation = animation;
+    }
+
     @Override
     public TypewriterTrack emberstextapi$getTypewriterTrack() {
         return emberstextapi$typewriterTrack;
@@ -151,6 +301,46 @@ public class StyleMixin implements ETAStyle {
     @Override
     public void emberstextapi$setTypewriterIndex(int index) {
         this.emberstextapi$typewriterIndex = index;
+    }
+
+    @Override
+    public Object emberstextapi$getObfuscateKey() {
+        return emberstextapi$obfuscateKey;
+    }
+
+    @Override
+    public void emberstextapi$setObfuscateKey(Object key) {
+        this.emberstextapi$obfuscateKey = key;
+    }
+
+    @Override
+    public Object emberstextapi$getObfuscateStableKey() {
+        return emberstextapi$obfuscateStableKey;
+    }
+
+    @Override
+    public void emberstextapi$setObfuscateStableKey(Object key) {
+        this.emberstextapi$obfuscateStableKey = key;
+    }
+
+    @Override
+    public int emberstextapi$getObfuscateSpanStart() {
+        return emberstextapi$obfuscateSpanStart;
+    }
+
+    @Override
+    public void emberstextapi$setObfuscateSpanStart(int start) {
+        this.emberstextapi$obfuscateSpanStart = start;
+    }
+
+    @Override
+    public int emberstextapi$getObfuscateSpanLength() {
+        return emberstextapi$obfuscateSpanLength;
+    }
+
+    @Override
+    public void emberstextapi$setObfuscateSpanLength(int length) {
+        this.emberstextapi$obfuscateSpanLength = length;
     }
 
     /**
@@ -248,9 +438,25 @@ public class StyleMixin implements ETAStyle {
         int index = emberstextapi$typewriterIndex >= 0
                 ? emberstextapi$typewriterIndex
                 : thatStyle.emberstextapi$getTypewriterIndex();
+        Object obfKey = emberstextapi$obfuscateKey != null
+                ? emberstextapi$obfuscateKey
+                : thatStyle.emberstextapi$getObfuscateKey();
+        int obfStart = emberstextapi$obfuscateSpanStart >= 0
+                ? emberstextapi$obfuscateSpanStart
+                : thatStyle.emberstextapi$getObfuscateSpanStart();
+        int obfLen = emberstextapi$obfuscateSpanLength >= 0
+                ? emberstextapi$obfuscateSpanLength
+                : thatStyle.emberstextapi$getObfuscateSpanLength();
+        Object obfStable = emberstextapi$obfuscateStableKey != null
+                ? emberstextapi$obfuscateStableKey
+                : thatStyle.emberstextapi$getObfuscateStableKey();
 
         resultStyle.emberstextapi$setTypewriterTrack(track);
         resultStyle.emberstextapi$setTypewriterIndex(index);
+        resultStyle.emberstextapi$setObfuscateKey(obfKey);
+        resultStyle.emberstextapi$setObfuscateStableKey(obfStable);
+        resultStyle.emberstextapi$setObfuscateSpanStart(obfStart);
+        resultStyle.emberstextapi$setObfuscateSpanLength(obfLen);
     }
 
     /**
@@ -263,7 +469,12 @@ public class StyleMixin implements ETAStyle {
             return;
         }
         // Only propagate if we have data to propagate
-        if (emberstextapi$effects.isEmpty() && emberstextapi$typewriterTrack == null) {
+        if (emberstextapi$effects.isEmpty()
+                && emberstextapi$typewriterTrack == null
+                && emberstextapi$obfuscateKey == null
+                && emberstextapi$obfuscateStableKey == null
+                && emberstextapi$obfuscateSpanStart < 0
+                && emberstextapi$obfuscateSpanLength < 0) {
             return;
         }
         ETAStyle resultStyle = (ETAStyle) result;
@@ -271,6 +482,18 @@ public class StyleMixin implements ETAStyle {
         if (emberstextapi$typewriterTrack != null) {
             resultStyle.emberstextapi$setTypewriterTrack(emberstextapi$typewriterTrack);
             resultStyle.emberstextapi$setTypewriterIndex(emberstextapi$typewriterIndex);
+        }
+        if (emberstextapi$obfuscateKey != null) {
+            resultStyle.emberstextapi$setObfuscateKey(emberstextapi$obfuscateKey);
+        }
+        if (emberstextapi$obfuscateStableKey != null) {
+            resultStyle.emberstextapi$setObfuscateStableKey(emberstextapi$obfuscateStableKey);
+        }
+        if (emberstextapi$obfuscateSpanStart >= 0) {
+            resultStyle.emberstextapi$setObfuscateSpanStart(emberstextapi$obfuscateSpanStart);
+        }
+        if (emberstextapi$obfuscateSpanLength >= 0) {
+            resultStyle.emberstextapi$setObfuscateSpanLength(emberstextapi$obfuscateSpanLength);
         }
     }
 
@@ -312,6 +535,43 @@ public class StyleMixin implements ETAStyle {
                 return;
             }
             if (!Objects.equals(this.emberstextapi$itemOffsetY, otherStyle.emberstextapi$getItemOffsetY())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            // If entity properties don't match, styles are not equal
+            if (!Objects.equals(this.emberstextapi$entityId, otherStyle.emberstextapi$getEntityId())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (!Objects.equals(this.emberstextapi$entityScale, otherStyle.emberstextapi$getEntityScale())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (!Objects.equals(this.emberstextapi$entityOffsetX, otherStyle.emberstextapi$getEntityOffsetX())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (!Objects.equals(this.emberstextapi$entityOffsetY, otherStyle.emberstextapi$getEntityOffsetY())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (!Objects.equals(this.emberstextapi$entityYaw, otherStyle.emberstextapi$getEntityYaw())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (!Objects.equals(this.emberstextapi$entityPitch, otherStyle.emberstextapi$getEntityPitch())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (!Objects.equals(this.emberstextapi$entityRoll, otherStyle.emberstextapi$getEntityRoll())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (!Objects.equals(this.emberstextapi$entityLighting, otherStyle.emberstextapi$getEntityLighting())) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (!Objects.equals(this.emberstextapi$entitySpin, otherStyle.emberstextapi$getEntitySpin())) {
                 cir.setReturnValue(false);
                 return;
             }

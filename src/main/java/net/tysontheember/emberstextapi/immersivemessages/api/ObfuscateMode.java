@@ -9,5 +9,6 @@ public enum ObfuscateMode {
     LEFT,
     RIGHT,
     CENTER,
+    EDGES,
     RANDOM;
 }

@@ -137,6 +137,15 @@ public abstract class StringRenderOutputMixin {
             return;
         }
 
+        // Check if this style has an entity to render
+        String entityId = etaStyle.emberstextapi$getEntityId();
+        if (entityId != null) {
+            emberstextapi$renderEntity(etaStyle, entityId);
+            // Cancel vanilla rendering - we rendered an entity instead
+            cir.setReturnValue(true);
+            return;
+        }
+
         List<Effect> effects = etaStyle.emberstextapi$getEffects().asList();
 
         // If no effects, let vanilla handle it
@@ -186,6 +195,18 @@ public abstract class StringRenderOutputMixin {
                     this.dropShadow         // isShadow
             );
             settings.shadowOffset = shadowOffset;
+            // Use obfuscate key from style if present (set during markup parsing)
+            settings.obfuscateKey = etaStyle.emberstextapi$getObfuscateKey();
+            settings.obfuscateStableKey = etaStyle.emberstextapi$getObfuscateStableKey();
+            if (settings.obfuscateKey == null) {
+                settings.obfuscateKey = style;
+            }
+            if (settings.obfuscateStableKey == null) {
+                // Stable fallback: use the style object itself
+                settings.obfuscateStableKey = style;
+            }
+            settings.obfuscateSpanStart = etaStyle.emberstextapi$getObfuscateSpanStart();
+            settings.obfuscateSpanLength = etaStyle.emberstextapi$getObfuscateSpanLength();
 
             // Get typewriter data from Style if present
             TypewriterTrack track = etaStyle.emberstextapi$getTypewriterTrack();
@@ -288,6 +309,7 @@ public abstract class StringRenderOutputMixin {
      *   <li>Alpha culling (skip if fully transparent)</li>
      *   <li>Rotation matrix transformation</li>
      *   <li>Italic and bold rendering</li>
+     *   <li>Fallback rendering for non-BakedGlyph objects</li>
      * </ul>
      * </p>
      *
@@ -312,8 +334,15 @@ public abstract class StringRenderOutputMixin {
             return;
         }
 
-        // Handle codepoint changes (e.g., obfuscate effect)
-        if (settings.codepoint != originalCodepoint) {
+        // Handle codepoint changes or random glyph request (e.g., obfuscate effect)
+        if (settings.useRandomGlyph) {
+            // Use Minecraft's native random glyph system (§k obfuscation)
+            bakedGlyph = fontSet.getRandomGlyph(glyphInfo);
+            if (bakedGlyph instanceof EmptyGlyph) {
+                return;
+            }
+        } else if (settings.codepoint != originalCodepoint) {
+            // Use specific codepoint replacement
             bakedGlyph = fontSet.getGlyph(settings.codepoint);
             if (bakedGlyph instanceof EmptyGlyph) {
                 return;
@@ -437,6 +466,87 @@ public abstract class StringRenderOutputMixin {
         } catch (Exception e) {
             // If item rendering fails, just skip it and continue
             // This prevents crashes from invalid item IDs
+        }
+    }
+
+    /**
+     * Render an entity inline with text.
+     * <p>
+     * This method handles rendering Minecraft entities as inline icons
+     * when a Style has entity data attached via ETAStyle.
+     * </p>
+     *
+     * @param etaStyle The style containing entity data
+     * @param entityId Entity resource location (e.g., "minecraft:creeper")
+     */
+    @Unique
+    private void emberstextapi$renderEntity(ETAStyle etaStyle, String entityId) {
+        try {
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.level == null) {
+                return;
+            }
+
+            // Get entity parameters from style
+            float scale = etaStyle.emberstextapi$getEntityScale() != null ? etaStyle.emberstextapi$getEntityScale() : 1.0f;
+            float offsetX = etaStyle.emberstextapi$getEntityOffsetX() != null ? etaStyle.emberstextapi$getEntityOffsetX() : 0f;
+            float offsetY = etaStyle.emberstextapi$getEntityOffsetY() != null ? etaStyle.emberstextapi$getEntityOffsetY() : 0f;
+            float yaw = etaStyle.emberstextapi$getEntityYaw() != null ? etaStyle.emberstextapi$getEntityYaw() : 45f;
+            float pitch = etaStyle.emberstextapi$getEntityPitch() != null ? etaStyle.emberstextapi$getEntityPitch() : 0f;
+            float roll = etaStyle.emberstextapi$getEntityRoll() != null ? etaStyle.emberstextapi$getEntityRoll() : 0f;
+            int lighting = etaStyle.emberstextapi$getEntityLighting() != null ? etaStyle.emberstextapi$getEntityLighting() : 15;
+            Float spin = etaStyle.emberstextapi$getEntitySpin(); // null if not set
+
+            // Calculate entity size based on scale
+            int entitySize = (int)(16 * scale);
+
+            // End current batch to ensure proper render ordering
+            if (this.bufferSource instanceof net.minecraft.client.renderer.MultiBufferSource.BufferSource bs) {
+                bs.endBatch();
+            }
+
+            // Get buffer source
+            net.minecraft.client.renderer.MultiBufferSource.BufferSource bufferSource;
+            if (this.bufferSource instanceof net.minecraft.client.renderer.MultiBufferSource.BufferSource bs) {
+                bufferSource = bs;
+            } else {
+                bufferSource = mc.renderBuffers().bufferSource();
+            }
+
+            // Create GuiGraphics for entity rendering
+            var guiGraphics = new net.minecraft.client.gui.GuiGraphics(mc, bufferSource);
+            guiGraphics.pose().mulPoseMatrix(this.pose);
+
+            // Render the entity using our EntityRenderer utility
+            int renderedWidth = net.tysontheember.emberstextapi.immersivemessages.util.EntityRenderer.render(
+                    guiGraphics,
+                    entityId,
+                    this.x,
+                    this.y,
+                    scale,
+                    offsetX,
+                    offsetY,
+                    yaw,
+                    pitch,
+                    roll,
+                    lighting,
+                    spin
+            );
+
+            // Flush entity rendering
+            bufferSource.endBatch();
+
+            // Advance x position for next character
+            if (renderedWidth > 0) {
+                this.x += renderedWidth;
+            } else {
+                // Fallback advance if render failed
+                this.x += entitySize;
+            }
+
+        } catch (Exception e) {
+            // If entity rendering fails, just skip it and continue
+            emberstextapi$LOGGER.debug("Entity rendering failed for {}: {}", entityId, e.getMessage());
         }
     }
 }

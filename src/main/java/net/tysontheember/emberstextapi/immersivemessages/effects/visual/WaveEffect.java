@@ -5,6 +5,7 @@ import net.minecraft.util.Mth;
 import net.tysontheember.emberstextapi.immersivemessages.effects.BaseEffect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
 import net.tysontheember.emberstextapi.immersivemessages.effects.params.Params;
+import net.tysontheember.emberstextapi.immersivemessages.effects.params.ValidationHelper;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -49,9 +50,12 @@ public class WaveEffect extends BaseEffect {
      */
     public WaveEffect(@NotNull Params params) {
         super(params);
-        this.amplitude = params.getDouble("a").map(Number::floatValue).orElse(1.0f);
-        this.frequency = params.getDouble("f").map(Number::floatValue).orElse(1.0f);
-        this.wavelength = params.getDouble("w").map(Number::floatValue).orElse(1.0f);
+        this.amplitude = ValidationHelper.clamp("wave", "a",
+                params.getDouble("a").map(Number::floatValue).orElse(1.0f), 0f, 50f);
+        this.frequency = ValidationHelper.clamp("wave", "f",
+                params.getDouble("f").map(Number::floatValue).orElse(1.0f), 0.01f, 100f);
+        this.wavelength = ValidationHelper.clamp("wave", "w",
+                params.getDouble("w").map(Number::floatValue).orElse(1.0f), 0.001f, 100f);
     }
 
     @Override

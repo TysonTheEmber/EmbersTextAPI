@@ -39,8 +39,17 @@ public class MessageCommands {
 
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
+        // Register full command name
         event.getDispatcher().register(
             Commands.literal("emberstextapi")
+                .then(testSubcommand())
+                .then(sendSubcommand())
+                .then(customSubcommand())
+        );
+
+        // Register short alias
+        event.getDispatcher().register(
+            Commands.literal("eta")
                 .then(testSubcommand())
                 .then(sendSubcommand())
                 .then(customSubcommand())
@@ -55,7 +64,9 @@ public class MessageCommands {
                     int id = IntegerArgumentType.getInteger(ctx, "id");
                     runTest(player, id);
                     return Command.SINGLE_SUCCESS;
-                }));
+                }))
+            .then(EffectTestCommands.buildEffectTestCommand())
+            .then(EffectTestCommands.buildComboCommand());
     }
 
     private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> sendSubcommand() {

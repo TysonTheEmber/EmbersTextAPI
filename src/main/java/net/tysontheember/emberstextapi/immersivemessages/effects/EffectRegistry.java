@@ -268,11 +268,16 @@ public class EffectRegistry {
         // === Special Effects ===
         registerBuiltIn("glitch", net.tysontheember.emberstextapi.immersivemessages.effects.visual.GlitchEffect::new);
         registerBuiltIn("neon", net.tysontheember.emberstextapi.immersivemessages.effects.visual.NeonEffect::new);
+        registerBuiltIn("glow", net.tysontheember.emberstextapi.immersivemessages.effects.visual.NeonEffect::new); // Alias for neon
         registerBuiltIn("shadow", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ShadowEffect::new);
 
         // === Animation Effects ===
         registerBuiltIn("typewriter", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect::new);
         registerBuiltIn("type", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect::new); // Alias
+
+        // === Obfuscation Effects ===
+        registerBuiltIn("obfuscate", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ObfuscateEffect::new);
+        registerBuiltIn("obf", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ObfuscateEffect::new); // Alias
 
         initialized = true;
         locked = true; // Lock registry to protect built-in effects
