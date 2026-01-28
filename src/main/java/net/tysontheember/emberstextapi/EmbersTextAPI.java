@@ -32,6 +32,9 @@ public class EmbersTextAPI
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
 
+        // Register mod configuration
+        net.tysontheember.emberstextapi.config.ModConfig.register();
+
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
     }
