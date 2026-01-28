@@ -1,35 +1,24 @@
 {
   "providers": [
     {
-      "bold": {
-        "file": "emberstextapi:norse_bold.otf",
-        "shadow_offset": 0.5
-      },
-      "type": "caxton",
-      "bold_italic": {
-        "file": "emberstextapi:norse_bold.otf",
-        "shadow_offset": 0.5
-      },
-      "italic": {
-        "file": "emberstextapi:norse.otf",
-        "shadow_offset": 0.5
-      },
-      "regular": {
-        "file": "emberstextapi:norse.otf",
-        "shadow_offset": 0.5
-      }
-
+      "type": "ttf",
+      "file": "emberstextapi:textures/font/norse.otf",
+      "size": 11.0,
+      "oversample": 4.0,
+      "shift": [0.0, 1.0],
+      "skip": []
     },
     {
-      "id": "minecraft:include/space",
-      "type": "reference"
+      "type": "reference",
+      "id": "minecraft:include/space"
     },
     {
-      "id": "minecraft:include/default",
-      "type": "reference"
+      "type": "reference",
+      "id": "minecraft:include/default"
     },
     {
-      "id": "minecraft:include/unifont",
-      "type": "reference"
+      "type": "reference",
+      "id": "minecraft:include/unifont"
     }
-  ]}
+  ]
+}

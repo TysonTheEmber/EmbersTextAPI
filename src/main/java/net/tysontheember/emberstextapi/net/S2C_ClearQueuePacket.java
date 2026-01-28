@@ -4,25 +4,28 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
-import net.tysontheember.emberstextapi.client.ClientMessageManager;
+import net.tysontheember.emberstextapi.immersivemessages.ImmersiveMessagesManager;
 
 import java.util.function.Supplier;
 
-public record C2S_CloseAllMessagesPacket() {
-    public static void encode(C2S_CloseAllMessagesPacket packet, FriendlyByteBuf buf) {
+/**
+ * Packet to clear the ImmersiveMessagesManager queue on the client.
+ */
+public record S2C_ClearQueuePacket() {
+    public static void encode(S2C_ClearQueuePacket packet, FriendlyByteBuf buf) {
     }
 
-    public static C2S_CloseAllMessagesPacket decode(FriendlyByteBuf buf) {
-        return new C2S_CloseAllMessagesPacket();
+    public static S2C_ClearQueuePacket decode(FriendlyByteBuf buf) {
+        return new S2C_ClearQueuePacket();
     }
 
-    public static void handle(C2S_CloseAllMessagesPacket packet, Supplier<NetworkEvent.Context> ctx) {
+    public static void handle(S2C_ClearQueuePacket packet, Supplier<NetworkEvent.Context> ctx) {
         NetworkEvent.Context context = ctx.get();
         if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
             context.enqueueWork(() -> {
                 Minecraft mc = Minecraft.getInstance();
                 if (mc.player != null) {
-                    ClientMessageManager.closeAll();
+                    ImmersiveMessagesManager.clear();
                 }
             });
         }

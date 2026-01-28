@@ -1,5 +1,6 @@
 package net.tysontheember.emberstextapi.immersivemessages;
 
+import com.google.gson.JsonSyntaxException;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -26,9 +27,12 @@ import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
 import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
+import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage.TextureSizingMode;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 import org.slf4j.Logger;
+
+import java.util.List;
 
 @Mod.EventBusSubscriber(modid = EmbersTextAPI.MODID)
 public class MessageCommands {
@@ -36,8 +40,17 @@ public class MessageCommands {
 
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
+        // Register full command name
         event.getDispatcher().register(
             Commands.literal("emberstextapi")
+                .then(testSubcommand())
+                .then(sendSubcommand())
+                .then(customSubcommand())
+        );
+
+        // Register short alias
+        event.getDispatcher().register(
+            Commands.literal("eta")
                 .then(testSubcommand())
                 .then(sendSubcommand())
                 .then(customSubcommand())
@@ -46,41 +59,40 @@ public class MessageCommands {
 
     private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> testSubcommand() {
         return Commands.literal("test")
-            .then(Commands.argument("id", IntegerArgumentType.integer(1, 9))
+            .then(Commands.argument("id", IntegerArgumentType.integer(1, 33))
                 .executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
                     int id = IntegerArgumentType.getInteger(ctx, "id");
                     runTest(player, id);
                     return Command.SINGLE_SUCCESS;
-                }));
+                }))
+            .then(EffectTestCommands.buildEffectTestCommand())
+            .then(EffectTestCommands.buildComboCommand());
     }
 
     private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> sendSubcommand() {
         return Commands.literal("send")
             .then(Commands.argument("player", EntityArgument.player())
                 .then(Commands.argument("duration", FloatArgumentType.floatArg())
-                    .then(Commands.argument("fadeIn", IntegerArgumentType.integer(0))
-                        .then(Commands.argument("fadeOut", IntegerArgumentType.integer(0))
-                            .then(Commands.argument("text", StringArgumentType.greedyString())
-                                .executes(ctx -> sendBasicMessage(ctx,
-                                        IntegerArgumentType.getInteger(ctx, "fadeIn"),
-                                        IntegerArgumentType.getInteger(ctx, "fadeOut")))))
-                        .then(Commands.argument("text", StringArgumentType.greedyString())
-                            .executes(ctx -> sendBasicMessage(ctx,
-                                    IntegerArgumentType.getInteger(ctx, "fadeIn"), 0))))
                     .then(Commands.argument("text", StringArgumentType.greedyString())
-                        .executes(ctx -> sendBasicMessage(ctx, 0, 0)))));
+                        .executes(ctx -> sendBasicMessage(ctx)))));
     }
 
-    private static int sendBasicMessage(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx,
-                                        int fadeIn, int fadeOut) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    private static int sendBasicMessage(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
         float duration = FloatArgumentType.getFloat(ctx, "duration");
         String text = StringArgumentType.getString(ctx, "text");
-        EmbersTextAPI.sendMessage(target,
-                ImmersiveMessage.builder(duration, text)
-                        .fadeInTicks(fadeIn)
-                        .fadeOutTicks(fadeOut));
+        
+        // Support markup in basic send command
+        ImmersiveMessage msg;
+        if (text.contains("<") && text.contains(">")) {
+            msg = ImmersiveMessage.fromMarkup(duration, text);
+        } else {
+            msg = ImmersiveMessage.builder(duration, text);
+        }
+        
+        EmbersTextAPI.sendMessage(target, msg);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -102,8 +114,44 @@ public class MessageCommands {
                                     keys.put(k.toLowerCase(java.util.Locale.ROOT), k);
                                 }
 
-                                MutableComponent component = Component.translatable(text);
-                                if (tag.contains("font")) {
+                                // NEW: Check if text contains markup tags and use appropriate parsing
+                                ImmersiveMessage msg;
+                                if (text.contains("<") && text.contains(">")) {
+                                    // Use markup parser for span-based rendering
+                                    msg = ImmersiveMessage.fromMarkup(duration, text);
+                                    // Apply NBT data to span-based message
+                                    applyNbtToSpanMessage(msg, tag, keys);
+                                } else {
+                                    // Use legacy approach + json
+                                    // Credit to Hexagreen for the idea
+                                    MutableComponent component;
+
+                                    String raw = text;
+                                    String t = raw.trim();
+
+                                    if (t.regionMatches(true, 0, "tr:", 0, 3)) {
+                                        String after = t.substring(3).trim();
+                                        int space = after.indexOf(' ');
+                                        if (space == -1) {
+                                            component = Component.translatable(after);
+                                        } else {
+                                            String key = after.substring(0, space);
+                                            String rest = after.substring(space + 1);
+                                            component = Component.translatable(key).append(Component.literal(" " + rest));
+                                        }
+                                    }
+                                    else if ((t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"))) {
+                                        try {
+                                            component = Component.Serializer.fromJson(t);
+                                            if (component == null) component = Component.literal(raw);
+                                        } catch (JsonSyntaxException ignore) {
+                                            component = Component.literal(raw);
+                                        }
+                                    }
+                                    else {
+                                        component = Component.literal(raw);
+                                    }
+                                    if (tag.contains("font")) {
                                     ResourceLocation font = ResourceLocation.tryParse(tag.getString("font"));
                                     if (font != null) {
                                         component = component.withStyle(style -> style.withFont(font));
@@ -135,15 +183,11 @@ public class MessageCommands {
                                             component = component.withStyle(style -> style.withColor(parsed));
                                         }
                                     }
-                                }
+                                    }
 
-                                ImmersiveMessage msg = new ImmersiveMessage(component, duration);
-                                if (keys.containsKey("fadein")) {
-                                    msg.fadeInTicks(tag.getInt(keys.get("fadein")));
+                                    msg = new ImmersiveMessage(component, duration);
                                 }
-                                if (keys.containsKey("fadeout")) {
-                                    msg.fadeOutTicks(tag.getInt(keys.get("fadeout")));
-                                }
+                                // Fade-in/out are now handled via markup tags, not NBT
 
                                 // Text gradient (supports list of stops or {start,end})
                                 if (tag.contains("gradient", Tag.TAG_LIST)) {
@@ -385,13 +429,13 @@ public class MessageCommands {
             case 5 -> EmbersTextAPI.sendMessage(player,
                     ImmersiveMessage.builder(100f, "Wrapped text demo that is quite long").wrap(120));
             case 6 -> {
-                ResourceLocation font = new ResourceLocation(EmbersTextAPI.MODID, "norse");
+                ResourceLocation font = ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "norse");
                 Component text = Component.literal("\u16A0\u16A2\u16A6\u16A8\u16AB\u16B2").withStyle(s -> s.withFont(font));
-                EmbersTextAPI.sendMessage(player, new ImmersiveMessage(text, 100f));
+                EmbersTextAPI.sendMessage(player, new ImmersiveMessage(text, 100f).scale(5));
             }
             case 7 -> {
                 MutableComponent component = Component.literal("You shall die here...")
-                        .withStyle(s -> s.withFont(new ResourceLocation(EmbersTextAPI.MODID, "norse")))
+                        .withStyle(s -> s.withFont(ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "norse")))
                         .withStyle(s -> s.withBold(true));
                 ImmersiveMessage msg = new ImmersiveMessage(component, 250f)
                         .scale(2f)
@@ -407,7 +451,136 @@ public class MessageCommands {
                     ImmersiveMessage.builder(100f, "Wavy jitter")
                             .shake(ShakeType.WAVE, 0.5f)
                             .charShake(ShakeType.RANDOM, 2f));
+            // NEW: Span-based test cases (v2.0.0)
+            case 10 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<bold>Bold</bold> and <italic>italic</italic> text"));
+            case 11 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "<grad from=#ff0000 to=#00ff00>Gradient</grad> <typewriter speed=2.0>text!</typewriter>"));
+            case 12 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(200f, "<shake><grad from=#ff0000 to=#0000ff>Nested effects!</grad></shake>"));
+            case 13 -> {
+                // Test global background with span markup
+                CompoundTag data = new CompoundTag();
+                data.putBoolean("background", true);
+                data.putString("bgColor", "#AA004400");
+                data.putString("borderColor", "gold");
+                ImmersiveMessage msg = ImmersiveMessage.fromMarkup(150f, "<c value=white><bold>Framed markup text</bold></c> with <italic>styling</italic>");
+                applyNbtToSpanMessage(msg, data, createKeysMap(data));
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+            case 14 -> {
+                // Test global font with span markup
+                CompoundTag data = new CompoundTag();
+                data.putString("font", "emberstextapi:norse");
+                data.putBoolean("background", true);
+                ImmersiveMessage msg = ImmersiveMessage.fromMarkup(120f, "<grad from=gold to=red><bold>Norse font with gradient!</bold></grad>");
+                applyNbtToSpanMessage(msg, data, createKeysMap(data));
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+            case 15 -> {
+                // Test per-span fonts (font0, font1, etc.)
+                CompoundTag data = new CompoundTag();
+                data.putString("font0", "emberstextapi:norse");  // First span gets Norse font
+                data.putString("font1", "minecraft:alt");        // Second span gets alt font
+                // Note: Third span uses default font
+                data.putBoolean("background", true);
+                data.putString("bgColor", "#33000000");
+                ImmersiveMessage msg = ImmersiveMessage.fromMarkup(180f, "<bold>Norse</bold> <italic>Alt</italic> <c value=gold>Default</c>");
+                applyNbtToSpanMessage(msg, data, createKeysMap(data));
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+            case 16 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "You found <item value=\"minecraft:dirt\" size=1></item> x5 and <item value=\"minecraft:diamond\" size=1></item>!"));
+            case 17 -> {
+                // Programmatic item test
+                List<TextSpan> spans = new java.util.ArrayList<>();
+                spans.add(new TextSpan("You got "));
+                spans.add(new TextSpan("").item("minecraft:diamond", 3));
+                spans.add(new TextSpan(" diamonds!"));
+                ImmersiveMessage msg = new ImmersiveMessage(spans, 100f);
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+            case 18 -> {
+                // Simple markup test to debug parsing
+                String markup = "Test <item value=\"minecraft:gold_ingot\"></item> item";
+                LOGGER.info("Sending markup: {}", markup);
+                ImmersiveMessage msg = ImmersiveMessage.fromMarkup(100f, markup);
+                LOGGER.info("Parsed {} spans", msg.getSpans().size());
+                for (int idx = 0; idx < msg.getSpans().size(); idx++) {
+                    TextSpan s = msg.getSpans().get(idx);
+                    LOGGER.info("Span {}: content='{}', itemId='{}', itemCount={}", 
+                        idx, s.getContent(), s.getItemId(), s.getItemCount());
+                }
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+            case 19 -> {
+                // Item with custom offsets
+                EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "Item with offset: <item value=\"minecraft:emerald\" offsetX=2 offsetY=-3></item> test"));
+            }
+            case 20 -> {
+                // Programmatic item with offset
+                List<TextSpan> spans = new java.util.ArrayList<>();
+                spans.add(new TextSpan("Offset item: "));
+                spans.add(new TextSpan("").item("minecraft:redstone", 1).itemOffset(0, -2));
+                spans.add(new TextSpan(" raised"));
+                ImmersiveMessage msg = new ImmersiveMessage(spans, 100f);
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+            case 21 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "Beware of <entity value=\"minecraft:creeper\"></entity> ahead!").scale(4));
+            case 22 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "Small <entity value=\"minecraft:zombie\" scale=0.5></entity> mob").scale(4));
+            case 23 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "Side view <entity value=\"minecraft:skeleton\" yaw=90 pitch=0></entity> mob"));
+            case 24 -> {
+                // Programmatic entity test
+                List<TextSpan> spans = new java.util.ArrayList<>();
+                spans.add(new TextSpan("You see a "));
+                spans.add(new TextSpan("").entity("minecraft:pig", 0.7f));
+                spans.add(new TextSpan(" nearby"));
+                ImmersiveMessage msg = new ImmersiveMessage(spans, 100f).scale(4);
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+            case 25 -> {
+                // Entity with rotation
+                List<TextSpan> spans = new java.util.ArrayList<>();
+                spans.add(new TextSpan("Rotated "));
+                spans.add(new TextSpan("").entity("minecraft:cow", 0.7f).entityRotation(180, 20));
+                spans.add(new TextSpan(" facing away"));
+                ImmersiveMessage msg = new ImmersiveMessage(spans, 100f);
+                EmbersTextAPI.sendMessage(player, msg);
+            }
+
+            // NEW: Visual effects tests (v2.0.0)
+            case 26 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<rainbow>Rainbow Test</rainbow>"));
+            case 27 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<glitch>Glitch Test</glitch>"));
+            case 28 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<bounce>Bounce Test</bounce>"));
+            case 29 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<pulse>Pulse Test</pulse>"));
+            case 30 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<swing>Swing Test</swing>"));
+            case 31 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<turb>Turbulence Test</turb>"));
+            case 32 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<wave>Wave Test</wave>"));
+            case 33 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(150f, "<rainbow><wave>Combined Effects Test</wave></rainbow>"));
         }
+    }
+    
+    /**
+     * Helper method to create case-insensitive key lookup for NBT tags (used in test cases).
+     */
+    private static java.util.Map<String, String> createKeysMap(CompoundTag tag) {
+        java.util.Map<String, String> keys = new java.util.HashMap<>();
+        for (String k : tag.getAllKeys()) {
+            keys.put(k.toLowerCase(java.util.Locale.ROOT), k);
+        }
+        return keys;
     }
 
     private static TextColor parseColor(String value) {
@@ -435,5 +608,174 @@ public class MessageCommands {
 
         TextColor c = parseColor(value);
         return c != null ? new ImmersiveColor(0xFF000000 | c.getValue()) : null;
+    }
+    
+    /**
+     * Applies NBT data attributes to a span-based message.
+     * Background attributes are applied to the whole message.
+     * Font attributes can be applied to specific spans or globally.
+     */
+    private static void applyNbtToSpanMessage(ImmersiveMessage msg, CompoundTag tag, java.util.Map<String, String> keys) {
+        // Apply global message attributes (background, etc.)
+        // Note: Fade-in/out are now handled via markup tags, not NBT
+        
+        // Background attributes (applied to whole message)
+        if (tag.contains("background") && tag.getBoolean("background")) {
+            msg.background(true);
+        }
+        if (tag.contains("bgColor")) {
+            msg.bgColor(tag.getString("bgColor"));
+        }
+        if (tag.contains("bgAlpha")) {
+            msg.bgAlpha(tag.getFloat("bgAlpha"));
+        }
+        
+        // Background gradient
+        if (tag.contains("bgGradient", Tag.TAG_LIST)) {
+            ListTag list = tag.getList("bgGradient", Tag.TAG_STRING);
+            java.util.List<ImmersiveColor> cols = new java.util.ArrayList<>();
+            for (int i = 0; i < list.size(); i++) {
+                ImmersiveColor c = parseImmersiveColor(list.getString(i));
+                if (c != null) cols.add(c);
+            }
+            if (cols.size() >= 2) {
+                msg.background(true);
+                msg.backgroundGradient(cols.get(0), cols.get(cols.size() - 1));
+            }
+        } else if (tag.contains("bgGradient", Tag.TAG_COMPOUND)) {
+            CompoundTag grad = tag.getCompound("bgGradient");
+            ImmersiveColor start = parseImmersiveColor(grad.getString("start"));
+            ImmersiveColor end = parseImmersiveColor(grad.getString("end"));
+            if (start != null && end != null) {
+                msg.background(true);
+                msg.backgroundGradient(start, end);
+            }
+        }
+        
+        // Border gradient
+        if (tag.contains("borderGradient", Tag.TAG_LIST)) {
+            ListTag list = tag.getList("borderGradient", Tag.TAG_STRING);
+            java.util.List<ImmersiveColor> cols = new java.util.ArrayList<>();
+            for (int i = 0; i < list.size(); i++) {
+                ImmersiveColor c = parseImmersiveColor(list.getString(i));
+                if (c != null) cols.add(c);
+            }
+            if (cols.size() >= 2) {
+                msg.background(true);
+                msg.borderGradient(cols.get(0), cols.get(cols.size() - 1));
+            }
+        } else if (tag.contains("borderGradient", Tag.TAG_COMPOUND)) {
+            CompoundTag grad = tag.getCompound("borderGradient");
+            ImmersiveColor start = parseImmersiveColor(grad.getString("start"));
+            ImmersiveColor end = parseImmersiveColor(grad.getString("end"));
+            if (start != null && end != null) {
+                msg.background(true);
+                msg.borderGradient(start, end);
+            }
+        }
+        
+        // Border color
+        if (tag.contains("borderColor")) {
+            ImmersiveColor border = parseImmersiveColor(tag.getString("borderColor"));
+            if (border != null) {
+                msg.background(true);
+                msg.borderGradient(border, border);
+            }
+        }
+        
+        // Other global attributes
+        if (tag.contains("size")) {
+            msg.scale(tag.getFloat("size"));
+        }
+        if (tag.contains("wrap")) {
+            msg.wrap(tag.getInt("wrap"));
+        }
+        if (tag.contains("anchor")) {
+            msg.anchor(TextAnchor.valueOf(tag.getString("anchor").toUpperCase()));
+        }
+        if (tag.contains("align")) {
+            msg.align(TextAnchor.valueOf(tag.getString("align").toUpperCase()));
+        }
+        if (tag.contains("offsetX") || tag.contains("offsetY")) {
+            float x = tag.contains("offsetX") ? tag.getFloat("offsetX") : 0f;
+            float y = tag.contains("offsetY") ? tag.getFloat("offsetY") : 0f;
+            msg.offset(x, y);
+        }
+        if (tag.contains("shadow")) {
+            msg.shadow(tag.getBoolean("shadow"));
+        }
+        
+        // Texture background
+        if (tag.contains("textureBackground", Tag.TAG_STRING)) {
+            ResourceLocation texture = ResourceLocation.tryParse(tag.getString("textureBackground"));
+            if (texture != null) {
+                msg.textureBackground(texture);
+            }
+        } else if (tag.contains("textureBackground", Tag.TAG_COMPOUND)) {
+            CompoundTag tex = tag.getCompound("textureBackground");
+            String key = tex.contains("location") ? "location" : tex.contains("texture") ? "texture" : null;
+            ResourceLocation texture = key != null ? ResourceLocation.tryParse(tex.getString(key)) : null;
+            if (texture != null) {
+                int u = tex.contains("u") ? tex.getInt("u") : 0;
+                int v = tex.contains("v") ? tex.getInt("v") : 0;
+                int regionWidth = tex.contains("width") ? tex.getInt("width") : 256;
+                int regionHeight = tex.contains("height") ? tex.getInt("height") : 256;
+                int atlasWidth = tex.contains("atlasWidth") ? tex.getInt("atlasWidth") : regionWidth;
+                int atlasHeight = tex.contains("atlasHeight") ? tex.getInt("atlasHeight") : regionHeight;
+                msg.textureBackground(texture, u, v, regionWidth, regionHeight, atlasWidth, atlasHeight);
+                
+                if (tex.contains("padding")) {
+                    msg.textureBackgroundPadding(tex.getFloat("padding"));
+                }
+                if (tex.contains("paddingX") || tex.contains("paddingY")) {
+                    float padX = tex.contains("paddingX") ? tex.getFloat("paddingX") : Float.NaN;
+                    float padY = tex.contains("paddingY") ? tex.getFloat("paddingY") : Float.NaN;
+                    msg.textureBackgroundPadding(padX, padY);
+                }
+                if (tex.contains("scale")) {
+                    msg.textureBackgroundScale(tex.getFloat("scale"));
+                }
+            }
+        }
+        
+        // Apply font to all spans if specified globally
+        if (tag.contains("font")) {
+            ResourceLocation font = ResourceLocation.tryParse(tag.getString("font"));
+            if (font != null && msg.isSpanMode()) {
+                applyFontToAllSpans(msg, font);
+            }
+        }
+        
+        // Handle span-specific font attributes (e.g., font0, font1, etc.)
+        if (msg.isSpanMode()) {
+            applySpanSpecificFonts(msg, tag);
+        }
+    }
+    
+    /**
+     * Applies a font to all spans in a message.
+     */
+    private static void applyFontToAllSpans(ImmersiveMessage msg, ResourceLocation font) {
+        java.util.List<TextSpan> spans = msg.getSpans();
+        for (TextSpan span : spans) {
+            span.font(font);
+        }
+    }
+    
+    /**
+     * Applies span-specific fonts (font0, font1, etc.) to individual spans.
+     */
+    private static void applySpanSpecificFonts(ImmersiveMessage msg, CompoundTag tag) {
+        java.util.List<TextSpan> spans = msg.getSpans();
+        
+        for (int i = 0; i < spans.size(); i++) {
+            String fontKey = "font" + i;
+            if (tag.contains(fontKey)) {
+                ResourceLocation font = ResourceLocation.tryParse(tag.getString(fontKey));
+                if (font != null) {
+                    spans.get(i).font(font);
+                }
+            }
+        }
     }
 }

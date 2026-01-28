@@ -1,0 +1,24 @@
+{
+  "providers": [
+    {
+      "type": "ttf",
+      "file": "emberstextapi:metamorphous.ttf",
+      "size": 11.0,
+      "oversample": 4.0,
+      "shift": [0.0, 0.0],
+      "skip": []
+    },
+    {
+      "type": "reference",
+      "id": "minecraft:include/space"
+    },
+    {
+      "type": "reference",
+      "id": "minecraft:include/default"
+    },
+    {
+      "type": "reference",
+      "id": "minecraft:include/unifont"
+    }
+  ]
+}

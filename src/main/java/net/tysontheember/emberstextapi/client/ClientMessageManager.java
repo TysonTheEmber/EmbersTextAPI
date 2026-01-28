@@ -17,6 +17,14 @@ import java.util.UUID;
 
 @OnlyIn(Dist.CLIENT)
 @Mod.EventBusSubscriber(modid = EmbersTextAPI.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
+/**
+ * Client-side manager for all active immersive messages.
+ * <p>
+ * Maintains a map of active messages keyed by UUID, handles per-tick lifecycle
+ * (age advancement, expiry removal), and drives rendering via the GUI overlay hook.
+ * Also detects GUI scale changes and clears the {@link TextLayoutCache} accordingly.
+ * </p>
+ */
 public final class ClientMessageManager {
     private static final Map<UUID, ActiveMessage> ACTIVE = new LinkedHashMap<>();
     private static int lastGuiScale = -1;
