@@ -53,6 +53,9 @@ public class ViewStateTracker {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ViewStateTracker.class);
 
+    /** Minecraft's default font line height in pixels (at scale 1.0). */
+    private static final float LINE_HEIGHT_PIXELS = 9.0f;
+
     /**
      * Map of context identifiers to view start timestamps (milliseconds).
      * Thread-safe for concurrent access from render and event threads.
@@ -186,8 +189,7 @@ public class ViewStateTracker {
          * Used for tracking which characters belong to the same line.
          */
         private int getAbsoluteLineIndex(float absoluteY) {
-            // Round to nearest line (9 pixels per line in Minecraft)
-            return (int) Math.round(absoluteY / 9.0f);
+            return (int) Math.round(absoluteY / LINE_HEIGHT_PIXELS);
         }
 
         /**
@@ -195,8 +197,7 @@ public class ViewStateTracker {
          * Used for ordinal calculation.
          */
         private int getRelativeLineIndex(float relativeY) {
-            // Round to nearest line (9 pixels per line in Minecraft)
-            return Math.max(0, (int) Math.round(relativeY / 9.0f));
+            return Math.max(0, (int) Math.round(relativeY / LINE_HEIGHT_PIXELS));
         }
 
         private static String positionKey(float y, float x) {

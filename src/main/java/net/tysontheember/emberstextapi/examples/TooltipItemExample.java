@@ -6,8 +6,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 
 import java.util.List;
 
@@ -24,13 +22,16 @@ import java.util.List;
  * }</pre>
  * </p>
  */
-@Mod.EventBusSubscriber(modid = "emberstextapi", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class TooltipItemExample {
 
     /**
-     * Example 1: Simple crafting recipe tooltip
+     * Example: Simple crafting recipe tooltip.
+     * <p>
+     * This is demonstration code only. To activate, register this class
+     * as a Forge event handler in your mod's setup:
+     * <pre>{@code MinecraftForge.EVENT_BUS.register(TooltipItemExample.class);}</pre>
+     * </p>
      */
-    @SubscribeEvent
     public static void onItemTooltip(ItemTooltipEvent event) {
         ItemStack stack = event.getItemStack();
 

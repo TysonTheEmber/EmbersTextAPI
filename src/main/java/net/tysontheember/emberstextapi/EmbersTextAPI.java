@@ -65,7 +65,7 @@ public class EmbersTextAPI
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event)
         {
-            // Initialize effect registry with all built-in effects (v2.1.0)
+            // Initialize effect registry with all built-in effects
             event.enqueueWork(() -> {
                 EffectRegistry.initializeDefaultEffects();
                 LOGGER.info("EmbersTextAPI: Initialized visual effects system");

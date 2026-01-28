@@ -11,6 +11,16 @@ import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+/**
+ * Server-to-client packet that updates an existing active message.
+ * <p>
+ * If the message ID is not already active on the client, it will be created.
+ * Otherwise, the existing message is replaced with the new data.
+ * </p>
+ *
+ * @param id  Unique identifier of the message to update
+ * @param nbt NBT representation of the updated {@link ImmersiveMessage}
+ */
 public record S2C_UpdateMessagePacket(UUID id, CompoundTag nbt) {
     public static void encode(S2C_UpdateMessagePacket packet, FriendlyByteBuf buf) {
         buf.writeUUID(packet.id);

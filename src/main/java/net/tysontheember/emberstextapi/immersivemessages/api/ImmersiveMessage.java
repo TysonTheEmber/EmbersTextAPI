@@ -133,7 +133,7 @@ public class ImmersiveMessage {
     private boolean spanMode = false;
     private int[] spanTypewriterIndices; // Per-span typewriter progress
 
-    // NEW: Visual effects system (v2.1.0)
+    // NEW: Visual effects system (v2.0.0)
     private List<Effect> globalEffects;
     private List<EffectSegment> spanEffectSegments = Collections.emptyList();
 
@@ -613,7 +613,7 @@ public class ImmersiveMessage {
         return this;
     }
 
-    // NEW: Visual effects system (v2.1.0)
+    // NEW: Visual effects system (v2.0.0)
     /**
      * Add a global visual effect to this message.
      * Effects are applied to all characters in the message.
@@ -1024,7 +1024,7 @@ public class ImmersiveMessage {
         buf.writeVarInt(fadeInTicks);
         buf.writeVarInt(fadeOutTicks);
 
-        // NEW: Encode global effects (v2.1.0)
+        // NEW: Encode global effects (v2.0.0)
         buf.writeVarInt(globalEffects == null ? 0 : globalEffects.size());
         if (globalEffects != null && !globalEffects.isEmpty()) {
             for (Effect effect : globalEffects) {
@@ -1135,7 +1135,7 @@ public class ImmersiveMessage {
             msg.fadeOutTicks = Math.max(0, buf.readVarInt());
         }
 
-        // NEW: Decode global effects (v2.1.0)
+        // NEW: Decode global effects (v2.0.0)
         if (buf.isReadable()) {
             int effectCount = buf.readVarInt();
             if (effectCount > 0) {
@@ -1529,7 +1529,7 @@ public class ImmersiveMessage {
         }
         boolean hasInlineItems = spanMode && spans != null && hasItemSpans();
 
-        // NEW: Check for effects (v2.1.0)
+        // NEW: Check for effects (v2.0.0)
         boolean hasGlobalEffects = globalEffects != null && !globalEffects.isEmpty();
         boolean hasSpanEffects = spanMode && spans != null && spans.stream().anyMatch(s -> s.getEffects() != null && !s.getEffects().isEmpty());
 
@@ -1551,7 +1551,7 @@ public class ImmersiveMessage {
         if (onRender != null) {
             onRender.render(graphics, this, 0, 0, alpha);
         } else if (hasGlobalEffects || hasSpanEffects) {
-            // Use new effect rendering system (v2.1.0)
+            // Use new effect rendering system (v2.0.0)
             EmbersTextAPI.LOGGER.debug("Calling renderWithEffects");
             renderWithEffects(graphics, lines, draw, colour, textStartX, textStartY);
         } else if ((charShake || hasCharShakeSpans()) && !hasInlineItems) {
@@ -1691,7 +1691,7 @@ public class ImmersiveMessage {
     }
 
     /**
-     * Build effect segments from spans with effects (v2.1.0).
+     * Build effect segments from spans with effects (v2.0.0).
      * This creates a mapping of character indices to their associated effects.
      */
     private void buildEffectSegments() {
@@ -1750,7 +1750,7 @@ public class ImmersiveMessage {
     }
 
     /**
-     * Segment mapping for visual effects (v2.1.0).
+     * Segment mapping for visual effects (v2.0.0).
      * Maps character ranges to their associated effects.
      */
     private static class EffectSegment {
@@ -1994,7 +1994,7 @@ public class ImmersiveMessage {
     }
 
     /**
-     * Render with effects applied per-character (v2.1.0).
+     * Render with effects applied per-character (v2.0.0).
      * This method applies both span-level and global effects to each character.
      */
     private void renderWithEffects(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int baseColour, float baseX, float baseY) {
@@ -2041,10 +2041,20 @@ public class ImmersiveMessage {
                                         float baseX, float baseY,
                                         float baseR, float baseG, float baseB, float baseA,
                                         int charIndex, boolean isShadow, float[] xAdvanceOut) {
-        // Import EffectSettings and EffectContext
+        // Use the character's style color (from span styling) as the base RGB,
+        // falling back to the message-level color. This ensures effects like rainbow
+        // compose correctly on top of span colors.
+        float effR = baseR, effG = baseG, effB = baseB;
+        if (style.getColor() != null) {
+            int styleColor = style.getColor().getValue();
+            effR = ((styleColor >> 16) & 0xFF) / 255f;
+            effG = ((styleColor >> 8) & 0xFF) / 255f;
+            effB = (styleColor & 0xFF) / 255f;
+        }
+
         var settings = new net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings(
                 0f, 0f,  // x, y offsets start at 0
-                baseR, baseG, baseB, baseA,
+                effR, effG, effB, baseA,
                 charIndex, codePoint, isShadow
         );
         // Set obfuscate identity and span bounds when applicable
@@ -2059,22 +2069,26 @@ public class ImmersiveMessage {
             settings.obfuscateKey = this;
         }
 
-        // Set message context ID for persistent effects (prevents tooltip hovers from resetting)
-        // TODO: Re-enable when messageContextId field is added back to EffectSettings
-        // settings.messageContextId = this.messageContextId;
-
         // Apply global effects first
         if (globalEffects != null && !globalEffects.isEmpty()) {
             net.tysontheember.emberstextapi.immersivemessages.effects.EffectContext.applyEffects(globalEffects, settings);
         }
 
-        // Apply span-level effects (v2.1.0)
+        // Apply span-level effects (v2.0.0)
         if (!spanEffectSegments.isEmpty()) {
             // Find the effect segment for this character index
             for (EffectSegment segment : spanEffectSegments) {
                 if (charIndex >= segment.startIndex && charIndex < segment.endIndex) {
+                    // Use span-relative index for animation effects (typewriter, obfuscate)
+                    // so they operate on 0..spanLength-1 rather than the global char position
+                    int spanLocalIndex = charIndex - segment.startIndex;
+                    settings.index = spanLocalIndex;
+                    settings.absoluteIndex = spanLocalIndex;
                     // Apply this span's effects
                     net.tysontheember.emberstextapi.immersivemessages.effects.EffectContext.applyEffects(segment.effects, settings);
+                    // Restore global index for any subsequent logic
+                    settings.index = charIndex;
+                    settings.absoluteIndex = charIndex;
                     break;
                 }
             }
@@ -2083,8 +2097,16 @@ public class ImmersiveMessage {
         // Clamp colors to valid range
         settings.clampColors();
 
+        // Determine effective codepoint and style for rendering
+        int effectiveCp = settings.codepoint;
+        net.minecraft.network.chat.Style effectiveStyle = style;
+        if (settings.useRandomGlyph) {
+            // Use Minecraft's native §k obfuscation for authentic random glyph rendering
+            effectiveStyle = style.applyFormat(net.minecraft.ChatFormatting.OBFUSCATED);
+        }
+
         // Render main character with effect-modified settings
-        renderSingleChar(graphics, font, codePoint, style,
+        renderSingleChar(graphics, font, effectiveCp, effectiveStyle,
                 baseX + settings.x, baseY + settings.y,
                 settings.rot, settings.getPackedColor(), xAdvanceOut);
 
@@ -2105,8 +2127,19 @@ public class ImmersiveMessage {
                                    int codePoint, net.minecraft.network.chat.Style style,
                                    float x, float y, float rotation, int color,
                                    float[] xAdvanceOut) {
+        // Skip fully transparent characters (e.g. typewriter unrevealed)
+        if ((color & 0xFF000000) == 0) {
+            if (xAdvanceOut != null) {
+                xAdvanceOut[0] += font.width(new String(Character.toChars(codePoint)));
+            }
+            return;
+        }
+
         String ch = new String(Character.toChars(codePoint));
-        Component comp = Component.literal(ch).withStyle(style);
+        // Strip the style's color so our explicit color parameter (with effect-computed ARGB)
+        // is used by drawString. Minecraft's renderer ignores the color param when the style
+        // has its own color, which breaks typewriter (alpha=0) and fade (partial alpha).
+        Component comp = Component.literal(ch).withStyle(style.withColor((TextColor) null));
         FormattedCharSequence charSeq = comp.getVisualOrderText();
 
         // Calculate character width

@@ -8,6 +8,10 @@ import net.tysontheember.emberstextapi.client.ClientMessageManager;
 
 import java.util.function.Supplier;
 
+/**
+ * Server-to-client packet that closes all active messages on the client.
+ * Equivalent to calling {@link ClientMessageManager#closeAll()}.
+ */
 public record S2C_CloseAllMessagesPacket() {
     public static void encode(S2C_CloseAllMessagesPacket packet, FriendlyByteBuf buf) {
     }

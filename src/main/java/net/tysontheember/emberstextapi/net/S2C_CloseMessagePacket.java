@@ -9,6 +9,11 @@ import net.tysontheember.emberstextapi.client.ClientMessageManager;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+/**
+ * Server-to-client packet that closes (removes) a single active message by ID.
+ *
+ * @param id Unique identifier of the message to close
+ */
 public record S2C_CloseMessagePacket(UUID id) {
     public static void encode(S2C_CloseMessagePacket packet, FriendlyByteBuf buf) {
         buf.writeUUID(packet.id);

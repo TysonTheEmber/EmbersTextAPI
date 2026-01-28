@@ -192,8 +192,8 @@ public class MarkupParser {
         if (source.getStrikethrough() != null) target.strikethrough(source.getStrikethrough());
         if (source.getObfuscated() != null) target.obfuscated(source.getObfuscated());
         if (source.getFont() != null) target.font(source.getFont());
-        // OLD gradient system removed - use new GradientEffect instead (v2.1.0)
-        // Inherit effects (v2.1.0)
+        // OLD gradient system removed - use new GradientEffect instead (v2.0.0)
+        // Inherit effects (v2.0.0)
         if (source.getEffects() != null) {
             for (var effect : source.getEffects()) {
                 target.addEffect(effect);
@@ -316,13 +316,13 @@ public class MarkupParser {
             }
             
             case "grad", "gradient" -> {
-                // Always use new GradientEffect (v2.1.0)
+                // Always use new GradientEffect (v2.0.0)
                 String tagContent = buildEffectTag("grad", attributes);
                 span.effect(tagContent);
             }
             
             case "typewriter", "type" -> {
-                // Use new TypewriterEffect (v2.1.0+)
+                // Use new TypewriterEffect (v2.0.0)
                 // Parameters: s (speed), d (delay), c (cycle)
                 String tagContent = buildEffectTag("typewriter", attributes);
                 span.effect(tagContent);
@@ -342,7 +342,7 @@ public class MarkupParser {
                     String tagContent = buildEffectTag(effectName, attributes);
                     span.effect(tagContent);
                 } else {
-                    // NEW SYSTEM: Use ShakeEffect directly (v2.1.0)
+                    // NEW SYSTEM: Use ShakeEffect directly (v2.0.0)
                     String tagContent = buildEffectTag("shake", attributes);
                     span.effect(tagContent);
                 }
@@ -364,7 +364,7 @@ public class MarkupParser {
             }
             
             case "wave" -> {
-                // Use new WaveEffect (v2.1.0) instead of charShake-based wave
+                // Use new WaveEffect (v2.0.0) instead of charShake-based wave
                 String tagContent = buildEffectTag("wave", attributes);
                 span.effect(tagContent);
 
@@ -480,7 +480,7 @@ public class MarkupParser {
                                      attrs.containsKey("g") || attrs.containsKey("b");
 
                 if (isNewEffect) {
-                    // Use new ShadowEffect (v2.1.0)
+                    // Use new ShadowEffect (v2.0.0)
                     String tagContent = buildEffectTag("shadow", attributes);
                     span.effect(tagContent);
                 } else {
@@ -497,7 +497,7 @@ public class MarkupParser {
                                      attrs.containsKey("w");
 
                 if (isNewEffect) {
-                    // Use new FadeEffect (v2.1.0)
+                    // Use new FadeEffect (v2.0.0)
                     String tagContent = buildEffectTag("fade", attributes);
                     span.effect(tagContent);
                 } else {
@@ -620,7 +620,7 @@ public class MarkupParser {
                 }
             }
 
-            // NEW: Visual effects (v2.1.0)
+            // NEW: Visual effects (v2.0.0)
             // These are recognized effect names that get delegated to the effect system
             case "rainbow", "rainb" -> {
                 // Build tag content from effect name and attributes
