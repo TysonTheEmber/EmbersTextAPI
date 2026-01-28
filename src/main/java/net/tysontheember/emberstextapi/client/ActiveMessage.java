@@ -9,6 +9,13 @@ import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 
 import java.util.UUID;
 
+/**
+ * Wraps an {@link ImmersiveMessage} with its unique ID for lifecycle management.
+ * <p>
+ * Owned by {@link ClientMessageManager}. Drives per-tick updates (age advancement)
+ * and delegates rendering to the underlying message.
+ * </p>
+ */
 @OnlyIn(Dist.CLIENT)
 public final class ActiveMessage {
     private final UUID id;
