@@ -17,7 +17,7 @@ import java.util.List;
 public class TextSpan {
     private final String content;
 
-    // NEW: Visual effects (v2.1.0)
+    // NEW: Visual effects (v2.0.0)
     private List<Effect> effects;
     
     // Basic text styling
@@ -246,7 +246,7 @@ public class TextSpan {
     public TextSpan obfuscated(boolean obfuscated) { this.obfuscated = obfuscated; return this; }
     public TextSpan font(ResourceLocation font) { this.font = font; return this; }
 
-    // NEW: Effect methods (v2.1.0)
+    // NEW: Effect methods (v2.0.0)
     /**
      * Add a visual effect to this span.
      * Effects are applied in the order they are added.
@@ -889,7 +889,7 @@ public class TextSpan {
             }
         }
 
-        // NEW: Encode effects (v2.1.0)
+        // NEW: Encode effects (v2.0.0)
         buf.writeVarInt(effects == null ? 0 : effects.size());
         if (effects != null && !effects.isEmpty()) {
             for (Effect effect : effects) {
@@ -1106,7 +1106,7 @@ public class TextSpan {
             }
         }
 
-        // Decode effects with count and length validation (v2.1.0)
+        // Decode effects with count and length validation (v2.0.0)
         int effectCount = buf.readVarInt();
         if (effectCount < 0 || effectCount > MAX_ARRAY_SIZE) {
             throw new IllegalArgumentException("Invalid effect count: " + effectCount);

@@ -11,6 +11,16 @@ import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+/**
+ * Server-to-client packet that opens (creates) a new immersive message.
+ * <p>
+ * Carries a unique message ID and the full NBT-serialized {@link ImmersiveMessage}.
+ * The client deserializes and registers the message with {@link ClientMessageManager}.
+ * </p>
+ *
+ * @param id  Unique identifier for this message instance
+ * @param nbt NBT representation of the {@link ImmersiveMessage}
+ */
 public record S2C_OpenMessagePacket(UUID id, CompoundTag nbt) {
     public static void encode(S2C_OpenMessagePacket packet, FriendlyByteBuf buf) {
         buf.writeUUID(packet.id);

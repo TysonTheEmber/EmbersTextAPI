@@ -524,7 +524,7 @@ public class MessageCommands {
                 EmbersTextAPI.sendMessage(player, msg);
             }
 
-            // NEW: Visual effects tests (v2.1.0)
+            // NEW: Visual effects tests (v2.0.0)
             case 26 -> EmbersTextAPI.sendMessage(player,
                     ImmersiveMessage.fromMarkup(100f, "<rainbow>Rainbow Test</rainbow>"));
             case 27 -> EmbersTextAPI.sendMessage(player,
