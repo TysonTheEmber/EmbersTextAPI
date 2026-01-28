@@ -75,62 +75,62 @@ public class PlayerJoinEventHandler {
         player.sendSystemMessage(Component.literal(""));
 
         // Message duration in seconds
-        float duration = 8.0f;
+//        float duration = 8.0f;
 
-        // Showcase 1: Gradient + Typewriter
-        ImmersiveMessage msg1 = ImmersiveMessage.fromMarkup(
-            duration,
-            "<gradient from=\"#FFaa00\" to=\"#FF5500\"><typewriter speed=\"50\">Gradient + Typewriter Effect</typewriter></gradient>"
-        );
-        msg1.anchor(TextAnchor.TOP_CENTER);
-        msg1.offset(0, 80f);
-        msg1.background(true);
-        msg1.scale(1.3f);
-        EmbersTextAPI.sendMessage(player, msg1);
-
-        // Showcase 2: Shake + Fade
-        ImmersiveMessage msg2 = ImmersiveMessage.fromMarkup(
-            duration,
-            "<fade><shake>Shake + Fade Effect!</shake></fade>"
-        );
-        msg2.anchor(TextAnchor.TOP_CENTER);
-        msg2.offset(0, 110f);
-        msg2.background(true);
-        msg2.scale(1.2f);
-        EmbersTextAPI.sendMessage(player, msg2);
-
-        // Showcase 3: Progressive Obfuscation
-        ImmersiveMessage msg3 = ImmersiveMessage.fromMarkup(
-            duration,
-            "<obfuscate mode=\"progressive\" speed=\"0.05\">Progressive De-obfuscation</obfuscate>"
-        );
-        msg3.anchor(TextAnchor.TOP_CENTER);
-        msg3.offset(0, 135f);
-        msg3.background(true);
-        msg3.scale(1.1f);
-        EmbersTextAPI.sendMessage(player, msg3);
-
-        // Showcase 4: Rainbow Gradient
-        ImmersiveMessage msg4 = ImmersiveMessage.fromMarkup(
-            duration,
-            "<gradient from=\"#FF0000\" via=\"#FFFF00,#00FF00,#00FFFF\" to=\"#FF00FF\">Rainbow Gradient</gradient>"
-        );
-        msg4.anchor(TextAnchor.TOP_CENTER);
-        msg4.offset(0, 160f);
-        msg4.background(true);
-        msg4.scale(1.2f);
-        EmbersTextAPI.sendMessage(player, msg4);
-
-        // Showcase 5: Multiple effects combined
-        ImmersiveMessage msg5 = ImmersiveMessage.fromMarkup(
-            duration,
-            "<gradient from=\"#55FF55\" to=\"#00FF88\"><typewriter speed=\"40\"><shake intensity=\"0.5\">Combine Multiple Effects!</shake></typewriter></gradient>"
-        );
-        msg5.anchor(TextAnchor.TOP_CENTER);
-        msg5.offset(0, 185f);
-        msg5.background(true);
-        msg5.scale(1.3f);
-        EmbersTextAPI.sendMessage(player, msg5);
+//        // Showcase 1: Gradient + Typewriter
+//        ImmersiveMessage msg1 = ImmersiveMessage.fromMarkup(
+//            duration,
+//            "<gradient from=\"#FFaa00\" to=\"#FF5500\"><typewriter speed=\"50\">Gradient + Typewriter Effect</typewriter></gradient>"
+//        );
+//        msg1.anchor(TextAnchor.TOP_CENTER);
+//        msg1.offset(0, 80f);
+//        msg1.background(true);
+//        msg1.scale(1.3f);
+//        EmbersTextAPI.sendMessage(player, msg1);
+//
+//        // Showcase 2: Shake + Fade
+//        ImmersiveMessage msg2 = ImmersiveMessage.fromMarkup(
+//            duration,
+//            "<fade><shake>Shake + Fade Effect!</shake></fade>"
+//        );
+//        msg2.anchor(TextAnchor.TOP_CENTER);
+//        msg2.offset(0, 110f);
+//        msg2.background(true);
+//        msg2.scale(1.2f);
+//        EmbersTextAPI.sendMessage(player, msg2);
+//
+//        // Showcase 3: Progressive Obfuscation
+//        ImmersiveMessage msg3 = ImmersiveMessage.fromMarkup(
+//            duration,
+//            "<obfuscate mode=\"progressive\" speed=\"0.05\">Progressive De-obfuscation</obfuscate>"
+//        );
+//        msg3.anchor(TextAnchor.TOP_CENTER);
+//        msg3.offset(0, 135f);
+//        msg3.background(true);
+//        msg3.scale(1.1f);
+//        EmbersTextAPI.sendMessage(player, msg3);
+//
+//        // Showcase 4: Rainbow Gradient
+//        ImmersiveMessage msg4 = ImmersiveMessage.fromMarkup(
+//            duration,
+//            "<gradient from=\"#FF0000\" via=\"#FFFF00,#00FF00,#00FFFF\" to=\"#FF00FF\">Rainbow Gradient</gradient>"
+//        );
+//        msg4.anchor(TextAnchor.TOP_CENTER);
+//        msg4.offset(0, 160f);
+//        msg4.background(true);
+//        msg4.scale(1.2f);
+//        EmbersTextAPI.sendMessage(player, msg4);
+//
+//        // Showcase 5: Multiple effects combined
+//        ImmersiveMessage msg5 = ImmersiveMessage.fromMarkup(
+//            duration,
+//            "<gradient from=\"#55FF55\" to=\"#00FF88\"><typewriter speed=\"40\"><shake intensity=\"0.5\">Combine Multiple Effects!</shake></typewriter></gradient>"
+//        );
+//        msg5.anchor(TextAnchor.TOP_CENTER);
+//        msg5.offset(0, 185f);
+//        msg5.background(true);
+//        msg5.scale(1.3f);
+//        EmbersTextAPI.sendMessage(player, msg5);
 
         // Send command info in chat
         player.sendSystemMessage(Component.literal("Type ")
