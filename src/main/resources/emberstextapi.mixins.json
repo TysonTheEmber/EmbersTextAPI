@@ -3,7 +3,7 @@
   "minVersion": "0.8",
   "package": "net.tysontheember.emberstextapi.mixin",
   "compatibilityLevel": "JAVA_17",
-  "refmap": "emberstextapi.refmap.json",
+  "refmap": "emberstextapi.mixins.refmap.json",
   "mixins": [
     "StyleMixin"
   ],

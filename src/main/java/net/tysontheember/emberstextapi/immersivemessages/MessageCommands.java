@@ -1,5 +1,6 @@
 package net.tysontheember.emberstextapi.immersivemessages;
 
+import com.google.gson.JsonSyntaxException;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -121,9 +122,36 @@ public class MessageCommands {
                                     // Apply NBT data to span-based message
                                     applyNbtToSpanMessage(msg, tag, keys);
                                 } else {
-                                    // Use legacy approach
-                                    MutableComponent component = Component.literal(text);
-                                if (tag.contains("font")) {
+                                    // Use legacy approach + json
+                                    // Credit to Hexagreen for the idea
+                                    MutableComponent component;
+
+                                    String raw = text;
+                                    String t = raw.trim();
+
+                                    if (t.regionMatches(true, 0, "tr:", 0, 3)) {
+                                        String after = t.substring(3).trim();
+                                        int space = after.indexOf(' ');
+                                        if (space == -1) {
+                                            component = Component.translatable(after);
+                                        } else {
+                                            String key = after.substring(0, space);
+                                            String rest = after.substring(space + 1);
+                                            component = Component.translatable(key).append(Component.literal(" " + rest));
+                                        }
+                                    }
+                                    else if ((t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"))) {
+                                        try {
+                                            component = Component.Serializer.fromJson(t);
+                                            if (component == null) component = Component.literal(raw);
+                                        } catch (JsonSyntaxException ignore) {
+                                            component = Component.literal(raw);
+                                        }
+                                    }
+                                    else {
+                                        component = Component.literal(raw);
+                                    }
+                                    if (tag.contains("font")) {
                                     ResourceLocation font = ResourceLocation.tryParse(tag.getString("font"));
                                     if (font != null) {
                                         component = component.withStyle(style -> style.withFont(font));
