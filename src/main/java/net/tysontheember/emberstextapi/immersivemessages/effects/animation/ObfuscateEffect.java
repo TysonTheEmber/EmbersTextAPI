@@ -1,4 +1,4 @@
-package net.tysontheember.emberstextapi.immersivemessages.effects.visual;
+package net.tysontheember.emberstextapi.immersivemessages.effects.animation;
 
 import net.minecraft.Util;
 import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;

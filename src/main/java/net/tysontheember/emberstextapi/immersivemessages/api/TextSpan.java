@@ -5,6 +5,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
+import net.tysontheember.emberstextapi.immersivemessages.util.ColorParser;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 
 import java.util.ArrayList;
@@ -232,10 +233,10 @@ public class TextSpan {
     public TextSpan color(TextColor color) { this.color = color; return this; }
     public TextSpan color(int rgb) { return color(TextColor.fromRgb(rgb)); }
     public TextSpan color(String value) {
-        ChatFormatting fmt = ChatFormatting.getByName(value);
-        if (fmt != null) return color(TextColor.fromLegacyFormat(fmt));
-        TextColor parsed = TextColor.parseColor(value);
-        if (parsed != null) this.color = parsed;
+        TextColor parsed = ColorParser.parseTextColor(value);
+        if (parsed != null) {
+            this.color = parsed;
+        }
         return this;
     }
     
@@ -334,8 +335,7 @@ public class TextSpan {
             TextColor[] colors = new TextColor[values.length];
             boolean allValid = true;
             for (int i = 0; i < values.length; i++) {
-                ChatFormatting fmt = ChatFormatting.getByName(values[i]);
-                colors[i] = fmt != null ? TextColor.fromLegacyFormat(fmt) : TextColor.parseColor(values[i]);
+                colors[i] = ColorParser.parseTextColor(values[i]);
                 if (colors[i] == null) {
                     allValid = false;
                     break;
@@ -679,466 +679,281 @@ public class TextSpan {
     public String toString() {
         return "TextSpan{content='" + content + "', styling=" + hasCustomStyling() + "}";
     }
-    
-    // Serialization support for network transmission
-    public void encode(net.minecraft.network.FriendlyByteBuf buf) {
-        buf.writeUtf(content);
-        
-        // Encode style properties (using null-safe booleans)
-        buf.writeBoolean(bold != null && bold);
-        buf.writeBoolean(italic != null && italic);
-        buf.writeBoolean(underline != null && underline);
-        buf.writeBoolean(strikethrough != null && strikethrough);
-        buf.writeBoolean(obfuscated != null && obfuscated);
-        
-        buf.writeBoolean(color != null);
-        if (color != null) {
-            buf.writeInt(color.getValue());
-        }
-        buf.writeBoolean(font != null);
-        if (font != null) {
-            buf.writeResourceLocation(font);
-        }
-        
-        // Encode gradient colors
-        buf.writeBoolean(gradientColors != null);
-        if (gradientColors != null) {
-            buf.writeVarInt(gradientColors.length);
-            for (net.minecraft.network.chat.TextColor gradientColor : gradientColors) {
-                buf.writeInt(gradientColor.getValue());
-            }
-        }
-        
-        // Encode other effect properties
-        buf.writeBoolean(typewriterSpeed != null);
-        if (typewriterSpeed != null) {
-            buf.writeFloat(typewriterSpeed);
-            buf.writeBoolean(typewriterCenter != null && typewriterCenter);
-        }
-        
-        buf.writeBoolean(shakeType != null);
-        if (shakeType != null) {
-            buf.writeEnum(shakeType);
-            buf.writeFloat(shakeAmplitude != null ? shakeAmplitude : 0f);
-            buf.writeBoolean(shakeSpeed != null);
-            if (shakeSpeed != null) {
-                buf.writeFloat(shakeSpeed);
-            }
-            buf.writeBoolean(shakeWavelength != null);
-            if (shakeWavelength != null) {
-                buf.writeFloat(shakeWavelength);
-            }
-        }
-        
-        buf.writeBoolean(charShakeType != null);
-        if (charShakeType != null) {
-            buf.writeEnum(charShakeType);
-            buf.writeFloat(charShakeAmplitude != null ? charShakeAmplitude : 0f);
-            buf.writeBoolean(charShakeSpeed != null);
-            if (charShakeSpeed != null) {
-                buf.writeFloat(charShakeSpeed);
-            }
-            buf.writeBoolean(charShakeWavelength != null);
-            if (charShakeWavelength != null) {
-                buf.writeFloat(charShakeWavelength);
-            }
-        }
-        
-        buf.writeBoolean(obfuscateMode != null);
-        if (obfuscateMode != null) {
-            buf.writeEnum(obfuscateMode);
-            buf.writeFloat(obfuscateSpeed != null ? obfuscateSpeed : 1f);
-        }
-        
-        buf.writeBoolean(hasBackground != null && hasBackground);
-        buf.writeBoolean(backgroundColor != null);
-        if (backgroundColor != null) {
-            buf.writeInt(backgroundColor.getARGB());
-        }
-        
-        buf.writeBoolean(backgroundGradient != null);
-        if (backgroundGradient != null) {
-            buf.writeVarInt(backgroundGradient.length);
-            for (ImmersiveColor bgColor : backgroundGradient) {
-                buf.writeInt(bgColor.getARGB());
-            }
-        }
-        
-        // Encode global message attributes
-        buf.writeBoolean(globalBackground != null && globalBackground);
-        buf.writeBoolean(globalBackgroundColor != null);
-        if (globalBackgroundColor != null) {
-            buf.writeInt(globalBackgroundColor.getARGB());
-        }
-        
-        buf.writeBoolean(globalBackgroundGradient != null);
-        if (globalBackgroundGradient != null) {
-            buf.writeVarInt(globalBackgroundGradient.length);
-            for (ImmersiveColor bgColor : globalBackgroundGradient) {
-                buf.writeInt(bgColor.getARGB());
-            }
-        }
-        
-        buf.writeBoolean(globalBorderStart != null);
-        if (globalBorderStart != null) {
-            buf.writeInt(globalBorderStart.getARGB());
-        }
-        buf.writeBoolean(globalBorderEnd != null);
-        if (globalBorderEnd != null) {
-            buf.writeInt(globalBorderEnd.getARGB());
-        }
-        
-        buf.writeBoolean(globalXOffset != null);
-        if (globalXOffset != null) {
-            buf.writeFloat(globalXOffset);
-        }
-        buf.writeBoolean(globalYOffset != null);
-        if (globalYOffset != null) {
-            buf.writeFloat(globalYOffset);
-        }
-        
-        buf.writeBoolean(globalAnchor != null);
-        if (globalAnchor != null) {
-            buf.writeEnum(globalAnchor);
-        }
-        buf.writeBoolean(globalAlign != null);
-        if (globalAlign != null) {
-            buf.writeEnum(globalAlign);
-        }
-        
-        buf.writeBoolean(globalScale != null);
-        if (globalScale != null) {
-            buf.writeFloat(globalScale);
-        }
-        
-        buf.writeBoolean(globalShadow != null);
-        if (globalShadow != null) {
-            buf.writeBoolean(globalShadow);
-        }
-        
-        buf.writeBoolean(globalFadeInTicks != null);
-        if (globalFadeInTicks != null) {
-            buf.writeInt(globalFadeInTicks);
-        }
-        buf.writeBoolean(globalFadeOutTicks != null);
-        if (globalFadeOutTicks != null) {
-            buf.writeInt(globalFadeOutTicks);
-        }
-        
-        // Encode per-span fade effects
-        buf.writeBoolean(fadeInTicks != null);
-        if (fadeInTicks != null) {
-            buf.writeInt(fadeInTicks);
-        }
-        buf.writeBoolean(fadeOutTicks != null);
-        if (fadeOutTicks != null) {
-            buf.writeInt(fadeOutTicks);
-        }
-        
-        // Encode item rendering
-        buf.writeBoolean(itemId != null);
-        if (itemId != null) {
-            buf.writeUtf(itemId);
-            buf.writeVarInt(itemCount != null ? itemCount : 1);
-            buf.writeBoolean(itemOffsetX != null);
-            if (itemOffsetX != null) {
-                buf.writeFloat(itemOffsetX);
-            }
-            buf.writeBoolean(itemOffsetY != null);
-            if (itemOffsetY != null) {
-                buf.writeFloat(itemOffsetY);
-            }
-        }
-        
-        // Encode entity rendering
-        buf.writeBoolean(entityId != null);
-        if (entityId != null) {
-            buf.writeUtf(entityId);
-            buf.writeFloat(entityScale != null ? entityScale : 1.0f);
-            buf.writeBoolean(entityOffsetX != null);
-            if (entityOffsetX != null) {
-                buf.writeFloat(entityOffsetX);
-            }
-            buf.writeBoolean(entityOffsetY != null);
-            if (entityOffsetY != null) {
-                buf.writeFloat(entityOffsetY);
-            }
-            buf.writeBoolean(entityYaw != null);
-            if (entityYaw != null) {
-                buf.writeFloat(entityYaw);
-            }
-            buf.writeBoolean(entityPitch != null);
-            if (entityPitch != null) {
-                buf.writeFloat(entityPitch);
-            }
-            buf.writeBoolean(entityRoll != null);
-            if (entityRoll != null) {
-                buf.writeFloat(entityRoll);
-            }
-            buf.writeBoolean(entityLighting != null);
-            if (entityLighting != null) {
-                buf.writeVarInt(entityLighting);
-            }
-            buf.writeBoolean(entitySpin != null);
-            if (entitySpin != null) {
-                buf.writeFloat(entitySpin);
-            }
-            buf.writeBoolean(entityAnimation != null);
-            if (entityAnimation != null) {
-                buf.writeUtf(entityAnimation);
-            }
-        }
 
-        // NEW: Encode effects (v2.0.0)
-        buf.writeVarInt(effects == null ? 0 : effects.size());
-        if (effects != null && !effects.isEmpty()) {
-            for (Effect effect : effects) {
-                buf.writeUtf(effect.serialize());
-            }
-        }
-    }
-    
-    // ===== Network Packet Validation Constants =====
-    /** Maximum allowed content string length (64KB should be more than enough for any text span) */
-    private static final int MAX_CONTENT_LENGTH = 65536;
-    /** Maximum allowed ID string length (ResourceLocation format: namespace:path) */
-    private static final int MAX_ID_LENGTH = 256;
-    /** Maximum allowed effect tag length */
-    private static final int MAX_EFFECT_TAG_LENGTH = 512;
-    /** Maximum allowed array size for colors/effects to prevent memory abuse */
-    private static final int MAX_ARRAY_SIZE = 256;
-    /** Maximum allowed item count */
-    private static final int MAX_ITEM_COUNT = 64;
-    /** Maximum allowed scale value */
-    private static final float MAX_SCALE = 100.0f;
-    /** Maximum allowed offset value (pixels) */
-    private static final float MAX_OFFSET = 10000.0f;
+    // ===== Internal Setters for Serialization Codec =====
+    // These methods are used by TextSpanCodec for network deserialization.
+    // They are not intended for general use - prefer the builder methods above.
 
-    public static TextSpan decode(net.minecraft.network.FriendlyByteBuf buf) {
-        // Validate and read content with length limit
-        String content = buf.readUtf(MAX_CONTENT_LENGTH);
-        TextSpan span = new TextSpan(content);
-
-        // Decode style properties
-        if (buf.readBoolean()) span.bold = true;
-        if (buf.readBoolean()) span.italic = true;
-        if (buf.readBoolean()) span.underline = true;
-        if (buf.readBoolean()) span.strikethrough = true;
-        if (buf.readBoolean()) span.obfuscated = true;
-
-        if (buf.readBoolean()) {
-            span.color = net.minecraft.network.chat.TextColor.fromRgb(buf.readInt());
-        }
-        if (buf.readBoolean()) {
-            span.font = buf.readResourceLocation();
-        }
-
-        // Decode gradient colors with size validation
-        if (buf.readBoolean()) {
-            int colorCount = buf.readVarInt();
-            if (colorCount < 0 || colorCount > MAX_ARRAY_SIZE) {
-                throw new IllegalArgumentException("Invalid gradient color count: " + colorCount);
-            }
-            net.minecraft.network.chat.TextColor[] colors = new net.minecraft.network.chat.TextColor[colorCount];
-            for (int i = 0; i < colorCount; i++) {
-                colors[i] = net.minecraft.network.chat.TextColor.fromRgb(buf.readInt());
-            }
-            span.gradientColors = colors;
-        }
-
-        // Decode other effect properties
-        if (buf.readBoolean()) {
-            span.typewriterSpeed = clampFloat(buf.readFloat(), 0.001f, 1000f);
-            span.typewriterCenter = buf.readBoolean();
-        }
-
-        if (buf.readBoolean()) {
-            span.shakeType = buf.readEnum(ShakeType.class);
-            span.shakeAmplitude = clampFloat(buf.readFloat(), 0f, MAX_OFFSET);
-            if (buf.readBoolean()) {
-                span.shakeSpeed = clampFloat(buf.readFloat(), -1000f, 1000f);
-            }
-            if (buf.readBoolean()) {
-                span.shakeWavelength = clampFloat(buf.readFloat(), 0.001f, 1000f);
-            }
-        }
-
-        if (buf.readBoolean()) {
-            span.charShakeType = buf.readEnum(ShakeType.class);
-            span.charShakeAmplitude = clampFloat(buf.readFloat(), 0f, MAX_OFFSET);
-            if (buf.readBoolean()) {
-                span.charShakeSpeed = clampFloat(buf.readFloat(), -1000f, 1000f);
-            }
-            if (buf.readBoolean()) {
-                span.charShakeWavelength = clampFloat(buf.readFloat(), 0.001f, 1000f);
-            }
-        }
-
-        if (buf.readBoolean()) {
-            span.obfuscateMode = buf.readEnum(ObfuscateMode.class);
-            span.obfuscateSpeed = clampFloat(buf.readFloat(), 0f, 1000f);
-        }
-
-        if (buf.readBoolean()) {
-            span.hasBackground = true;
-        }
-        if (buf.readBoolean()) {
-            span.backgroundColor = new ImmersiveColor(buf.readInt());
-        }
-
-        // Decode background gradient with size validation
-        if (buf.readBoolean()) {
-            int bgColorCount = buf.readVarInt();
-            if (bgColorCount < 0 || bgColorCount > MAX_ARRAY_SIZE) {
-                throw new IllegalArgumentException("Invalid background gradient color count: " + bgColorCount);
-            }
-            ImmersiveColor[] bgColors = new ImmersiveColor[bgColorCount];
-            for (int i = 0; i < bgColorCount; i++) {
-                bgColors[i] = new ImmersiveColor(buf.readInt());
-            }
-            span.backgroundGradient = bgColors;
-        }
-
-        // Decode global message attributes
-        if (buf.readBoolean()) {
-            span.globalBackground = true;
-        }
-        if (buf.readBoolean()) {
-            span.globalBackgroundColor = new ImmersiveColor(buf.readInt());
-        }
-
-        // Decode global background gradient with size validation
-        if (buf.readBoolean()) {
-            int globalBgColorCount = buf.readVarInt();
-            if (globalBgColorCount < 0 || globalBgColorCount > MAX_ARRAY_SIZE) {
-                throw new IllegalArgumentException("Invalid global background gradient color count: " + globalBgColorCount);
-            }
-            ImmersiveColor[] globalBgColors = new ImmersiveColor[globalBgColorCount];
-            for (int i = 0; i < globalBgColorCount; i++) {
-                globalBgColors[i] = new ImmersiveColor(buf.readInt());
-            }
-            span.globalBackgroundGradient = globalBgColors;
-        }
-
-        if (buf.readBoolean()) {
-            span.globalBorderStart = new ImmersiveColor(buf.readInt());
-        }
-        if (buf.readBoolean()) {
-            span.globalBorderEnd = new ImmersiveColor(buf.readInt());
-        }
-
-        if (buf.readBoolean()) {
-            span.globalXOffset = clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET);
-        }
-        if (buf.readBoolean()) {
-            span.globalYOffset = clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET);
-        }
-
-        if (buf.readBoolean()) {
-            span.globalAnchor = buf.readEnum(TextAnchor.class);
-        }
-        if (buf.readBoolean()) {
-            span.globalAlign = buf.readEnum(TextAnchor.class);
-        }
-
-        if (buf.readBoolean()) {
-            span.globalScale = clampFloat(buf.readFloat(), 0.01f, MAX_SCALE);
-        }
-
-        if (buf.readBoolean()) {
-            span.globalShadow = buf.readBoolean();
-        }
-
-        if (buf.readBoolean()) {
-            span.globalFadeInTicks = Math.max(0, buf.readInt());
-        }
-        if (buf.readBoolean()) {
-            span.globalFadeOutTicks = Math.max(0, buf.readInt());
-        }
-
-        // Decode per-span fade effects
-        if (buf.readBoolean()) {
-            span.fadeInTicks = Math.max(0, buf.readInt());
-        }
-        if (buf.readBoolean()) {
-            span.fadeOutTicks = Math.max(0, buf.readInt());
-        }
-
-        // Decode item rendering with validation
-        if (buf.readBoolean()) {
-            span.itemId = buf.readUtf(MAX_ID_LENGTH);
-            span.itemCount = Math.min(Math.max(1, buf.readVarInt()), MAX_ITEM_COUNT);
-            if (buf.readBoolean()) {
-                span.itemOffsetX = clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET);
-            }
-            if (buf.readBoolean()) {
-                span.itemOffsetY = clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET);
-            }
-        }
-
-        // Decode entity rendering with validation
-        if (buf.readBoolean()) {
-            span.entityId = buf.readUtf(MAX_ID_LENGTH);
-            span.entityScale = clampFloat(buf.readFloat(), 0.01f, MAX_SCALE);
-            if (buf.readBoolean()) {
-                span.entityOffsetX = clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET);
-            }
-            if (buf.readBoolean()) {
-                span.entityOffsetY = clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET);
-            }
-            if (buf.readBoolean()) {
-                span.entityYaw = clampFloat(buf.readFloat(), -360f, 360f);
-            }
-            if (buf.readBoolean()) {
-                span.entityPitch = clampFloat(buf.readFloat(), -90f, 90f);
-            }
-            if (buf.readBoolean()) {
-                span.entityRoll = clampFloat(buf.readFloat(), -360f, 360f);
-            }
-            if (buf.readBoolean()) {
-                span.entityLighting = Math.max(0, Math.min(15, buf.readVarInt()));
-            }
-            if (buf.readBoolean()) {
-                span.entitySpin = buf.readFloat(); // No clamping - allow any rotation speed
-            }
-            if (buf.readBoolean()) {
-                span.entityAnimation = buf.readUtf(MAX_ID_LENGTH);
-            }
-        }
-
-        // Decode effects with count and length validation (v2.0.0)
-        int effectCount = buf.readVarInt();
-        if (effectCount < 0 || effectCount > MAX_ARRAY_SIZE) {
-            throw new IllegalArgumentException("Invalid effect count: " + effectCount);
-        }
-        if (effectCount > 0) {
-            for (int i = 0; i < effectCount; i++) {
-                String effectTag = buf.readUtf(MAX_EFFECT_TAG_LENGTH);
-                try {
-                    Effect effect = net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry.parseTag(effectTag);
-                    span.addEffect(effect);
-                } catch (IllegalArgumentException e) {
-                    // Skip unknown effects (forward compatibility)
-                    net.tysontheember.emberstextapi.EmbersTextAPI.LOGGER.warn("Failed to decode effect: {}", effectTag, e);
-                }
-            }
-        }
-
-        return span;
+    /**
+     * Set gradient colors directly (for deserialization).
+     * @param colors Gradient color array
+     */
+    public void setGradientColors(net.minecraft.network.chat.TextColor[] colors) {
+        this.gradientColors = colors;
     }
 
     /**
-     * Clamp a float value to a valid range, handling NaN and Infinity.
-     *
-     * @param value Value to clamp
-     * @param min Minimum allowed value
-     * @param max Maximum allowed value
-     * @return Clamped value, or min if value is NaN
+     * Set typewriter centering (for deserialization).
+     * @param center Whether to center typewriter effect
      */
-    private static float clampFloat(float value, float min, float max) {
-        if (Float.isNaN(value) || Float.isInfinite(value)) {
-            return min;
-        }
-        return Math.max(min, Math.min(max, value));
+    public void setTypewriterCenter(Boolean center) {
+        this.typewriterCenter = center;
+    }
+
+    /**
+     * Set shake type directly (for deserialization).
+     */
+    public void setShakeType(ShakeType type) {
+        this.shakeType = type;
+    }
+
+    /**
+     * Set shake amplitude directly (for deserialization).
+     */
+    public void setShakeAmplitude(Float amplitude) {
+        this.shakeAmplitude = amplitude;
+    }
+
+    /**
+     * Set shake speed directly (for deserialization).
+     */
+    public void setShakeSpeed(Float speed) {
+        this.shakeSpeed = speed;
+    }
+
+    /**
+     * Set shake wavelength directly (for deserialization).
+     */
+    public void setShakeWavelength(Float wavelength) {
+        this.shakeWavelength = wavelength;
+    }
+
+    /**
+     * Set character shake type directly (for deserialization).
+     */
+    public void setCharShakeType(ShakeType type) {
+        this.charShakeType = type;
+    }
+
+    /**
+     * Set character shake amplitude directly (for deserialization).
+     */
+    public void setCharShakeAmplitude(Float amplitude) {
+        this.charShakeAmplitude = amplitude;
+    }
+
+    /**
+     * Set character shake speed directly (for deserialization).
+     */
+    public void setCharShakeSpeed(Float speed) {
+        this.charShakeSpeed = speed;
+    }
+
+    /**
+     * Set character shake wavelength directly (for deserialization).
+     */
+    public void setCharShakeWavelength(Float wavelength) {
+        this.charShakeWavelength = wavelength;
+    }
+
+    /**
+     * Set obfuscate mode directly (for deserialization).
+     */
+    public void setObfuscateMode(ObfuscateMode mode) {
+        this.obfuscateMode = mode;
+    }
+
+    /**
+     * Set obfuscate speed directly (for deserialization).
+     */
+    public void setObfuscateSpeed(Float speed) {
+        this.obfuscateSpeed = speed;
+    }
+
+    /**
+     * Set item offset X directly (for deserialization).
+     */
+    public void itemOffsetX(Float x) {
+        this.itemOffsetX = x;
+    }
+
+    /**
+     * Set item offset Y directly (for deserialization).
+     */
+    public void itemOffsetY(Float y) {
+        this.itemOffsetY = y;
+    }
+
+    /**
+     * Set entity scale directly (for deserialization).
+     */
+    public void entityScale(Float scale) {
+        this.entityScale = scale;
+    }
+
+    /**
+     * Set entity offset X directly (for deserialization).
+     */
+    public void entityOffsetX(Float x) {
+        this.entityOffsetX = x;
+    }
+
+    /**
+     * Set entity offset Y directly (for deserialization).
+     */
+    public void entityOffsetY(Float y) {
+        this.entityOffsetY = y;
+    }
+
+    /**
+     * Set entity yaw directly (for deserialization).
+     */
+    public void entityYaw(Float yaw) {
+        this.entityYaw = yaw;
+    }
+
+    /**
+     * Set entity pitch directly (for deserialization).
+     */
+    public void entityPitch(Float pitch) {
+        this.entityPitch = pitch;
+    }
+
+    /**
+     * Set entity roll directly (for deserialization).
+     */
+    public void entityRoll(Float roll) {
+        this.entityRoll = roll;
+    }
+
+    /**
+     * Set entity lighting directly (for deserialization).
+     */
+    public void entityLighting(Integer lighting) {
+        this.entityLighting = lighting;
+    }
+
+    /**
+     * Set entity spin directly (for deserialization).
+     */
+    public void entitySpin(Float spin) {
+        this.entitySpin = spin;
+    }
+
+    /**
+     * Set entity animation directly (for deserialization).
+     * Note: Avoid this in favor of the builder method entityAnimation(String)
+     */
+    public void setEntityAnimation(String animation) {
+        this.entityAnimation = animation;
+    }
+
+    /**
+     * Set hasBackground flag directly (for deserialization).
+     */
+    public void setHasBackground(Boolean enabled) {
+        this.hasBackground = enabled;
+    }
+
+    /**
+     * Set global background directly (for deserialization).
+     */
+    public void setGlobalBackground(Boolean enabled) {
+        this.globalBackground = enabled;
+    }
+
+    /**
+     * Set global border start color directly (for deserialization).
+     */
+    public void setGlobalBorderStart(ImmersiveColor color) {
+        this.globalBorderStart = color;
+    }
+
+    /**
+     * Set global border end color directly (for deserialization).
+     */
+    public void setGlobalBorderEnd(ImmersiveColor color) {
+        this.globalBorderEnd = color;
+    }
+
+    /**
+     * Set global X offset directly (for deserialization).
+     */
+    public void setGlobalXOffset(Float x) {
+        this.globalXOffset = x;
+    }
+
+    /**
+     * Set global Y offset directly (for deserialization).
+     */
+    public void setGlobalYOffset(Float y) {
+        this.globalYOffset = y;
+    }
+
+    /**
+     * Set global anchor directly (for deserialization).
+     * Note: Avoid this in favor of the builder method globalAnchor(TextAnchor)
+     */
+    public void setGlobalAnchor(TextAnchor anchor) {
+        this.globalAnchor = anchor;
+    }
+
+    /**
+     * Set global align directly (for deserialization).
+     * Note: Avoid this in favor of the builder method globalAlign(TextAnchor)
+     */
+    public void setGlobalAlign(TextAnchor align) {
+        this.globalAlign = align;
+    }
+
+    /**
+     * Set global scale directly (for deserialization).
+     */
+    public void globalScale(Float scale) {
+        this.globalScale = scale;
+    }
+
+    /**
+     * Set global shadow directly (for deserialization).
+     */
+    public void globalShadow(Boolean shadow) {
+        this.globalShadow = shadow;
+    }
+
+    /**
+     * Set global fade in ticks directly (for deserialization).
+     */
+    public void globalFadeIn(Integer ticks) {
+        this.globalFadeInTicks = ticks;
+    }
+
+    /**
+     * Set global fade out ticks directly (for deserialization).
+     */
+    public void globalFadeOut(Integer ticks) {
+        this.globalFadeOutTicks = ticks;
+    }
+
+    // ===== Network Serialization Delegation =====
+
+    /**
+     * Encode this TextSpan to a network buffer.
+     * Delegates to {@link net.tysontheember.emberstextapi.serialization.TextSpanCodec}.
+     *
+     * @param buf The buffer to write to
+     */
+    public void encode(net.minecraft.network.FriendlyByteBuf buf) {
+        net.tysontheember.emberstextapi.serialization.TextSpanCodec.encode(this, buf);
+    }
+
+    /**
+     * Decode a TextSpan from a network buffer.
+     * Delegates to {@link net.tysontheember.emberstextapi.serialization.TextSpanCodec}.
+     *
+     * @param buf The buffer to read from
+     * @return The decoded TextSpan
+     */
+    public static TextSpan decode(net.minecraft.network.FriendlyByteBuf buf) {
+        return net.tysontheember.emberstextapi.serialization.TextSpanCodec.decode(buf);
     }
 }

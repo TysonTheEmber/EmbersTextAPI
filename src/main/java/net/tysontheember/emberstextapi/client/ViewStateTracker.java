@@ -1,5 +1,7 @@
-package net.tysontheember.emberstextapi.util;
+package net.tysontheember.emberstextapi.client;
 
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,6 +11,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Tracks when text becomes visible to enable view-based animation resets.
+ * <p>
+ * This is a client-only utility for managing UI state.
+ * </p>
+ *
+ * @since 2.0.0
  * <p>
  * This utility class maintains timestamps for when different text contexts
  * become visible (tooltips appear, screens open, etc.). Effects like typewriter
@@ -49,6 +56,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @see net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect
  */
+@OnlyIn(Dist.CLIENT)
 public class ViewStateTracker {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ViewStateTracker.class);

@@ -3,7 +3,7 @@ package net.tysontheember.emberstextapi.util;
 import com.google.common.collect.ImmutableList;
 import net.minecraft.network.chat.Style;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
-import net.tysontheember.emberstextapi.duck.ETAStyle;
+import net.tysontheember.emberstextapi.accessor.ETAStyle;
 
 import java.util.ArrayList;
 import java.util.List;

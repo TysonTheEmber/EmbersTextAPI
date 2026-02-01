@@ -171,7 +171,7 @@ public class EffectTestCommands {
 
                     net.tysontheember.emberstextapi.network.Network.CHANNEL.send(
                             net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
-                            new net.tysontheember.emberstextapi.net.S2C_ClearQueuePacket()
+                            new net.tysontheember.emberstextapi.network.forge.packets.S2C_ClearQueuePacket()
                     );
 
                     String[] modes = {
@@ -190,7 +190,7 @@ public class EffectTestCommands {
                             if (player.isAlive() && player.connection != null) {
                                 net.tysontheember.emberstextapi.network.Network.CHANNEL.send(
                                         net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
-                                        new net.tysontheember.emberstextapi.net.S2C_ClearQueuePacket()
+                                        new net.tysontheember.emberstextapi.network.forge.packets.S2C_ClearQueuePacket()
                                 );
 
                                 var msg = net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage
@@ -302,7 +302,7 @@ public class EffectTestCommands {
         // Clear queue at start
         net.tysontheember.emberstextapi.network.Network.CHANNEL.send(
                 net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
-                new net.tysontheember.emberstextapi.net.S2C_ClearQueuePacket()
+                new net.tysontheember.emberstextapi.network.forge.packets.S2C_ClearQueuePacket()
         );
 
         // Combine all effects into one list
@@ -323,7 +323,7 @@ public class EffectTestCommands {
                     // Clear previous message
                     net.tysontheember.emberstextapi.network.Network.CHANNEL.send(
                             net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
-                            new net.tysontheember.emberstextapi.net.S2C_ClearQueuePacket()
+                            new net.tysontheember.emberstextapi.network.forge.packets.S2C_ClearQueuePacket()
                     );
 
                     // Create and send the message
@@ -399,7 +399,7 @@ public class EffectTestCommands {
     private static void sendImmersive(ServerPlayer player, String markup) {
         net.tysontheember.emberstextapi.network.Network.CHANNEL.send(
                 net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
-                new net.tysontheember.emberstextapi.net.S2C_ClearQueuePacket()
+                new net.tysontheember.emberstextapi.network.forge.packets.S2C_ClearQueuePacket()
         );
 
         var msg = net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage

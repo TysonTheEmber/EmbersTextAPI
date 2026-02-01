@@ -10,7 +10,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
-import net.tysontheember.emberstextapi.util.ViewStateTracker;
+import net.tysontheember.emberstextapi.client.ViewStateTracker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

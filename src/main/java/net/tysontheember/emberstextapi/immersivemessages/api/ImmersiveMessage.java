@@ -153,7 +153,7 @@ public class ImmersiveMessage {
         // Mark this message context as started NOW (when message is created)
         // This ensures typewriter effects start immediately when sent, not when first rendered
         // And prevents tooltip hovers from resetting the animation
-        net.tysontheember.emberstextapi.util.ViewStateTracker.markViewStarted(this.messageContextId);
+        net.tysontheember.emberstextapi.client.ViewStateTracker.markViewStarted(this.messageContextId);
 
         // Initialize age to ensure proper fade-in from start
         this.age = 0f;
@@ -170,7 +170,7 @@ public class ImmersiveMessage {
 
         // Create unique context ID and mark as started (same as other constructor)
         this.messageContextId = "message:" + System.currentTimeMillis() + ":" + System.identityHashCode(this);
-        net.tysontheember.emberstextapi.util.ViewStateTracker.markViewStarted(this.messageContextId);
+        net.tysontheember.emberstextapi.client.ViewStateTracker.markViewStarted(this.messageContextId);
 
         // Initialize age to ensure proper fade-in from start
         this.age = 0f;

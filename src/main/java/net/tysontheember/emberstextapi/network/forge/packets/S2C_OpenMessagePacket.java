@@ -1,4 +1,4 @@
-package net.tysontheember.emberstextapi.net;
+package net.tysontheember.emberstextapi.network.forge.packets;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
@@ -12,35 +12,35 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * Server-to-client packet that updates an existing active message.
+ * Server-to-client packet that opens (creates) a new immersive message.
  * <p>
- * If the message ID is not already active on the client, it will be created.
- * Otherwise, the existing message is replaced with the new data.
+ * Carries a unique message ID and the full NBT-serialized {@link ImmersiveMessage}.
+ * The client deserializes and registers the message with {@link ClientMessageManager}.
  * </p>
  *
- * @param id  Unique identifier of the message to update
- * @param nbt NBT representation of the updated {@link ImmersiveMessage}
+ * @param id  Unique identifier for this message instance
+ * @param nbt NBT representation of the {@link ImmersiveMessage}
  */
-public record S2C_UpdateMessagePacket(UUID id, CompoundTag nbt) {
-    public static void encode(S2C_UpdateMessagePacket packet, FriendlyByteBuf buf) {
+public record S2C_OpenMessagePacket(UUID id, CompoundTag nbt) {
+    public static void encode(S2C_OpenMessagePacket packet, FriendlyByteBuf buf) {
         buf.writeUUID(packet.id);
         buf.writeNbt(packet.nbt);
     }
 
-    public static S2C_UpdateMessagePacket decode(FriendlyByteBuf buf) {
+    public static S2C_OpenMessagePacket decode(FriendlyByteBuf buf) {
         UUID id = buf.readUUID();
         CompoundTag tag = buf.readNbt();
-        return new S2C_UpdateMessagePacket(id, tag == null ? new CompoundTag() : tag);
+        return new S2C_OpenMessagePacket(id, tag == null ? new CompoundTag() : tag);
     }
 
-    public static void handle(S2C_UpdateMessagePacket packet, Supplier<NetworkEvent.Context> ctx) {
+    public static void handle(S2C_OpenMessagePacket packet, Supplier<NetworkEvent.Context> ctx) {
         NetworkEvent.Context context = ctx.get();
         if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
             context.enqueueWork(() -> {
                 Minecraft mc = Minecraft.getInstance();
                 if (mc.player != null) {
                     ImmersiveMessage message = ImmersiveMessage.fromNbt(packet.nbt);
-                    ClientMessageManager.update(packet.id, message);
+                    ClientMessageManager.open(packet.id, message);
                 }
             });
         }
