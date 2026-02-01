@@ -1,4 +1,4 @@
-package net.tysontheember.emberstextapi.net;
+package net.tysontheember.emberstextapi.network.forge.packets;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;

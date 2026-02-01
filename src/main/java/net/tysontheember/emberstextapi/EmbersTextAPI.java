@@ -14,7 +14,7 @@ import org.slf4j.Logger;
 import net.minecraftforge.network.PacketDistributor;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
-import net.tysontheember.emberstextapi.immersivemessages.network.TooltipPacket;
+import net.tysontheember.emberstextapi.network.forge.packets.TooltipPacket;
 import net.tysontheember.emberstextapi.network.Network;
 
 // The value here should match an entry in the META-INF/mods.toml file

@@ -94,7 +94,14 @@ public final class ColorParser {
             return TextColor.fromLegacyFormat(fmt);
         }
 
-        // Try TextColor parsing (handles hex and other formats)
+        // Try flexible hex parsing (supports #RRGGBB, RRGGBB, #RGB, RGB, 0xRRGGBB, 0xAARRGGBB)
+        Integer hex = parseHexColor(v);
+        if (hex != null) {
+            // TextColor only supports RGB; strip any alpha channel if present
+            return TextColor.fromRgb(hex & 0xFFFFFF);
+        }
+
+        // Fallback to vanilla parser (keeps support for future formats)
         return TextColor.parseColor(v);
     }
 

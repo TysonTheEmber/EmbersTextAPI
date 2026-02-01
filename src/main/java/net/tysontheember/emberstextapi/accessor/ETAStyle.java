@@ -1,4 +1,4 @@
-package net.tysontheember.emberstextapi.duck;
+package net.tysontheember.emberstextapi.accessor;
 
 import com.google.common.collect.ImmutableList;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;

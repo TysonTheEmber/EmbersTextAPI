@@ -272,12 +272,12 @@ public class EffectRegistry {
         registerBuiltIn("shadow", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ShadowEffect::new);
 
         // === Animation Effects ===
-        registerBuiltIn("typewriter", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect::new);
-        registerBuiltIn("type", net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect::new); // Alias
+        registerBuiltIn("typewriter", net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterEffect::new);
+        registerBuiltIn("type", net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterEffect::new); // Alias
 
         // === Obfuscation Effects ===
-        registerBuiltIn("obfuscate", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ObfuscateEffect::new);
-        registerBuiltIn("obf", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ObfuscateEffect::new); // Alias
+        registerBuiltIn("obfuscate", net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfuscateEffect::new);
+        registerBuiltIn("obf", net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfuscateEffect::new); // Alias
 
         initialized = true;
         locked = true; // Lock registry to protect built-in effects

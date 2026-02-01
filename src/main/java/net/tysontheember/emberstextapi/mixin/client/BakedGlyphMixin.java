@@ -2,7 +2,7 @@ package net.tysontheember.emberstextapi.mixin.client;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.gui.font.glyphs.BakedGlyph;
-import net.tysontheember.emberstextapi.duck.ETABakedGlyph;
+import net.tysontheember.emberstextapi.accessor.ETABakedGlyph;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Final;
