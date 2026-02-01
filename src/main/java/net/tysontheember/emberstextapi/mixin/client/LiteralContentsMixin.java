@@ -3,11 +3,11 @@ package net.tysontheember.emberstextapi.mixin.client;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.contents.LiteralContents;
-import net.tysontheember.emberstextapi.duck.ETAStyle;
+import net.tysontheember.emberstextapi.accessor.ETAStyle;
 import net.tysontheember.emberstextapi.immersivemessages.api.MarkupParser;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
-import net.tysontheember.emberstextapi.immersivemessages.effects.visual.TypewriterEffect;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterEffect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfKey;
 import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
 import net.tysontheember.emberstextapi.typewriter.TypewriterTracks;
@@ -133,7 +133,7 @@ public abstract class LiteralContentsMixin {
                     if (effect instanceof TypewriterEffect) {
                         hasTypewriter = true;
                     }
-                    if (effect instanceof net.tysontheember.emberstextapi.immersivemessages.effects.visual.ObfuscateEffect) {
+                    if (effect instanceof net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfuscateEffect) {
                         hasObfuscate = true;
                     }
                 }

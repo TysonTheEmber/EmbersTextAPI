@@ -132,9 +132,11 @@ public class EffectUtil {
      * @param b End value
      * @param t Interpolation factor (0.0 to 1.0)
      * @return Interpolated value
+     * @deprecated Use {@link ColorMath#lerp(float, float, float)} instead
      */
+    @Deprecated(forRemoval = true, since = "2.0.0")
     public static float lerp(float a, float b, float t) {
-        return a + (b - a) * t;
+        return ColorMath.lerp(a, b, t);
     }
 
     /**
@@ -148,35 +150,11 @@ public class EffectUtil {
      * @param saturation Saturation (0.0 to 1.0)
      * @param value Value/Brightness (0.0 to 1.0)
      * @return Packed RGB color (0xRRGGBB)
+     * @deprecated Use {@link ColorMath#hsvToRgbPacked(float, float, float)} instead
      */
+    @Deprecated(forRemoval = true, since = "2.0.0")
     public static int hsvToRgb(float hue, float saturation, float value) {
-        // Normalize hue to 0-360 range
-        float h = hue * 360f;
-
-        float c = value * saturation;
-        float x = c * (1f - Math.abs((h / 60f) % 2f - 1f));
-        float m = value - c;
-
-        float r, g, b;
-        if (h < 60) {
-            r = c; g = x; b = 0;
-        } else if (h < 120) {
-            r = x; g = c; b = 0;
-        } else if (h < 180) {
-            r = 0; g = c; b = x;
-        } else if (h < 240) {
-            r = 0; g = x; b = c;
-        } else if (h < 300) {
-            r = x; g = 0; b = c;
-        } else {
-            r = c; g = 0; b = x;
-        }
-
-        int ri = (int) ((r + m) * 255);
-        int gi = (int) ((g + m) * 255);
-        int bi = (int) ((b + m) * 255);
-
-        return (ri << 16) | (gi << 8) | bi;
+        return ColorMath.hsvToRgbPacked(hue, saturation, value);
     }
 
     /**

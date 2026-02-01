@@ -2,6 +2,7 @@ package net.tysontheember.emberstextapi.immersivemessages.effects.visual;
 
 import net.minecraft.Util;
 import net.tysontheember.emberstextapi.immersivemessages.effects.BaseEffect;
+import net.tysontheember.emberstextapi.util.ColorMath;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
 import net.tysontheember.emberstextapi.immersivemessages.effects.params.Params;
 import org.jetbrains.annotations.NotNull;
@@ -105,18 +106,18 @@ public class GradientEffect extends BaseEffect {
         float[] rgb;
         if (useHSV) {
             // HSV interpolation for smoother hue transitions
-            float[] hsv1 = rgbToHsv(fromRGB);
-            float[] hsv2 = rgbToHsv(toRGB);
-            float h = lerpHue(hsv1[0], hsv2[0], t);
-            float s = lerp(hsv1[1], hsv2[1], t);
-            float v = lerp(hsv1[2], hsv2[2], t);
-            rgb = hsvToRgb(h, s, v);
+            float[] hsv1 = ColorMath.rgbToHsv(fromRGB);
+            float[] hsv2 = ColorMath.rgbToHsv(toRGB);
+            float h = ColorMath.lerpHue(hsv1[0], hsv2[0], t);
+            float s = ColorMath.lerp(hsv1[1], hsv2[1], t);
+            float v = ColorMath.lerp(hsv1[2], hsv2[2], t);
+            rgb = ColorMath.hsvToRgb(h, s, v);
         } else {
             // Linear RGB interpolation
             rgb = new float[]{
-                    lerp(fromRGB[0], toRGB[0], t),
-                    lerp(fromRGB[1], toRGB[1], t),
-                    lerp(fromRGB[2], toRGB[2], t)
+                    ColorMath.lerp(fromRGB[0], toRGB[0], t),
+                    ColorMath.lerp(fromRGB[1], toRGB[1], t),
+                    ColorMath.lerp(fromRGB[2], toRGB[2], t)
             };
         }
 
@@ -132,83 +133,5 @@ public class GradientEffect extends BaseEffect {
         return "grad";
     }
 
-    /**
-     * Convert RGB to HSV color space.
-     *
-     * @param rgb RGB color as float array [r, g, b]
-     * @return HSV color as float array [h, s, v]
-     */
-    private static float[] rgbToHsv(float[] rgb) {
-        float r = rgb[0], g = rgb[1], b = rgb[2];
-        float max = Math.max(r, Math.max(g, b));
-        float min = Math.min(r, Math.min(g, b));
-        float h, s;
-        float d = max - min;
-        s = max == 0 ? 0 : d / max;
-
-        if (d == 0) {
-            h = 0; // Achromatic (gray)
-        } else if (max == r) {
-            h = (g - b) / d + (g < b ? 6 : 0);
-        } else if (max == g) {
-            h = (b - r) / d + 2;
-        } else {
-            h = (r - g) / d + 4;
-        }
-        h /= 6f;
-        return new float[]{h, s, max};
-    }
-
-    /**
-     * Convert HSV to RGB color space.
-     *
-     * @param h Hue (0.0-1.0)
-     * @param s Saturation (0.0-1.0)
-     * @param v Value/Brightness (0.0-1.0)
-     * @return RGB color as float array [r, g, b]
-     */
-    private static float[] hsvToRgb(float h, float s, float v) {
-        int i = (int) (h * 6);
-        float f = h * 6 - i;
-        float p = v * (1 - s);
-        float q = v * (1 - f * s);
-        float t = v * (1 - (1 - f) * s);
-        return switch (i % 6) {
-            case 0 -> new float[]{v, t, p};
-            case 1 -> new float[]{q, v, p};
-            case 2 -> new float[]{p, v, t};
-            case 3 -> new float[]{p, q, v};
-            case 4 -> new float[]{t, p, v};
-            default -> new float[]{v, p, q};
-        };
-    }
-
-    /**
-     * Interpolate hue values with wraparound.
-     * Takes shortest path around hue circle.
-     *
-     * @param a Start hue (0.0-1.0)
-     * @param b End hue (0.0-1.0)
-     * @param t Interpolation factor (0.0-1.0)
-     * @return Interpolated hue
-     */
-    private static float lerpHue(float a, float b, float t) {
-        float diff = (b - a + 1f) % 1f;
-        if (diff > 0.5f) {
-            diff -= 1f; // Take shorter path
-        }
-        return (a + diff * t + 1f) % 1f;
-    }
-
-    /**
-     * Linear interpolation between two values.
-     *
-     * @param a Start value
-     * @param b End value
-     * @param t Interpolation factor (0.0-1.0)
-     * @return Interpolated value
-     */
-    private static float lerp(float a, float b, float t) {
-        return a + (b - a) * t;
-    }
+    // Note: Color conversion methods moved to ColorMath utility class
 }

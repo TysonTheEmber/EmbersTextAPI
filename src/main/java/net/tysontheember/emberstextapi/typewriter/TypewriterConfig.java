@@ -6,7 +6,12 @@ package net.tysontheember.emberstextapi.typewriter;
  * Provides a global toggle to enable/disable all typewriter effects
  * and a default speed setting used when no speed parameter is specified.
  * </p>
+ *
+ * @deprecated This class is part of the legacy typewriter API.
+ *             Use {@link net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterEffect} instead.
+ *             This class will be removed in version 3.0.0.
  */
+@Deprecated(forRemoval = true, since = "2.0.0")
 public class TypewriterConfig {
 
     /** Global toggle for typewriter effects. When false, all text is shown immediately. */

@@ -3,7 +3,7 @@ package net.tysontheember.emberstextapi.mixin;
 import com.google.common.collect.ImmutableList;
 import net.minecraft.network.chat.Style;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
-import net.tysontheember.emberstextapi.duck.ETAStyle;
+import net.tysontheember.emberstextapi.accessor.ETAStyle;
 import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;

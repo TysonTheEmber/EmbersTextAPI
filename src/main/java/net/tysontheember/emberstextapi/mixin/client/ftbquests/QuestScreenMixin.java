@@ -1,6 +1,6 @@
 package net.tysontheember.emberstextapi.mixin.client.ftbquests;
 
-import net.tysontheember.emberstextapi.util.ViewStateTracker;
+import net.tysontheember.emberstextapi.client.ViewStateTracker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
