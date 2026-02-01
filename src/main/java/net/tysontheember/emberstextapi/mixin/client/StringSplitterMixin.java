@@ -3,7 +3,7 @@ package net.tysontheember.emberstextapi.mixin.client;
 import net.minecraft.client.StringSplitter;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
-import net.tysontheember.emberstextapi.duck.ETAStyle;
+import net.tysontheember.emberstextapi.accessor.ETAStyle;
 import org.apache.commons.lang3.mutable.MutableFloat;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

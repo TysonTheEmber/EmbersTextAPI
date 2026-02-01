@@ -21,7 +21,11 @@ import java.util.TreeSet;
  * </p>
  *
  * @see TypewriterTracks
+ * @deprecated This class is part of the legacy typewriter API.
+ *             Use {@link net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterEffect} instead.
+ *             This class will be removed in version 3.0.0.
  */
+@Deprecated(forRemoval = true, since = "2.0.0")
 public class TypewriterTrack {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TypewriterTrack.class);

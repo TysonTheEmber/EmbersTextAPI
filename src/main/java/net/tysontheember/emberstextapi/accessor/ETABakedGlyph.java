@@ -1,4 +1,4 @@
-package net.tysontheember.emberstextapi.duck;
+package net.tysontheember.emberstextapi.accessor;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
