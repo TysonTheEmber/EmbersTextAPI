@@ -63,8 +63,10 @@ jobs:
           props_file="gradle.properties"
           mod_name=$(grep -E '^mod_name=' "$props_file" | head -n1 | cut -d'=' -f2-)
           mod_version=$(grep -E '^mod_version=' "$props_file" | head -n1 | cut -d'=' -f2-)
+          mod_id=$(grep -E '^mod_id=' "$props_file" | head -n1 | cut -d'=' -f2-)
           echo "mod_name=$mod_name" >> "$GITHUB_OUTPUT"
           echo "mod_version=$mod_version" >> "$GITHUB_OUTPUT"
+          echo "mod_id=$mod_id" >> "$GITHUB_OUTPUT"
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -195,7 +197,7 @@ jobs:
           loaders: ${{ join(matrix.loaders, ',') }}
           game-versions: ${{ join(matrix.mc_versions, ',') }}
           files: ${{ steps.jar.outputs.jar }}
-          name: ${{ steps.jar.outputs.jar_base }}
+          name: ${{ steps.meta.outputs.mod_id }}-${{ join(matrix.loaders, '-') }}-${{ join(matrix.mc_versions, '-') }}-${{ steps.meta.outputs.mod_version }}
           version: ${{ steps.version.outputs.version }}
           version-type: release
           changelog: ${{ steps.notes.outputs.notes }}
