@@ -10,12 +10,15 @@ pluginManagement {
 }
 
 plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.7.0'
+    // Bump to ≥0.8.0 so foojay-resolver depends on Gson 2.10.1 instead of 2.9.1,
+    // preventing a classpath conflict that breaks Fabric Loom on JDK 17+.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.10.0'
 }
 
 rootProject.name = 'EmbersTextAPI'
 
-include 'common'
+include 'common-1.20.1'
+include 'common-1.21.1'
 include 'forge-1.20.1'
 include 'fabric-1.20.1'
 include 'fabric-1.21.1'
