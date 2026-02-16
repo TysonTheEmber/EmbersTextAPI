@@ -1,0 +1,59 @@
+plugins {
+    id 'fabric-loom' version '1.7.4'
+}
+
+base {
+    archivesName = 'emberstextapi-fabric-1.21.1'
+}
+
+// Handle duplicates from common module
+tasks.withType(AbstractCopyTask).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+    withSourcesJar()
+}
+
+// Add common source sets directly
+sourceSets {
+    main {
+        java {
+            srcDirs project(':common-1.21.1').sourceSets.main.java.srcDirs
+        }
+        resources {
+            srcDir project(':common-1.21.1').sourceSets.main.resources.srcDirs
+        }
+    }
+}
+
+dependencies {
+    // Minecraft & Fabric
+    minecraft "com.mojang:minecraft:1.21.1"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:0.16.9"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.107.0+1.21.1"
+
+    // Caffeine (bundled)
+    modImplementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+    include 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+}
+
+loom {
+    mixin.defaultRefmapName = 'emberstextapi.mixins.refmap.json'
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    inputs.property 'version', project.version
+
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    from('LICENSE') {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}

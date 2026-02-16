@@ -1,0 +1,80 @@
+plugins {
+    id 'net.neoforged.moddev' version '2.0.140'
+}
+
+group = rootProject.group
+version = rootProject.version
+
+base {
+    archivesName = 'emberstextapi-neoforge-1.21.1'
+}
+
+neoForge {
+    version = '21.1.72'
+    mods {
+        emberstextapi {
+            sourceSet sourceSets.main
+        }
+    }
+    runs {
+        client { client() }
+        server { server() }
+    }
+}
+
+dependencies {
+    // Common module via source sets
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(ProcessResources).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    inputs.property 'version', project.version
+
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand 'version': project.version
+    }
+}
+
+tasks.withType(Copy).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.withType(Jar).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from('LICENSE') {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+
+    manifest {
+        attributes([
+            'Specification-Title'     : 'EmbersTextAPI',
+            'Specification-Vendor'    : 'TysonTheEmber',
+            'Specification-Version'   : '1',
+            'Implementation-Title'    : project.name,
+            'Implementation-Version'  : project.version,
+            'Implementation-Vendor'   : 'TysonTheEmber',
+            'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs project(':common-1.21.1').sourceSets.main.java.srcDirs
+        }
+        resources {
+            srcDir project(':common-1.21.1').sourceSets.main.resources.srcDirs
+        }
+    }
+}

@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.tysontheember.emberstextapi.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "emberstextapi.mixins.refmap.json",
+  "mixins": [
+    "StyleMixin"
+  ],
+  "client": [
+    "client.LiteralContentsMixin",
+    "client.TranslatableContentsMixin",
+    "client.BakedGlyphMixin",
+    "client.FontAccess",
+    "client.StringRenderOutputMixin",
+    "client.StringSplitterMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

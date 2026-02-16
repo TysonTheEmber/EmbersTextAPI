@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "effects": [
+    { "type": "rainbow", "params": { "f": 1.5, "w": 0.8 } },
+    { "type": "neon" }
+  ],
+  "styles": {
+    "bold": true,
+    "color": "FFD700"
+  }
+}
