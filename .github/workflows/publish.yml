@@ -32,7 +32,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build all loaders
-        run: ./gradlew build --no-daemon
+        run: ./gradlew build --no-daemon -Dorg.gradle.java.home=$JAVA_HOME
 
       - name: Publish to Modrinth & CurseForge
         uses: Kir-Antipov/mc-publish@v3
