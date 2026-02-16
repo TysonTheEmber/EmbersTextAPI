@@ -47,6 +47,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -78,7 +81,7 @@ jobs:
             tag_msg=$(git for-each-ref --format='%(contents)' "refs/tags/${GITHUB_REF_NAME}" || true)
             if [ -n "$tag_msg" ]; then
               {
-                echo "notes<<'EOF'"
+                echo "notes<<EOF"
                 printf "%s\n" "$tag_msg"
                 echo "EOF"
               } >> "$GITHUB_OUTPUT"
@@ -88,7 +91,7 @@ jobs:
 
           if [ -f CHANGELOG.md ]; then
             {
-              echo "notes<<'EOF'"
+              echo "notes<<EOF"
               cat CHANGELOG.md
               echo "EOF"
             } >> "$GITHUB_OUTPUT"
@@ -97,7 +100,7 @@ jobs:
 
           last_msg=$(git log -1 --pretty=%B)
           {
-            echo "notes<<'EOF'"
+            echo "notes<<EOF"
             printf "%s\n" "$last_msg"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
