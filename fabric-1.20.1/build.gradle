@@ -1,0 +1,72 @@
+plugins {
+    id 'fabric-loom' version '1.7.4'
+}
+
+base {
+    archivesName = 'emberstextapi-fabric-1.20.1'
+}
+
+// Handle duplicates from common module
+tasks.withType(AbstractCopyTask).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(17) }
+    withSourcesJar()
+}
+
+// Add common source sets directly
+sourceSets {
+    main {
+        java {
+            srcDirs project(':common-1.20.1').sourceSets.main.java.srcDirs
+        }
+        resources {
+            srcDir project(':common-1.20.1').sourceSets.main.resources.srcDirs
+        }
+    }
+}
+
+dependencies {
+    // Minecraft & Fabric
+    minecraft "com.mojang:minecraft:1.20.1"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:0.15.6"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.92.0+1.20.1"
+
+    // MixinExtras (Mixin itself is provided by Fabric Loader)
+    modImplementation 'io.github.llamalad7:mixinextras-fabric:0.3.5'
+    include 'io.github.llamalad7:mixinextras-fabric:0.3.5'
+
+    // Caffeine (bundled)
+    modImplementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+    include 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+
+    // Cloth Config (optional, for config GUI)
+    modImplementation "me.shedaniel.cloth:cloth-config-fabric:11.0.99"
+
+    // FTBQuests compat (optional)
+    // Note: These may not be available for Fabric, commenting out for now
+    // modImplementation "dev.architectury:architectury-fabric:9.0.8"
+    // modImplementation "dev.ftb.mods:ftb-library-fabric:2001.1.4"
+    // modImplementation "dev.ftb.mods:ftb-quests-fabric:2001.3.3"
+}
+
+loom {
+    mixin.defaultRefmapName = 'emberstextapi.mixins.refmap.json'
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    inputs.property 'version', project.version
+
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    from('LICENSE') {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}

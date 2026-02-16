@@ -1,0 +1,39 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "GPL-3.0"
+showAsResourcePack = false
+
+[[mods]]
+modId = "emberstextapi"
+version = "${version}"
+displayName = "Ember's Text API"
+description = '''
+A text rendering API with visual effects, animations, and markup parsing for Minecraft mods.
+'''
+authors = "TysonTheEmber"
+logoFile = "logo.png"
+
+[[dependencies.emberstextapi]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.emberstextapi]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1,1.22)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.emberstextapi]]
+modId = "emojiful"
+type = "incompatible"
+versionRange = "*"
+ordering = "NONE"
+side = "CLIENT"
+reason = "Emojiful modifies the text renderer in ways that conflict with EmbersTextAPI's mixin-based rendering pipeline."
+
+[[mixins]]
+config = "emberstextapi.mixins.json"

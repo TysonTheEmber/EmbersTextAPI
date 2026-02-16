@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "emberstextapi",
+  "version": "${version}",
+  "name": "Ember's Text API",
+  "description": "Advanced text rendering API with visual effects and animations",
+  "authors": ["TysonTheEmber"],
+  "contact": {
+    "homepage": "https://tysontheember.dev",
+    "sources": "https://github.com/TysonTheEmber/EmbersTextAPI",
+    "issues": "https://github.com/TysonTheEmber/EmbersTextAPI/issues"
+  },
+  "license": "GPL-3.0",
+  "icon": "assets/emberstextapi/icon.png",
+  "environment": "*",
+
+  "entrypoints": {
+    "main": [
+      "net.tysontheember.emberstextapi.fabric.EmbersTextAPIFabric"
+    ],
+    "client": [
+      "net.tysontheember.emberstextapi.fabric.EmbersTextAPIFabricClient"
+    ]
+  },
+
+  "mixins": [
+    "emberstextapi-fabric.mixins.json"
+  ],
+
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "fabric-api": "*",
+    "minecraft": "1.20.1",
+    "java": ">=17"
+  },
+
+  "suggests": {
+    "cloth-config": ">=11.0.0"
+  }
+}

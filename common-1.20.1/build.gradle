@@ -1,0 +1,23 @@
+plugins {
+    id 'java-library'
+}
+
+base {
+    archivesName = 'emberstextapi-common-1.20.1'
+}
+
+// Skip compilation - this is a source-only module
+tasks.named('compileJava').configure {
+    enabled = false
+}
+
+tasks.named('jar').configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    // Pack source files instead
+    from(sourceSets.main.allJava) {
+        into 'net/tysontheember/emberstextapi'
+    }
+    from(sourceSets.main.resources) {
+        into ''
+    }
+}
