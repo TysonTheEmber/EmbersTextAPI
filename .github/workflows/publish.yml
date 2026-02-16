@@ -3,10 +3,6 @@ name: Publish Release (manual)
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: "SemVer to publish (e.g., 2.1.0)"
-        required: true
-        type: string
       changelog:
         description: "Changelog text (markdown supported)"
         required: false
@@ -36,27 +32,39 @@ jobs:
           ORG_GRADLE_JAVA_HOME: ${{ env.JAVA_HOME }}
         run: ./gradlew build --no-daemon
 
+      - name: Derive version from built jar
+        id: derive-version
+        run: |
+          set -euo pipefail
+          # Pick the primary artifact as the first Fabric 1.20.1 jar
+          primary=$(ls fabric-1.20.1/build/libs/*-1.20.1-*.jar | head -n1)
+          base=$(basename "$primary" .jar)
+          echo "version=$base" >> "$GITHUB_OUTPUT"
+          echo "primary=$primary" >> "$GITHUB_OUTPUT"
+          echo "Using version name: $base"
+
       - name: Publish to Modrinth & CurseForge
         uses: Kir-Antipov/mc-publish@v3
         with:
-          version: ${{ inputs.version }}
+          version: ${{ steps.derive-version.outputs.version }}
           version-type: release
-          changelog: ${{ inputs.changelog || format('Manual release {0}', inputs.version) }}
+          changelog: ${{ inputs.changelog || steps.derive-version.outputs.version }}
           loaders: |
             fabric
             forge
             neoforge
+          files: |
+            fabric-1.20.1/build/libs/*-1.20.1-*.jar
+            fabric-1.21.1/build/libs/*-1.21.1-*.jar
+            forge-1.20.1/build/libs/*-1.20.1-*.jar
+            neoforge-1.21.1/build/libs/*-1.21.1-*.jar
+          primary-file: ${{ steps.derive-version.outputs.primary }}
           game-versions: |
             1.20.1
             1.21.1
           curseforge-game-versions: |
             1.20.1
             1.21.1
-          files: |
-            fabric-1.20.1/build/libs/*-1.20.1-*.jar
-            fabric-1.21.1/build/libs/*-1.21.1-*.jar
-            forge-1.20.1/build/libs/*-1.20.1-*.jar
-            neoforge-1.21.1/build/libs/*-1.21.1-*.jar
           modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
