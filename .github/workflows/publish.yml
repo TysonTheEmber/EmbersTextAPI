@@ -201,9 +201,11 @@ jobs:
           if [ "$src" != "$dest" ]; then
             cp "$src" "$dest"
           fi
+          version_num="${MOD_VERSION}-${{ join(matrix.loaders, '-') }}-${{ join(matrix.mc_versions, '-') }}"
           echo "jar=$dest" >> "$GITHUB_OUTPUT"
           echo "jar_name=$target" >> "$GITHUB_OUTPUT"
           echo "jar_base=${target%.jar}" >> "$GITHUB_OUTPUT"
+          echo "version_num=$version_num" >> "$GITHUB_OUTPUT"
 
       - name: Publish ${{ matrix.display_name_suffix }}
         uses: Kir-Antipov/mc-publish@v3.3
@@ -216,6 +218,6 @@ jobs:
           game-versions: ${{ join(matrix.mc_versions, ',') }}
           files: ${{ steps.renamed.outputs.jar }}
           name: ${{ steps.renamed.outputs.jar_base }}
-          version: ${{ steps.renamed.outputs.jar_base }}
+          version: ${{ steps.renamed.outputs.version_num }}
           version-type: release
           changelog: ${{ steps.notes.outputs.notes }}
