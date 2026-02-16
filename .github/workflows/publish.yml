@@ -180,6 +180,10 @@ jobs:
           fi
 
           echo "jar=$jar" >> "$GITHUB_OUTPUT"
+          jar_name="${jar##*/}"
+          jar_base="${jar_name%.jar}"
+          echo "jar_name=$jar_name" >> "$GITHUB_OUTPUT"
+          echo "jar_base=$jar_base" >> "$GITHUB_OUTPUT"
 
       - name: Publish ${{ matrix.display_name_suffix }}
         uses: Kir-Antipov/mc-publish@v3.3
@@ -191,7 +195,7 @@ jobs:
           loaders: ${{ join(matrix.loaders, ',') }}
           game-versions: ${{ join(matrix.mc_versions, ',') }}
           files: ${{ steps.jar.outputs.jar }}
-          name: ${{ steps.meta.outputs.mod_name }} ${{ steps.version.outputs.version }} - ${{ matrix.display_name_suffix }}
+          name: ${{ steps.jar.outputs.jar_base }}
           version: ${{ steps.version.outputs.version }}
           version-type: release
           changelog: ${{ steps.notes.outputs.notes }}
