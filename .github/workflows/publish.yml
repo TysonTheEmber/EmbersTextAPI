@@ -114,8 +114,8 @@ jobs:
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
-          MODRINTH_PROJECT_ID: ${{ variables.MODRINTH_PROJECT_ID }}
-          CURSEFORGE_PROJECT_ID: ${{ variables.CURSEFORGE_PROJECT_ID }}
+          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+          CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
         run: |
           set -e
           missing=()
