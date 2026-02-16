@@ -100,33 +100,23 @@ jobs:
         shell: bash
         run: |
           set -e
+          notes=""
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             tag_msg=$(git for-each-ref --format='%(contents)' "refs/tags/${GITHUB_REF_NAME}" || true)
             if [ -n "$tag_msg" ]; then
-              {
-                echo "notes<<EOF"
-                printf "%s\n" "$tag_msg"
-                echo "EOF"
-              } >> "$GITHUB_OUTPUT"
-              exit 0
+              notes="$tag_msg"
             fi
           fi
 
-          if [ -f CHANGELOG.md ]; then
-            {
-              echo "notes<<EOF"
-              cat CHANGELOG.md
-              echo "EOF"
-            } >> "$GITHUB_OUTPUT"
-            exit 0
+          if [ -z "$notes" ] && [ -f CHANGELOG.md ]; then
+            notes="$(cat CHANGELOG.md)"
           fi
 
-          last_msg=$(git log -1 --pretty=%B)
-          {
-            echo "notes<<EOF"
-            printf "%s\n" "$last_msg"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          if [ -z "$notes" ]; then
+            notes="$(git log -1 --pretty=%B)"
+          fi
+
+          printf 'notes<<EOF\n%s\nEOF\n' "$notes" >> "$GITHUB_OUTPUT"
 
       - name: Validate publishing secrets
         shell: bash
