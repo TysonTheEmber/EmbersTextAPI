@@ -1,0 +1,53 @@
+name: Publish Release (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "SemVer to publish (e.g., 2.1.0)"
+        required: true
+        type: string
+      changelog:
+        description: "Changelog text (markdown supported)"
+        required: false
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build all loaders
+        run: ./gradlew build --no-daemon
+
+      - name: Publish to Modrinth & CurseForge
+        uses: Kir-Antipov/mc-publish@v3
+        with:
+          version: ${{ inputs.version }}
+          version-type: release
+          changelog: ${{ inputs.changelog || format('Manual release {0}', inputs.version) }}
+          loaders: fabric, forge, neoforge
+          game-versions: 1.20.1, 1.21.1
+          files: |
+            fabric-1.20.1/build/libs/*-1.20.1-*.jar
+            fabric-1.21.1/build/libs/*-1.21.1-*.jar
+            forge-1.20.1/build/libs/*-1.20.1-*.jar
+            neoforge-1.21.1/build/libs/*-1.21.1-*.jar
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
