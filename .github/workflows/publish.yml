@@ -36,8 +36,8 @@ jobs:
         id: derive-version
         run: |
           set -euo pipefail
-          # Pick the primary artifact as the first Fabric 1.20.1 jar
-          primary=$(ls fabric-1.20.1/build/libs/*-1.20.1-*.jar | head -n1)
+          # Pick the primary artifact as the first non-sources Fabric 1.20.1 jar
+          primary=$(ls fabric-1.20.1/build/libs/*-1.20.1-*.jar | grep -v 'sources' | head -n1)
           base=$(basename "$primary" .jar)
           echo "version=$base" >> "$GITHUB_OUTPUT"
           echo "primary=$primary" >> "$GITHUB_OUTPUT"
@@ -58,7 +58,8 @@ jobs:
             fabric-1.21.1/build/libs/*-1.21.1-*.jar
             forge-1.20.1/build/libs/*-1.20.1-*.jar
             neoforge-1.21.1/build/libs/*-1.21.1-*.jar
-          primary-file: ${{ steps.derive-version.outputs.primary }}
+          modrinth-files-primary: ${{ steps.derive-version.outputs.primary }}
+          curseforge-files-primary: ${{ steps.derive-version.outputs.primary }}
           game-versions: |
             1.20.1
             1.21.1
