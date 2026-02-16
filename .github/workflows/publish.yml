@@ -25,24 +25,28 @@ jobs:
             gradle_task: ":forge-1.20.1:build"
             jar_glob: "forge-1.20.1/build/libs/*forge-1.20.1*.jar"
             display_name_suffix: "Forge 1.20.1"
+            java: 17
           - id: fabric-1201
             mc_versions: ["1.20.1"]
             loaders: ["fabric"]
             gradle_task: ":fabric-1.20.1:build"
             jar_glob: "fabric-1.20.1/build/libs/*fabric-1.20.1*.jar"
             display_name_suffix: "Fabric 1.20.1"
+            java: 17
           - id: neoforge-1211
             mc_versions: ["1.21.1"]
             loaders: ["neoforge"]
             gradle_task: ":neoforge-1.21.1:build"
             jar_glob: "neoforge-1.21.1/build/libs/*neoforge-1.21.1*.jar"
             display_name_suffix: "NeoForge 1.21.1"
+            java: 21
           - id: fabric-1211
             mc_versions: ["1.21.1"]
             loaders: ["fabric"]
             gradle_task: ":fabric-1.21.1:build"
             jar_glob: "fabric-1.21.1/build/libs/*fabric-1.21.1*.jar"
             display_name_suffix: "Fabric 1.21.1"
+            java: 21
 
     steps:
       - name: Checkout
@@ -55,7 +59,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: ${{ matrix.java }}
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -110,7 +114,7 @@ jobs:
         run: |
           set -e
           task="${{ matrix.gradle_task }}"
-          ./gradlew "$task"
+          ./gradlew "$task" --configure-on-demand
 
       - name: Locate built jar
         id: jar
