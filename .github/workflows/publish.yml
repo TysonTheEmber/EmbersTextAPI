@@ -22,7 +22,7 @@ jobs:
             mc_versions: ["1.20.1"]
             loaders: ["forge"]
             gradle_task: ":forge-1.20.1:build"
-          jar_glob: "forge-1.20.1/build/libs/*forge-1.20.1*.jar"
+            jar_glob: "forge-1.20.1/build/libs/*forge-1.20.1*.jar"
             display_name_suffix: "Forge 1.20.1"
             java: 17
           - id: fabric-1201
