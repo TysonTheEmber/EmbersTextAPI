@@ -55,6 +55,17 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Read mod metadata
+        id: meta
+        shell: bash
+        run: |
+          set -e
+          props_file="gradle.properties"
+          mod_name=$(grep -E '^mod_name=' "$props_file" | head -n1 | cut -d'=' -f2-)
+          mod_version=$(grep -E '^mod_version=' "$props_file" | head -n1 | cut -d'=' -f2-)
+          echo "mod_name=$mod_name" >> "$GITHUB_OUTPUT"
+          echo "mod_version=$mod_version" >> "$GITHUB_OUTPUT"
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -67,12 +78,19 @@ jobs:
       - name: Determine version
         id: version
         shell: bash
+        env:
+          MOD_VERSION: ${{ steps.meta.outputs.mod_version }}
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             raw="${GITHUB_REF_NAME}"
             cleaned="${raw#v}"
           else
-            cleaned="$(date -u +'%Y%m%d%H%M%S')-snapshot"
+            run_id="${GITHUB_RUN_ID:-$(date -u +'%Y%m%d%H%M%S')}"
+            if [ -n "${MOD_VERSION}" ]; then
+              cleaned="${MOD_VERSION}-dev-${run_id}"
+            else
+              cleaned="snapshot-${run_id}"
+            fi
           fi
           echo "version=$cleaned" >> "$GITHUB_OUTPUT"
 
@@ -173,7 +191,7 @@ jobs:
           loaders: ${{ join(matrix.loaders, ',') }}
           game-versions: ${{ join(matrix.mc_versions, ',') }}
           files: ${{ steps.jar.outputs.jar }}
-          name: ${{ steps.version.outputs.version }} - ${{ matrix.display_name_suffix }}
+          name: ${{ steps.meta.outputs.mod_name }} ${{ steps.version.outputs.version }} - ${{ matrix.display_name_suffix }}
           version: ${{ steps.version.outputs.version }}
           version-type: release
           changelog: ${{ steps.notes.outputs.notes }}
