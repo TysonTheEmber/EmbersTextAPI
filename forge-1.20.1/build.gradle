@@ -1,0 +1,161 @@
+plugins {
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+    id 'org.spongepowered.mixin' version '0.7.+'
+}
+
+base {
+    archivesName = 'emberstextapi-forge-1.20.1'
+}
+
+// Handle duplicates from common module in all copy tasks
+tasks.withType(AbstractCopyTask).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+minecraft {
+    mappings channel: 'parchment', version: '2023.09.03-1.20.1'
+
+    copyIdeResources = true
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+                emberstextapi {
+                    source sourceSets.main
+                    source project(':common-1.20.1').sourceSets.main
+                }
+            }
+        }
+
+        client {
+            property 'forge.enabledGameTestNamespaces', 'emberstextapi'
+            jvmArgs(
+                "-Dmixin.env.remapRefMap=true",
+                "-Dmixin.env.refMapRemappingFile=${projectDir}/build/createSrgToMcp/output.srg",
+                "-Dmixin.debug.export=true",
+                "-Dmixin.debug.verbose=true"
+            )
+        }
+
+        server {
+            property 'forge.enabledGameTestNamespaces', 'emberstextapi'
+            args '--nogui'
+        }
+
+        gameTestServer {
+            property 'forge.enabledGameTestNamespaces', 'emberstextapi'
+        }
+
+        data {
+            workingDirectory project.file('run-data')
+            args '--mod', 'emberstextapi', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+// Add common source sets directly
+sourceSets {
+    main {
+        java {
+            srcDirs += project(':common-1.20.1').file('src/main/java')
+        }
+        resources {
+            srcDirs += project(':common-1.20.1').file('src/main/resources')
+        }
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:1.20.1-47.4.0"
+
+    // Mixin
+    implementation 'org.spongepowered:mixin:0.8.5'
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    testAnnotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    // MixinExtras
+    implementation(annotationProcessor('io.github.llamalad7:mixinextras-forge:0.3.5'))
+
+    // Caffeine (runtime)
+    runtimeOnly 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+
+    // Test dependencies
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.3'
+
+    // Optional dependencies (FTBQuests compat)
+    implementation fg.deobf("curse.maven:architectury-api-419699:5137938")
+    implementation fg.deobf("curse.maven:ftb-library-forge-404465:6807424")
+    implementation fg.deobf("curse.maven:ftb-teams-forge-404468:6130786")
+    implementation fg.deobf("curse.maven:ftb-quests-forge-289412:6829212")
+}
+
+mixin {
+    add sourceSets.main, 'emberstextapi-forge.mixins.refmap.json'
+    config 'emberstextapi-forge.mixins.json'
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    // Handle duplicates from common module
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    var replaceProperties = [
+        version: project.version,
+        minecraft_version: '1.20.1',
+        minecraft_version_range: '[1.20.1]',
+        forge_version: '47.4.0',
+        forge_version_range: '[47,)',
+        loader_version_range: '[47,)',
+        mod_id: 'emberstextapi',
+        mod_name: "Ember's Text API",
+        mod_license: 'GPL-3.0',
+        mod_authors: 'TysonTheEmber',
+        mod_description: 'Advanced text rendering API with visual effects and animations'
+    ]
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties + [project: project]
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes([
+            'Specification-Title': 'emberstextapi',
+            'Specification-Vendor': 'TysonTheEmber',
+            'Specification-Version': '1',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'TysonTheEmber',
+            'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+            'MixinConfigs': 'emberstextapi-forge.mixins.json'
+        ])
+    }
+
+    finalizedBy 'reobfJar'
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            artifact jar
+        }
+    }
+    repositories {
+        maven {
+            url "file://${project.projectDir}/mcmodsrepo"
+        }
+    }
+}
+
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
+}
