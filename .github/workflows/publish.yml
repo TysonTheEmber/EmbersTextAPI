@@ -62,7 +62,7 @@ jobs:
             VERSION="${{ github.ref_name }}"
             VERSION="${VERSION#v}"
           else
-            VERSION="dev-$(git rev-parse --short HEAD)"
+            VERSION=$(grep -oP '^mod_version=\K.*' gradle.properties)
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Using version: $VERSION"
