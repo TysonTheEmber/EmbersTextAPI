@@ -175,7 +175,7 @@ public class FabricEffectTestCommands {
 
                                 var msg = net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage
                                         .fromMarkup(90f, markup)
-                                        .anchor(net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor.CENTER_CENTER)
+                                        .anchor(net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor.MIDDLE)
                                         .scale(2.5f)
                                         .fadeInTicks(10)
                                         .fadeOutTicks(10)
@@ -299,7 +299,7 @@ public class FabricEffectTestCommands {
 
                     var msg = net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage
                             .fromMarkup(EFFECT_DURATION_TICKS - 20f, effect.markup)
-                            .anchor(net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor.CENTER_CENTER)
+                            .anchor(net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor.MIDDLE)
                             .scale(2.5f)
                             .fadeInTicks(10)
                             .fadeOutTicks(10)
@@ -368,7 +368,7 @@ public class FabricEffectTestCommands {
 
         var msg = net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage
                 .fromMarkup(100f, markup)
-                .anchor(net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor.CENTER_CENTER)
+                .anchor(net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor.MIDDLE)
                 .scale(2.5f)
                 .fadeInTicks(10)
                 .fadeOutTicks(10)

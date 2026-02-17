@@ -26,6 +26,7 @@ import net.tysontheember.emberstextapi.EmbersTextAPI;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
 import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
+import net.tysontheember.emberstextapi.immersivemessages.api.TextAlign;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage.TextureSizingMode;
@@ -366,7 +367,7 @@ public class MessageCommands {
                                     msg.anchor(TextAnchor.valueOf(tag.getString("anchor").toUpperCase()));
                                 }
                                 if (tag.contains("align")) {
-                                    msg.align(TextAnchor.valueOf(tag.getString("align").toUpperCase()));
+                                    msg.align(TextAlign.valueOf(tag.getString("align").toUpperCase()));
                                 }
                                 if (tag.contains("offsetX") || tag.contains("offsetY")) {
                                     float x = tag.contains("offsetX") ? tag.getFloat("offsetX") : 0f;
@@ -441,7 +442,7 @@ public class MessageCommands {
                         .scale(2f)
                         .background(true)
                         .obfuscate(ObfuscateMode.LEFT, 0.1f)
-                        .anchor(TextAnchor.CENTER_CENTER)
+                        .anchor(TextAnchor.MIDDLE)
                         .charShake(ShakeType.RANDOM, 0.5f);
                 EmbersTextAPI.sendMessage(player, msg);
             }
@@ -694,7 +695,7 @@ public class MessageCommands {
             msg.anchor(TextAnchor.valueOf(tag.getString("anchor").toUpperCase()));
         }
         if (tag.contains("align")) {
-            msg.align(TextAnchor.valueOf(tag.getString("align").toUpperCase()));
+            msg.align(TextAlign.valueOf(tag.getString("align").toUpperCase()));
         }
         if (tag.contains("offsetX") || tag.contains("offsetY")) {
             float x = tag.contains("offsetX") ? tag.getFloat("offsetX") : 0f;
