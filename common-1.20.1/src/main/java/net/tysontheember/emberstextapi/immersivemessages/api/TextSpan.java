@@ -98,7 +98,7 @@ public class TextSpan {
     private Float globalXOffset;
     private Float globalYOffset;
     private TextAnchor globalAnchor;
-    private TextAnchor globalAlign;
+    private TextAlign globalAlign;
     private Float globalScale;
     private Boolean globalShadow;
     private Integer globalFadeInTicks;
@@ -225,7 +225,7 @@ public class TextSpan {
     public Float getGlobalXOffset() { return globalXOffset; }
     public Float getGlobalYOffset() { return globalYOffset; }
     public TextAnchor getGlobalAnchor() { return globalAnchor; }
-    public TextAnchor getGlobalAlign() { return globalAlign; }
+    public TextAlign getGlobalAlign() { return globalAlign; }
     public Float getGlobalScale() { return globalScale; }
     public Boolean getGlobalShadow() { return globalShadow; }
     public Integer getGlobalFadeInTicks() { return globalFadeInTicks; }
@@ -616,7 +616,7 @@ public class TextSpan {
         return this;
     }
     
-    public TextSpan globalAlign(TextAnchor align) {
+    public TextSpan globalAlign(TextAlign align) {
         this.globalAlign = align;
         return this;
     }
@@ -906,7 +906,7 @@ public class TextSpan {
      * Set global align directly (for deserialization).
      * Note: Avoid this in favor of the builder method globalAlign(TextAnchor)
      */
-    public void setGlobalAlign(TextAnchor align) {
+    public void setGlobalAlign(TextAlign align) {
         this.globalAlign = align;
     }
 

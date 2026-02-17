@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
 import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
+import net.tysontheember.emberstextapi.immersivemessages.api.TextAlign;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
@@ -404,7 +405,7 @@ public final class TextSpanCodec {
             span.setGlobalAnchor(buf.readEnum(TextAnchor.class));
         }
         if (buf.readBoolean()) {
-            span.setGlobalAlign(buf.readEnum(TextAnchor.class));
+            span.setGlobalAlign(buf.readEnum(TextAlign.class));
         }
 
         if (buf.readBoolean()) {

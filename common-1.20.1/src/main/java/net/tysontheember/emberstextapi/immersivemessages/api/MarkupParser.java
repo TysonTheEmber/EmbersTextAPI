@@ -466,7 +466,7 @@ public class MarkupParser {
             case "align" -> {
                 String alignStr = attrs.getOrDefault("value", "TOP_CENTER");
                 try {
-                    TextAnchor align = TextAnchor.valueOf(alignStr.toUpperCase());
+                    TextAlign align = TextAlign.valueOf(alignStr.toUpperCase());
                     span.globalAlign(align);
                 } catch (IllegalArgumentException e) {
                     LOGGER.debug("Invalid align value '{}': {}", alignStr, e.getMessage());

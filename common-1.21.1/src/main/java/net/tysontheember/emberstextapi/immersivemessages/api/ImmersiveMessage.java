@@ -62,7 +62,7 @@ public class ImmersiveMessage {
     private float yOffset = 55f;
     private boolean shadow = true;
     private TextAnchor anchor = TextAnchor.TOP_CENTER;
-    private TextAnchor align = TextAnchor.TOP_CENTER;
+    private TextAlign align = TextAlign.TOP_CENTER;
     private float textScale = 1f;
     private boolean background = false;
     private ImmersiveColor backgroundColor = new ImmersiveColor(0xAA000000);
@@ -284,7 +284,7 @@ public class ImmersiveMessage {
     // ----- Builder style setters -----
     public ImmersiveMessage shadow(boolean shadow) { this.shadow = shadow; return this; }
     public ImmersiveMessage anchor(TextAnchor anchor) { this.anchor = anchor; return this; }
-    public ImmersiveMessage align(TextAnchor align) { this.align = align; return this; }
+    public ImmersiveMessage align(TextAlign align) { this.align = align; return this; }
     public ImmersiveMessage offset(float x, float y) { this.xOffset = x; this.yOffset = y; return this; }
 
     /**
@@ -899,7 +899,7 @@ public class ImmersiveMessage {
         }
         if (tag.contains("Align")) {
             try {
-                msg.align = TextAnchor.valueOf(tag.getString("Align"));
+                msg.align = TextAlign.valueOf(tag.getString("Align"));
             } catch (IllegalArgumentException ignored) {
             }
         }
@@ -1126,7 +1126,7 @@ public class ImmersiveMessage {
         msg.yOffset = buf.readFloat();
         msg.shadow = buf.readBoolean();
         msg.anchor = buf.readEnum(TextAnchor.class);
-        msg.align = buf.readEnum(TextAnchor.class);
+        msg.align = buf.readEnum(TextAlign.class);
         msg.background = buf.readBoolean();
         msg.backgroundColor = new ImmersiveColor(buf.readInt());
         msg.borderStart = new ImmersiveColor(buf.readInt());
