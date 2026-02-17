@@ -16,29 +16,29 @@ jobs:
             subproject: forge-1.20.1
             gradle_task: ":forge-1.20.1:build"
             jar_glob: "forge-1.20.1/build/libs/emberstextapi-forge-1.20.1-*.jar"
-            mc_versions: '["1.20.1"]'
-            loaders: '["forge"]'
+            mc_version: "1.20.1"
+            loader: forge
 
           - name: Fabric 1.20.1
             subproject: fabric-1.20.1
             gradle_task: ":fabric-1.20.1:build"
             jar_glob: "fabric-1.20.1/build/libs/emberstextapi-fabric-1.20.1-*.jar"
-            mc_versions: '["1.20.1"]'
-            loaders: '["fabric"]'
+            mc_version: "1.20.1"
+            loader: fabric
 
           - name: NeoForge 1.21.1
             subproject: neoforge-1.21.1
             gradle_task: ":neoforge-1.21.1:build"
             jar_glob: "neoforge-1.21.1/build/libs/emberstextapi-neoforge-1.21.1-*.jar"
-            mc_versions: '["1.21.1"]'
-            loaders: '["neoforge"]'
+            mc_version: "1.21.1"
+            loader: neoforge
 
           - name: Fabric 1.21.1
             subproject: fabric-1.21.1
             gradle_task: ":fabric-1.21.1:build"
             jar_glob: "fabric-1.21.1/build/libs/emberstextapi-fabric-1.21.1-*.jar"
-            mc_versions: '["1.21.1"]'
-            loaders: '["fabric"]'
+            mc_version: "1.21.1"
+            loader: fabric
 
     name: Publish ${{ matrix.name }}
 
@@ -115,5 +115,5 @@ jobs:
           version: ${{ steps.version.outputs.version }}+${{ matrix.subproject }}
           version-type: release
           changelog-file: CHANGELOG.md
-          game-versions: ${{ matrix.mc_versions }}
-          loaders: ${{ matrix.loaders }}
+          game-versions: ${{ matrix.mc_version }}
+          loaders: ${{ matrix.loader }}
