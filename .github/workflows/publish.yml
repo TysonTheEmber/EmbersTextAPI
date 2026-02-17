@@ -2,212 +2,122 @@ name: Publish Mod
 
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   publish:
-    name: Publish ${{ matrix.display_name_suffix }}
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
         include:
-          - id: forge-1201
-            mc_versions: ["1.20.1"]
-            loaders: ["forge"]
+          - name: Forge 1.20.1
+            subproject: forge-1.20.1
             gradle_task: ":forge-1.20.1:build"
-            jar_glob: "forge-1.20.1/build/libs/*forge-1.20.1*.jar"
-            display_name_suffix: "Forge 1.20.1"
+            jar_glob: "forge-1.20.1/build/libs/emberstextapi-forge-1.20.1-*.jar"
+            mc_versions: '["1.20.1"]'
+            loaders: '["forge"]'
             java: 17
-          - id: fabric-1201
-            mc_versions: ["1.20.1"]
-            loaders: ["fabric"]
+
+          - name: Fabric 1.20.1
+            subproject: fabric-1.20.1
             gradle_task: ":fabric-1.20.1:build"
-            jar_glob: "fabric-1.20.1/build/libs/*fabric-1.20.1*.jar"
-            display_name_suffix: "Fabric 1.20.1"
+            jar_glob: "fabric-1.20.1/build/libs/emberstextapi-fabric-1.20.1-*.jar"
+            mc_versions: '["1.20.1"]'
+            loaders: '["fabric"]'
             java: 17
-          - id: neoforge-1211
-            mc_versions: ["1.21.1"]
-            loaders: ["neoforge"]
+
+          - name: NeoForge 1.21.1
+            subproject: neoforge-1.21.1
             gradle_task: ":neoforge-1.21.1:build"
-            jar_glob: "neoforge-1.21.1/build/libs/*neoforge-1.21.1*.jar"
-            display_name_suffix: "NeoForge 1.21.1"
+            jar_glob: "neoforge-1.21.1/build/libs/emberstextapi-neoforge-1.21.1-*.jar"
+            mc_versions: '["1.21.1"]'
+            loaders: '["neoforge"]'
             java: 21
-          - id: fabric-1211
-            mc_versions: ["1.21.1"]
-            loaders: ["fabric"]
+
+          - name: Fabric 1.21.1
+            subproject: fabric-1.21.1
             gradle_task: ":fabric-1.21.1:build"
-            jar_glob: "fabric-1.21.1/build/libs/*fabric-1.21.1*.jar"
-            display_name_suffix: "Fabric 1.21.1"
+            jar_glob: "fabric-1.21.1/build/libs/emberstextapi-fabric-1.21.1-*.jar"
+            mc_versions: '["1.21.1"]'
+            loaders: '["fabric"]'
             java: 21
+
+    name: Publish ${{ matrix.name }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
 
-      - name: Read mod metadata
-        id: meta
-        shell: bash
-        run: |
-          set -e
-          props_file="gradle.properties"
-          mod_name=$(grep -E '^mod_name=' "$props_file" | head -n1 | cut -d'=' -f2-)
-          mod_version=$(grep -E '^mod_version=' "$props_file" | head -n1 | cut -d'=' -f2-)
-          mod_id=$(grep -E '^mod_id=' "$props_file" | head -n1 | cut -d'=' -f2-)
-          echo "mod_name=$mod_name" >> "$GITHUB_OUTPUT"
-          echo "mod_version=$mod_version" >> "$GITHUB_OUTPUT"
-          echo "mod_id=$mod_id" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Java
+      - name: Setup Java ${{ matrix.java }}
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Determine version
         id: version
-        shell: bash
-        env:
-          MOD_VERSION: ${{ steps.meta.outputs.mod_version }}
         run: |
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            raw="${GITHUB_REF_NAME}"
-            cleaned="${raw#v}"
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"
           else
-            run_id="${GITHUB_RUN_ID:-$(date -u +'%Y%m%d%H%M%S')}"
-            if [ -n "${MOD_VERSION}" ]; then
-              cleaned="${MOD_VERSION}-dev-${run_id}"
-            else
-              cleaned="snapshot-${run_id}"
-            fi
+            VERSION="dev-$(git rev-parse --short HEAD)"
           fi
-          echo "version=$cleaned" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Using version: $VERSION"
 
-      - name: Prepare release notes
-        id: notes
-        shell: bash
+      - name: Build ${{ matrix.name }}
+        run: ./gradlew ${{ matrix.gradle_task }} -Pmod_version=${{ steps.version.outputs.version }} --no-daemon
+
+      - name: Resolve jar path
+        id: jar
         run: |
-          set -e
-          notes=""
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            tag_msg=$(git for-each-ref --format='%(contents)' "refs/tags/${GITHUB_REF_NAME}" || true)
-            if [ -n "$tag_msg" ]; then
-              notes="$tag_msg"
-            fi
-          fi
-
-          if [ -z "$notes" ] && [ -f CHANGELOG.md ]; then
-            notes="$(cat CHANGELOG.md)"
-          fi
-
-          if [ -z "$notes" ]; then
-            notes="$(git log -1 --pretty=%B)"
-          fi
-
-          printf 'notes<<EOF\n%s\nEOF\n' "$notes" >> "$GITHUB_OUTPUT"
-
-      - name: Validate publishing secrets
-        shell: bash
-        env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
-          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
-          CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
-        run: |
-          set -e
-          missing=()
-          for key in MODRINTH_TOKEN CURSEFORGE_TOKEN MODRINTH_PROJECT_ID CURSEFORGE_PROJECT_ID; do
-            if [ -z "${!key}" ]; then
-              missing+=("$key")
+          shopt -s nullglob
+          # Find jars matching glob but exclude sources/javadoc/dev/shadow jars
+          JARS=()
+          for f in ${{ matrix.jar_glob }}; do
+            basename="$(basename "$f")"
+            if [[ "$basename" != *-sources.jar ]] && \
+               [[ "$basename" != *-javadoc.jar ]] && \
+               [[ "$basename" != *-dev.jar ]] && \
+               [[ "$basename" != *-shadow.jar ]] && \
+               [[ "$basename" != *-slim.jar ]]; then
+              JARS+=("$f")
             fi
           done
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "Missing required secrets: ${missing[*]}" >&2
+          if [[ ${#JARS[@]} -eq 0 ]]; then
+            echo "::error::No jar found matching ${{ matrix.jar_glob }}"
+            echo "All jars under build/libs:"
+            find . -path '*/build/libs/*.jar' -print
             exit 1
           fi
-          if ! [[ "$CURSEFORGE_PROJECT_ID" =~ ^[0-9]+$ ]]; then
-            echo "CURSEFORGE_PROJECT_ID must be the numeric project ID (not the slug)." >&2
+          if [[ ${#JARS[@]} -gt 1 ]]; then
+            echo "::error::Multiple jars found matching ${{ matrix.jar_glob }}:"
+            printf '  %s\n' "${JARS[@]}"
+            echo "All jars under build/libs:"
+            find . -path '*/build/libs/*.jar' -print
             exit 1
           fi
+          JAR="${JARS[0]}"
+          echo "jar_path=$JAR" >> "$GITHUB_OUTPUT"
+          echo "Resolved jar: $JAR"
 
-      - name: Build ${{ matrix.display_name_suffix }}
-        shell: bash
-        run: |
-          set -e
-          task="${{ matrix.gradle_task }}"
-          ./gradlew "$task" --configure-on-demand
-
-      - name: Locate built jar
-        id: jar
-        shell: bash
-        run: |
-          set -e
-          shopt -s nullglob
-          pattern="${{ matrix.jar_glob }}"
-          matches=($(ls -1 $pattern 2>/dev/null | grep -v '\-sources\.jar' || true))
-
-          if [ ${#matches[@]} -eq 0 ]; then
-            echo "No jars matched pattern: $pattern" >&2
-            exit 1
-          fi
-
-          if [ ${#matches[@]} -gt 1 ]; then
-            jar=$(ls -1t "${matches[@]}" | head -n1)
-            echo "Multiple jars found, using newest: $jar"
-          else
-            jar="${matches[0]}"
-          fi
-
-          echo "jar=$jar" >> "$GITHUB_OUTPUT"
-          jar_name="${jar##*/}"
-          jar_base="${jar_name%.jar}"
-          echo "jar_name=$jar_name" >> "$GITHUB_OUTPUT"
-          echo "jar_base=$jar_base" >> "$GITHUB_OUTPUT"
-
-      - name: Standardize jar filename
-        id: renamed
-        shell: bash
-        env:
-          MOD_ID: ${{ steps.meta.outputs.mod_id }}
-          MOD_VERSION: ${{ steps.meta.outputs.mod_version }}
-        run: |
-          set -e
-          src="${{ steps.jar.outputs.jar }}"
-          dir=$(dirname "$src")
-          target="${MOD_ID}-${{ join(matrix.loaders, '-') }}-${{ join(matrix.mc_versions, '-') }}-${MOD_VERSION}.jar"
-          dest="$dir/$target"
-          if [ "$src" != "$dest" ]; then
-            cp "$src" "$dest"
-          fi
-          version_num="${MOD_VERSION}-${{ join(matrix.loaders, '-') }}-${{ join(matrix.mc_versions, '-') }}"
-          echo "jar=$dest" >> "$GITHUB_OUTPUT"
-          echo "jar_name=$target" >> "$GITHUB_OUTPUT"
-          echo "jar_base=${target%.jar}" >> "$GITHUB_OUTPUT"
-          echo "version_num=$version_num" >> "$GITHUB_OUTPUT"
-
-      - name: Publish ${{ matrix.display_name_suffix }}
+      - name: Publish ${{ matrix.name }}
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          loaders: ${{ join(matrix.loaders, ',') }}
-          game-versions: ${{ join(matrix.mc_versions, ',') }}
-          files: ${{ steps.renamed.outputs.jar }}
-          name: ${{ steps.renamed.outputs.jar_base }}
-          version: ${{ steps.renamed.outputs.version_num }}
+          files: ${{ steps.jar.outputs.jar_path }}
+          name: "Ember's Text API ${{ steps.version.outputs.version }} (${{ matrix.name }})"
+          version: ${{ steps.version.outputs.version }}+${{ matrix.subproject }}
           version-type: release
-          changelog: ${{ steps.notes.outputs.notes }}
+          changelog-file: CHANGELOG.md
+          game-versions: ${{ matrix.mc_versions }}
+          loaders: ${{ matrix.loaders }}
