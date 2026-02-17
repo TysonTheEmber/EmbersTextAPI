@@ -62,7 +62,7 @@ public class ImmersiveMessage {
     private float yOffset = 55f;
     private boolean shadow = true;
     private TextAnchor anchor = TextAnchor.TOP_CENTER;
-    private TextAnchor align = TextAnchor.TOP_CENTER;
+    private TextAlign align = TextAlign.LEFT;
     private float textScale = 1f;
     private boolean background = false;
     private ImmersiveColor backgroundColor = new ImmersiveColor(0xAA000000);
@@ -284,7 +284,7 @@ public class ImmersiveMessage {
     // ----- Builder style setters -----
     public ImmersiveMessage shadow(boolean shadow) { this.shadow = shadow; return this; }
     public ImmersiveMessage anchor(TextAnchor anchor) { this.anchor = anchor; return this; }
-    public ImmersiveMessage align(TextAnchor align) { this.align = align; return this; }
+    public ImmersiveMessage align(TextAlign align) { this.align = align; return this; }
     public ImmersiveMessage offset(float x, float y) { this.xOffset = x; this.yOffset = y; return this; }
 
     /**
@@ -899,7 +899,7 @@ public class ImmersiveMessage {
         }
         if (tag.contains("Align")) {
             try {
-                msg.align = TextAnchor.valueOf(tag.getString("Align"));
+                msg.align = TextAlign.valueOf(tag.getString("Align"));
             } catch (IllegalArgumentException ignored) {
             }
         }
@@ -1126,7 +1126,7 @@ public class ImmersiveMessage {
         msg.yOffset = buf.readFloat();
         msg.shadow = buf.readBoolean();
         msg.anchor = buf.readEnum(TextAnchor.class);
-        msg.align = buf.readEnum(TextAnchor.class);
+        msg.align = buf.readEnum(TextAlign.class);
         msg.background = buf.readBoolean();
         msg.backgroundColor = new ImmersiveColor(buf.readInt());
         msg.borderStart = new ImmersiveColor(buf.readInt());
@@ -1546,7 +1546,14 @@ public class ImmersiveMessage {
         int backgroundHeightInt = Mth.ceil(backgroundHeight);
 
         float x = screenW * anchor.xFactor - baseWidth * textScale * align.xFactor + xOffset;
-        float y = screenH * anchor.yFactor - baseHeight * textScale * align.yFactor + yOffset;
+        float y = screenH * anchor.yFactor - baseHeight * textScale * anchor.yFactor + yOffset;
+
+        // Clamp so text stays on screen with a small margin
+        float margin = 4f;
+        float scaledW = baseWidth * textScale;
+        float scaledH = baseHeight * textScale;
+        x = Mth.clamp(x, margin, screenW - scaledW - margin);
+        y = Mth.clamp(y, margin, screenH - scaledH - margin);
 
         // [DIAG] Position diagnostics - log once per message on first render
         if (age < 2f) {
