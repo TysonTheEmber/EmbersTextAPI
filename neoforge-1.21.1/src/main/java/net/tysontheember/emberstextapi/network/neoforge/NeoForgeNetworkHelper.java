@@ -4,6 +4,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.platform.NetworkHelper;
 
+import java.util.List;
+
 public class NeoForgeNetworkHelper implements NetworkHelper {
 
     @Override
@@ -37,7 +39,17 @@ public class NeoForgeNetworkHelper implements NetworkHelper {
     }
 
     @Override
-    public void sendClearQueue(ServerPlayer player) {
-        NeoForgeNetworkHandler.sendClearQueue(player);
+    public void sendQueue(ServerPlayer player, String channel, List<List<ImmersiveMessage>> steps) {
+        NeoForgeNetworkHandler.sendQueue(player, channel, steps);
+    }
+
+    @Override
+    public void sendClearQueue(ServerPlayer player, String channel) {
+        NeoForgeNetworkHandler.sendClearQueue(player, channel);
+    }
+
+    @Override
+    public void sendClearAllQueues(ServerPlayer player) {
+        NeoForgeNetworkHandler.sendClearAllQueues(player);
     }
 }

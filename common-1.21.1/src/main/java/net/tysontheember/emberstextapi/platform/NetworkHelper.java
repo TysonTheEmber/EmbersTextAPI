@@ -3,6 +3,8 @@ package net.tysontheember.emberstextapi.platform;
 import net.minecraft.server.level.ServerPlayer;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 
+import java.util.List;
+
 /**
  * Platform abstraction for networking.
  * Handles sending packets to clients in a loader-agnostic way.
@@ -47,7 +49,18 @@ public interface NetworkHelper {
     void sendCloseAllMessages(ServerPlayer player);
 
     /**
-     * Send a clear queue packet to a player.
+     * Send a full queue to a player. Appends if channel already active on client.
+     * Each element of {@code steps} is a list of messages shown simultaneously in that step.
      */
-    void sendClearQueue(ServerPlayer player);
+    void sendQueue(ServerPlayer player, String channel, List<List<ImmersiveMessage>> steps);
+
+    /**
+     * Clear a specific channel queue on the client. Pass empty string to clear all.
+     */
+    void sendClearQueue(ServerPlayer player, String channel);
+
+    /**
+     * Clear all channel queues on the client immediately.
+     */
+    void sendClearAllQueues(ServerPlayer player);
 }
