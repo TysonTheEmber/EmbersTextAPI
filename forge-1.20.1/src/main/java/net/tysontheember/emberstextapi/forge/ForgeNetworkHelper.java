@@ -5,6 +5,8 @@ import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.network.forge.ForgeNetworkHandler;
 import net.tysontheember.emberstextapi.platform.NetworkHelper;
 
+import java.util.List;
+
 /**
  * Forge implementation of NetworkHelper.
  */
@@ -42,7 +44,17 @@ public class ForgeNetworkHelper implements NetworkHelper {
     }
 
     @Override
-    public void sendClearQueue(ServerPlayer player) {
-        handler.sendClearQueue(player);
+    public void sendQueue(ServerPlayer player, String channel, List<List<ImmersiveMessage>> steps) {
+        handler.sendQueue(player, channel, steps);
+    }
+
+    @Override
+    public void sendClearQueue(ServerPlayer player, String channel) {
+        handler.sendClearQueue(player, channel);
+    }
+
+    @Override
+    public void sendClearAllQueues(ServerPlayer player) {
+        handler.sendClearAllQueues(player);
     }
 }

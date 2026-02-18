@@ -171,7 +171,7 @@ public class EffectTestCommands {
                     if (server == null) return 0;
 
                     net.tysontheember.emberstextapi.platform.NetworkHelper.getInstance()
-                            .sendClearQueue(player);
+                            .sendClearAllQueues(player);
 
                     String[] modes = {
                         "<obfuscate>Constant obfuscation</obfuscate>",
@@ -188,7 +188,7 @@ public class EffectTestCommands {
                         server.tell(new net.minecraft.server.TickTask(baseTick + delayTicks, () -> {
                             if (player.isAlive() && player.connection != null) {
                                 net.tysontheember.emberstextapi.platform.NetworkHelper.getInstance()
-                                        .sendClearQueue(player);
+                                        .sendClearAllQueues(player);
 
                                 var msg = net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage
                                         .fromMarkup(90f, markup)
@@ -299,7 +299,7 @@ public class EffectTestCommands {
 
         // Clear queue at start
         net.tysontheember.emberstextapi.platform.NetworkHelper.getInstance()
-                .sendClearQueue(player);
+                .sendClearAllQueues(player);
 
         // Combine all effects into one list
         java.util.List<EffectDef> allEffects = new java.util.ArrayList<>();
@@ -318,7 +318,7 @@ public class EffectTestCommands {
                 if (player.isAlive() && player.connection != null) {
                     // Clear previous message
                     net.tysontheember.emberstextapi.platform.NetworkHelper.getInstance()
-                            .sendClearQueue(player);
+                            .sendClearAllQueues(player);
 
                     // Create and send the message
                     var msg = net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage
@@ -393,7 +393,7 @@ public class EffectTestCommands {
     private static void sendImmersive(ServerPlayer player, String markup) {
         // Clear queue using platform abstraction
         net.tysontheember.emberstextapi.platform.NetworkHelper.getInstance()
-                .sendClearQueue(player);
+                .sendClearAllQueues(player);
 
         var msg = net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage
                 .fromMarkup(100f, markup)

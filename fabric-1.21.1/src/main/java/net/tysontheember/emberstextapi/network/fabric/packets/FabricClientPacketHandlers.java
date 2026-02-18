@@ -2,9 +2,13 @@ package net.tysontheember.emberstextapi.network.fabric.packets;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.tysontheember.emberstextapi.client.ClientMessageManager;
+import net.tysontheember.emberstextapi.client.QueueStep;
+import net.tysontheember.emberstextapi.client.QueuedMessage;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.network.fabric.FabricNetworkHandler;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -47,9 +51,33 @@ public class FabricClientPacketHandlers {
             context.client().execute(ClientMessageManager::closeAll);
         });
 
+        // Open queue packet
+        ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.OpenQueuePayload.TYPE, (payload, context) -> {
+            context.client().execute(() -> {
+                List<QueueStep> steps = new ArrayList<>();
+                for (int s = 0; s < payload.ids().size(); s++) {
+                    List<UUID> stepIds = payload.ids().get(s);
+                    List<net.minecraft.nbt.CompoundTag> stepNbts = payload.stepData().get(s);
+                    List<QueuedMessage> messages = new ArrayList<>();
+                    for (int m = 0; m < stepIds.size(); m++) {
+                        ImmersiveMessage msg = ImmersiveMessage.fromNbt(stepNbts.get(m));
+                        messages.add(new QueuedMessage(stepIds.get(m), msg));
+                    }
+                    steps.add(new QueueStep(messages));
+                }
+                ClientMessageManager.enqueueSteps(payload.channel(), steps);
+            });
+        });
+
         // Clear queue packet
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.ClearQueuePayload.TYPE, (payload, context) -> {
-            context.client().execute(ClientMessageManager::closeAll);
+            context.client().execute(() -> {
+                if (payload.channel().isEmpty()) {
+                    ClientMessageManager.clearAllQueues();
+                } else {
+                    ClientMessageManager.clearQueue(payload.channel());
+                }
+            });
         });
     }
 }

@@ -1,5 +1,6 @@
 package net.tysontheember.emberstextapi.network.forge;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkRegistry;
@@ -10,6 +11,10 @@ import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.network.NetworkHandler;
 import net.tysontheember.emberstextapi.network.forge.packets.*;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 /**
  * Forge-specific network handler implementation.
  * <p>
@@ -17,7 +22,7 @@ import net.tysontheember.emberstextapi.network.forge.packets.*;
  * </p>
  */
 public final class ForgeNetworkHandler implements NetworkHandler {
-    private static final String PROTOCOL = "3";
+    private static final String PROTOCOL = "4";
     private static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "tooltip");
 
     /**
@@ -51,7 +56,8 @@ public final class ForgeNetworkHandler implements NetworkHandler {
         CHANNEL.registerMessage(id++, S2C_UpdateMessagePacket.class, S2C_UpdateMessagePacket::encode, S2C_UpdateMessagePacket::decode, S2C_UpdateMessagePacket::handle);
         CHANNEL.registerMessage(id++, S2C_CloseMessagePacket.class, S2C_CloseMessagePacket::encode, S2C_CloseMessagePacket::decode, S2C_CloseMessagePacket::handle);
         CHANNEL.registerMessage(id++, S2C_CloseAllMessagesPacket.class, S2C_CloseAllMessagesPacket::encode, S2C_CloseAllMessagesPacket::decode, S2C_CloseAllMessagesPacket::handle);
-        CHANNEL.registerMessage(id, S2C_ClearQueuePacket.class, S2C_ClearQueuePacket::encode, S2C_ClearQueuePacket::decode, S2C_ClearQueuePacket::handle);
+        CHANNEL.registerMessage(id++, S2C_ClearQueuePacket.class, S2C_ClearQueuePacket::encode, S2C_ClearQueuePacket::decode, S2C_ClearQueuePacket::handle);
+        CHANNEL.registerMessage(id, S2C_OpenQueuePacket.class, S2C_OpenQueuePacket::encode, S2C_OpenQueuePacket::decode, S2C_OpenQueuePacket::handle);
     }
 
     @Override
@@ -61,19 +67,19 @@ public final class ForgeNetworkHandler implements NetworkHandler {
 
     @Override
     public void sendOpenMessage(ServerPlayer player, ImmersiveMessage message) {
-        java.util.UUID id = java.util.UUID.randomUUID();
+        UUID id = UUID.randomUUID();
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new S2C_OpenMessagePacket(id, message.toNbt()));
     }
 
     @Override
     public void sendUpdateMessage(ServerPlayer player, String id, ImmersiveMessage message) {
-        java.util.UUID uuid = java.util.UUID.fromString(id);
+        UUID uuid = UUID.fromString(id);
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new S2C_UpdateMessagePacket(uuid, message.toNbt()));
     }
 
     @Override
     public void sendCloseMessage(ServerPlayer player, String id) {
-        java.util.UUID uuid = java.util.UUID.fromString(id);
+        UUID uuid = UUID.fromString(id);
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new S2C_CloseMessagePacket(uuid));
     }
 
@@ -83,7 +89,29 @@ public final class ForgeNetworkHandler implements NetworkHandler {
     }
 
     @Override
-    public void sendClearQueue(ServerPlayer player) {
-        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new S2C_ClearQueuePacket());
+    public void sendQueue(ServerPlayer player, String channel, List<List<ImmersiveMessage>> steps) {
+        List<List<UUID>> ids = new ArrayList<>();
+        List<List<CompoundTag>> stepData = new ArrayList<>();
+        for (List<ImmersiveMessage> step : steps) {
+            List<UUID> stepIds = new ArrayList<>();
+            List<CompoundTag> msgs = new ArrayList<>();
+            for (ImmersiveMessage msg : step) {
+                stepIds.add(UUID.randomUUID());
+                msgs.add(msg.toNbt());
+            }
+            ids.add(stepIds);
+            stepData.add(msgs);
+        }
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new S2C_OpenQueuePacket(channel, ids, stepData));
+    }
+
+    @Override
+    public void sendClearQueue(ServerPlayer player, String channel) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new S2C_ClearQueuePacket(channel));
+    }
+
+    @Override
+    public void sendClearAllQueues(ServerPlayer player) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new S2C_ClearQueuePacket(""));
     }
 }

@@ -93,6 +93,12 @@ public class EmbersTextAPI {
         );
 
         registrar.playToClient(
+            NeoForgeNetworkHandler.OpenQueuePayload.TYPE,
+            NeoForgeNetworkHandler.OpenQueuePayload.STREAM_CODEC,
+            NeoForgeNetworkHandler::handleOpenQueue
+        );
+
+        registrar.playToClient(
             NeoForgeNetworkHandler.ClearQueuePayload.TYPE,
             NeoForgeNetworkHandler.ClearQueuePayload.STREAM_CODEC,
             NeoForgeNetworkHandler::handleClearQueue

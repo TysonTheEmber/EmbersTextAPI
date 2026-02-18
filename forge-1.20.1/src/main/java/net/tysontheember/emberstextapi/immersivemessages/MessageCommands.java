@@ -1,6 +1,5 @@
 package net.tysontheember.emberstextapi.immersivemessages;
 
-import com.google.gson.JsonSyntaxException;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -9,7 +8,6 @@ import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.logging.LogUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -24,15 +22,18 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
+import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage.TextureSizingMode;
+import net.tysontheember.emberstextapi.immersivemessages.api.MarkupParser;
 import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
 import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextAlign;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
-import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage.TextureSizingMode;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
+import net.tysontheember.emberstextapi.platform.NetworkHelper;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Mod.EventBusSubscriber(modid = EmbersTextAPI.MODID)
@@ -46,7 +47,8 @@ public class MessageCommands {
             Commands.literal("emberstextapi")
                 .then(testSubcommand())
                 .then(sendSubcommand())
-                .then(customSubcommand())
+                .then(queueSubcommand())
+                .then(clearQueueSubcommand())
         );
 
         // Register short alias
@@ -54,7 +56,8 @@ public class MessageCommands {
             Commands.literal("eta")
                 .then(testSubcommand())
                 .then(sendSubcommand())
-                .then(customSubcommand())
+                .then(queueSubcommand())
+                .then(clearQueueSubcommand())
         );
     }
 
@@ -84,7 +87,7 @@ public class MessageCommands {
         ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
         float duration = FloatArgumentType.getFloat(ctx, "duration");
         String text = StringArgumentType.getString(ctx, "text");
-        
+
         // Support markup in basic send command
         ImmersiveMessage msg;
         if (text.contains("<") && text.contains(">")) {
@@ -92,329 +95,75 @@ public class MessageCommands {
         } else {
             msg = ImmersiveMessage.builder(duration, text);
         }
-        
+
         EmbersTextAPI.sendMessage(target, msg);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> customSubcommand() {
-        return Commands.literal("sendcustom")
+    private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> queueSubcommand() {
+        return Commands.literal("queue")
             .then(Commands.argument("player", EntityArgument.player())
-                .then(Commands.argument("data", CompoundTagArgument.compoundTag())
-                    .then(Commands.argument("duration", FloatArgumentType.floatArg())
-                        .then(Commands.argument("text", StringArgumentType.greedyString())
-                            .executes(ctx -> {
-                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
-                                CompoundTag tag = CompoundTagArgument.getCompoundTag(ctx, "data");
-                                float duration = FloatArgumentType.getFloat(ctx, "duration");
-                                String text = StringArgumentType.getString(ctx, "text");
+                .then(Commands.argument("channel", StringArgumentType.word())
+                    .then(Commands.argument("queue_definition", StringArgumentType.greedyString())
+                        .executes(ctx -> {
+                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            String channel = StringArgumentType.getString(ctx, "channel");
+                            String queueDef = StringArgumentType.getString(ctx, "queue_definition");
 
-                                // Build a case-insensitive lookup for tag keys
-                                java.util.Map<String, String> keys = new java.util.HashMap<>();
-                                for (String k : tag.getAllKeys()) {
-                                    keys.put(k.toLowerCase(java.util.Locale.ROOT), k);
-                                }
+                            // Split on " | " to get steps
+                            String[] rawSteps = queueDef.split(" \\| ");
+                            List<List<ImmersiveMessage>> steps = new ArrayList<>();
 
-                                // NEW: Check if text contains markup tags and use appropriate parsing
-                                ImmersiveMessage msg;
-                                if (text.contains("<") && text.contains(">")) {
-                                    // Use markup parser for span-based rendering
-                                    msg = ImmersiveMessage.fromMarkup(duration, text);
-                                    // Apply NBT data to span-based message
-                                    applyNbtToSpanMessage(msg, tag, keys);
-                                } else {
-                                    // Use legacy approach + json
-                                    // Credit to Hexagreen for the idea
-                                    MutableComponent component;
+                            for (String rawStep : rawSteps) {
+                                // Split on " & " to get simultaneous messages in a step
+                                String[] rawMessages = rawStep.split(" & ");
+                                List<ImmersiveMessage> stepMsgs = new ArrayList<>();
 
-                                    String raw = text;
-                                    String t = raw.trim();
-
-                                    if (t.regionMatches(true, 0, "tr:", 0, 3)) {
-                                        String after = t.substring(3).trim();
-                                        int space = after.indexOf(' ');
-                                        if (space == -1) {
-                                            component = Component.translatable(after);
-                                        } else {
-                                            String key = after.substring(0, space);
-                                            String rest = after.substring(space + 1);
-                                            component = Component.translatable(key).append(Component.literal(" " + rest));
-                                        }
-                                    }
-                                    else if ((t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"))) {
-                                        try {
-                                            component = Component.Serializer.fromJson(t);
-                                            if (component == null) component = Component.literal(raw);
-                                        } catch (JsonSyntaxException ignore) {
-                                            component = Component.literal(raw);
-                                        }
-                                    }
-                                    else {
-                                        component = Component.literal(raw);
-                                    }
-                                    if (tag.contains("font")) {
-                                    ResourceLocation font = ResourceLocation.tryParse(tag.getString("font"));
-                                    if (font != null) {
-                                        component = component.withStyle(style -> style.withFont(font));
-                                    }
-                                }
-                                if (tag.contains("bold") && tag.getBoolean("bold")) {
-                                    component = component.withStyle(style -> style.withBold(true));
-                                }
-                                if (tag.contains("italic") && tag.getBoolean("italic")) {
-                                    component = component.withStyle(style -> style.withItalic(true));
-                                }
-                                if (tag.contains("underlined") && tag.getBoolean("underlined")) {
-                                    component = component.withStyle(style -> style.withUnderlined(true));
-                                }
-                                if (tag.contains("strikethrough") && tag.getBoolean("strikethrough")) {
-                                    component = component.withStyle(style -> style.withStrikethrough(true));
-                                }
-                                if (tag.contains("obfuscated") && tag.getBoolean("obfuscated")) {
-                                    component = component.withStyle(style -> style.withObfuscated(true));
-                                }
-                                if (tag.contains("color")) {
-                                    String colour = tag.getString("color");
-                                    ChatFormatting fmt = ChatFormatting.getByName(colour);
-                                    if (fmt != null) {
-                                        component = component.withStyle(style -> style.withColor(fmt));
-                                    } else {
-                                        TextColor parsed = TextColor.parseColor(colour);
-                                        if (parsed != null) {
-                                            component = component.withStyle(style -> style.withColor(parsed));
-                                        }
-                                    }
+                                for (String rawMsg : rawMessages) {
+                                    String text = rawMsg.trim();
+                                    // Strip surrounding quotes
+                                    if (text.length() >= 2
+                                            && ((text.startsWith("\"") && text.endsWith("\""))
+                                            || (text.startsWith("'") && text.endsWith("'")))) {
+                                        text = text.substring(1, text.length() - 1);
                                     }
 
-                                    msg = new ImmersiveMessage(component, duration);
-                                }
-                                // Fade-in/out are now handled via markup tags, not NBT
+                                    // Extract <dur:N> tag
+                                    Object[] extracted = MarkupParser.extractDuration(text);
+                                    float duration = (float) extracted[0];
+                                    String markup = (String) extracted[1];
 
-                                // Text gradient (supports list of stops or {start,end})
-                                if (tag.contains("gradient", Tag.TAG_LIST)) {
-                                    ListTag list = tag.getList("gradient", Tag.TAG_STRING);
-                                    java.util.List<TextColor> cols = new java.util.ArrayList<>();
-                                    for (int i = 0; i < list.size(); i++) {
-                                        TextColor c = parseColor(list.getString(i));
-                                        if (c != null) cols.add(c);
+                                    if (duration < 0) {
+                                        LOGGER.warn("No <dur:N> found in queue message '{}', defaulting to 60", text);
+                                        duration = 60f;
                                     }
-                                    if (cols.size() >= 2) {
-                                        msg.gradient(cols);
-                                    }
-                                } else if (tag.contains("gradient", Tag.TAG_COMPOUND)) {
-                                    CompoundTag grad = tag.getCompound("gradient");
-                                    String startStr = grad.getString("start");
-                                    String endStr = grad.getString("end");
-                                    TextColor start = parseColor(startStr);
-                                    TextColor end = parseColor(endStr);
-                                    if (start != null && end != null) {
-                                        msg.gradient(start, end);
-                                    }
+
+                                    stepMsgs.add(ImmersiveMessage.fromMarkup(duration, markup));
                                 }
 
-                                // Background gradient (maps to background's top/bottom colors)
-                                if (tag.contains("bgGradient", Tag.TAG_LIST)) {
-                                    ListTag list = tag.getList("bgGradient", Tag.TAG_STRING);
-                                    java.util.List<ImmersiveColor> cols = new java.util.ArrayList<>();
-                                    for (int i = 0; i < list.size(); i++) {
-                                        ImmersiveColor c = parseImmersiveColor(list.getString(i));
-                                        if (c != null) cols.add(c);
-                                    }
-                                    if (cols.size() >= 2) {
-                                        msg.background(true);
-                                        // Use first as top, last as bottom
-                                        msg.backgroundGradient(cols.get(0), cols.get(cols.size() - 1));
-                                    }
-                                } else if (tag.contains("bgGradient", Tag.TAG_COMPOUND)) {
-                                    CompoundTag grad = tag.getCompound("bgGradient");
-                                    ImmersiveColor start = parseImmersiveColor(grad.getString("start"));
-                                    ImmersiveColor end = parseImmersiveColor(grad.getString("end"));
-                                    if (start != null && end != null) {
-                                        msg.background(true);
-                                        msg.backgroundGradient(start, end);
-                                    }
-                                }
+                                steps.add(stepMsgs);
+                            }
 
-                                // Border gradient (separate from background)
-                                if (tag.contains("borderGradient", Tag.TAG_LIST)) {
-                                    ListTag list = tag.getList("borderGradient", Tag.TAG_STRING);
-                                    java.util.List<ImmersiveColor> cols = new java.util.ArrayList<>();
-                                    for (int i = 0; i < list.size(); i++) {
-                                        ImmersiveColor c = parseImmersiveColor(list.getString(i));
-                                        if (c != null) cols.add(c);
-                                    }
-                                    if (cols.size() >= 2) {
-                                        msg.background(true);
-                                        // Use first as top, last as bottom
-                                        msg.borderGradient(cols.get(0), cols.get(cols.size() - 1));
-                                    }
-                                } else if (tag.contains("borderGradient", Tag.TAG_COMPOUND)) {
-                                    CompoundTag grad = tag.getCompound("borderGradient");
-                                    ImmersiveColor start = parseImmersiveColor(grad.getString("start"));
-                                    ImmersiveColor end = parseImmersiveColor(grad.getString("end"));
-                                    if (start != null && end != null) {
-                                        msg.background(true);
-                                        msg.borderGradient(start, end);
-                                    }
-                                }
+                            NetworkHelper.getInstance().sendQueue(target, channel, steps);
+                            return Command.SINGLE_SUCCESS;
+                        }))));
+    }
 
-                                if (tag.contains("bgColor")) {
-                                    msg.bgColor(tag.getString("bgColor"));
-                                }
-
-                                if (tag.contains("textureBackground", Tag.TAG_STRING)) {
-                                    ResourceLocation texture = ResourceLocation.tryParse(tag.getString("textureBackground"));
-                                    if (texture != null) {
-                                        msg.textureBackground(texture);
-                                    }
-                                } else if (tag.contains("textureBackground", Tag.TAG_COMPOUND)) {
-                                    CompoundTag tex = tag.getCompound("textureBackground");
-                                    String key = tex.contains("location") ? "location" : tex.contains("texture") ? "texture" : null;
-                                    ResourceLocation texture = key != null ? ResourceLocation.tryParse(tex.getString(key)) : null;
-                                    if (texture != null) {
-                                        int u = tex.contains("u") ? tex.getInt("u") : 0;
-                                        int v = tex.contains("v") ? tex.getInt("v") : 0;
-                                        int regionWidth = tex.contains("width") ? tex.getInt("width") : 256;
-                                        int regionHeight = tex.contains("height") ? tex.getInt("height") : 256;
-                                        int atlasWidth = tex.contains("atlasWidth") ? tex.getInt("atlasWidth") : regionWidth;
-                                        int atlasHeight = tex.contains("atlasHeight") ? tex.getInt("atlasHeight") : regionHeight;
-                                        msg.textureBackground(texture, u, v, regionWidth, regionHeight, atlasWidth, atlasHeight);
-
-                                        // --- NEWER extended options block (kept) ---
-                                        if (tex.contains("padding")) {
-                                            msg.textureBackgroundPadding(tex.getFloat("padding"));
-                                        }
-                                        if (tex.contains("paddingX") || tex.contains("paddingY")) {
-                                            float padX = tex.contains("paddingX") ? tex.getFloat("paddingX") : Float.NaN;
-                                            float padY = tex.contains("paddingY") ? tex.getFloat("paddingY") : Float.NaN;
-                                            msg.textureBackgroundPadding(padX, padY);
-                                        }
-                                        if (tex.contains("scale")) {
-                                            msg.textureBackgroundScale(tex.getFloat("scale"));
-                                        }
-                                        if (tex.contains("scaleX") || tex.contains("scaleY")) {
-                                            float scaleX = tex.contains("scaleX") ? tex.getFloat("scaleX") : Float.NaN;
-                                            float scaleY = tex.contains("scaleY") ? tex.getFloat("scaleY") : Float.NaN;
-                                            msg.textureBackgroundScale(scaleX, scaleY);
-                                        }
-                                        if (tex.contains("size")) {
-                                            float size = tex.getFloat("size");
-                                            msg.textureBackgroundSize(size, size);
-                                        }
-                                        if (tex.contains("sizeX")) {
-                                            msg.textureBackgroundWidth(tex.getFloat("sizeX"));
-                                        }
-                                        if (tex.contains("sizeY")) {
-                                            msg.textureBackgroundHeight(tex.getFloat("sizeY"));
-                                        }
-                                        if (tex.contains("drawWidth")) {
-                                            msg.textureBackgroundWidth(tex.getFloat("drawWidth"));
-                                        }
-                                        if (tex.contains("drawHeight")) {
-                                            msg.textureBackgroundHeight(tex.getFloat("drawHeight"));
-                                        }
-                                        if (tex.contains("x")) {
-                                            msg.textureBackgroundWidth(tex.getFloat("x"));
-                                        }
-                                        if (tex.contains("y")) {
-                                            msg.textureBackgroundHeight(tex.getFloat("y"));
-                                        }
-                                        if (tex.contains("resize")) {
-                                            msg.textureBackgroundMode(tex.getBoolean("resize") ? TextureSizingMode.STRETCH : TextureSizingMode.CROP);
-                                        }
-                                        if (tex.contains("cut") && tex.getBoolean("cut")) {
-                                            msg.textureBackgroundMode(TextureSizingMode.CROP);
-                                        }
-                                        if (tex.contains("mode")) {
-                                            msg.textureBackgroundMode(TextureSizingMode.fromString(tex.getString("mode")));
-                                        }
-                                        // --- end newer block ---
-                                    }
-                                }
-
-                                if (tag.contains("borderColor")) {
-                                    ImmersiveColor border = parseImmersiveColor(tag.getString("borderColor"));
-                                    if (border != null) {
-                                        msg.background(true);
-                                        msg.borderGradient(border, border);
-                                    }
-                                }
-
-                                if (tag.contains("size")) {
-                                    msg.scale(tag.getFloat("size"));
-                                }
-
-                                if (tag.contains("typewriter")) {
-                                    float speed = tag.getFloat("typewriter");
-                                    boolean center = tag.getBoolean("center");
-                                    msg.typewriter(speed, center);
-                                }
-                                if (tag.contains("background") && tag.getBoolean("background")) {
-                                    msg.background(true);
-                                }
-                                if (tag.contains("bgAlpha")) {
-                                    msg.bgAlpha(tag.getFloat("bgAlpha"));
-                                }
-                                if (tag.contains("wrap")) {
-                                    msg.wrap(tag.getInt("wrap"));
-                                }
-                                if (tag.contains("obfuscate")) {
-                                    ObfuscateMode mode = ObfuscateMode.valueOf(tag.getString("obfuscate").toUpperCase());
-                                    float speed = tag.contains("obfuscateSpeed") ? tag.getFloat("obfuscateSpeed") : 1f;
-                                    msg.obfuscate(mode, speed);
-                                }
-                                if (tag.contains("anchor")) {
-                                    msg.anchor(TextAnchor.valueOf(tag.getString("anchor").toUpperCase()));
-                                }
-                                if (tag.contains("align")) {
-                                    msg.align(TextAlign.valueOf(tag.getString("align").toUpperCase()));
-                                }
-                                if (tag.contains("offsetX") || tag.contains("offsetY")) {
-                                    float x = tag.contains("offsetX") ? tag.getFloat("offsetX") : 0f;
-                                    float y = tag.contains("offsetY") ? tag.getFloat("offsetY") : 0f;
-                                    msg.offset(x, y);
-                                }
-                                if (tag.contains("shadow")) {
-                                    msg.shadow(tag.getBoolean("shadow"));
-                                }
-
-                                if (keys.containsKey("shakewave")) {
-                                    msg.shake(ShakeType.WAVE, tag.getFloat(keys.get("shakewave")));
-                                } else if (keys.containsKey("wave")) {
-                                    LOGGER.warn("Tag 'wave' is deprecated, use 'shakeWave' instead");
-                                    msg.shake(ShakeType.WAVE, tag.getFloat(keys.get("wave")));
-                                } else if (keys.containsKey("shakecircle")) {
-                                    msg.shake(ShakeType.CIRCLE, tag.getFloat(keys.get("shakecircle")));
-                                } else if (keys.containsKey("circle")) {
-                                    LOGGER.warn("Tag 'circle' is deprecated, use 'shakeCircle' instead");
-                                    msg.shake(ShakeType.CIRCLE, tag.getFloat(keys.get("circle")));
-                                } else if (keys.containsKey("shakerandom")) {
-                                    msg.shake(ShakeType.RANDOM, tag.getFloat(keys.get("shakerandom")));
-                                } else if (keys.containsKey("random")) {
-                                    LOGGER.warn("Tag 'random' is deprecated, use 'shakeRandom' instead");
-                                    msg.shake(ShakeType.RANDOM, tag.getFloat(keys.get("random")));
-                                }
-
-                                if (keys.containsKey("charshakewave")) {
-                                    msg.charShake(ShakeType.WAVE, tag.getFloat(keys.get("charshakewave")));
-                                } else if (keys.containsKey("wavechar")) {
-                                    LOGGER.warn("Tag 'waveChar' is deprecated, use 'charShakeWave' instead");
-                                    msg.charShake(ShakeType.WAVE, tag.getFloat(keys.get("wavechar")));
-                                } else if (keys.containsKey("charshakecircle")) {
-                                    msg.charShake(ShakeType.CIRCLE, tag.getFloat(keys.get("charshakecircle")));
-                                } else if (keys.containsKey("circlechar")) {
-                                    LOGGER.warn("Tag 'circleChar' is deprecated, use 'charShakeCircle' instead");
-                                    msg.charShake(ShakeType.CIRCLE, tag.getFloat(keys.get("circlechar")));
-                                } else if (keys.containsKey("charshakerandom")) {
-                                    msg.charShake(ShakeType.RANDOM, tag.getFloat(keys.get("charshakerandom")));
-                                } else if (keys.containsKey("randomchar")) {
-                                    LOGGER.warn("Tag 'randomChar' is deprecated, use 'charShakeRandom' instead");
-                                    msg.charShake(ShakeType.RANDOM, tag.getFloat(keys.get("randomchar")));
-                                }
-
-                                EmbersTextAPI.sendMessage(target, msg);
-                                return Command.SINGLE_SUCCESS;
-                            })))));
+    private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> clearQueueSubcommand() {
+        return Commands.literal("clearqueue")
+            .then(Commands.argument("player", EntityArgument.player())
+                .executes(ctx -> {
+                    ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                    NetworkHelper.getInstance().sendClearAllQueues(target);
+                    return Command.SINGLE_SUCCESS;
+                })
+                .then(Commands.argument("channel", StringArgumentType.word())
+                    .executes(ctx -> {
+                        ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                        String channel = StringArgumentType.getString(ctx, "channel");
+                        NetworkHelper.getInstance().sendClearQueue(target, channel);
+                        return Command.SINGLE_SUCCESS;
+                    })));
     }
 
     private static void runTest(ServerPlayer player, int id) {
@@ -509,7 +258,7 @@ public class MessageCommands {
                 LOGGER.info("Parsed {} spans", msg.getSpans().size());
                 for (int idx = 0; idx < msg.getSpans().size(); idx++) {
                     TextSpan s = msg.getSpans().get(idx);
-                    LOGGER.info("Span {}: content='{}', itemId='{}', itemCount={}", 
+                    LOGGER.info("Span {}: content='{}', itemId='{}', itemCount={}",
                         idx, s.getContent(), s.getItemId(), s.getItemCount());
                 }
                 EmbersTextAPI.sendMessage(player, msg);
@@ -572,7 +321,7 @@ public class MessageCommands {
                     ImmersiveMessage.fromMarkup(150f, "<rainbow><wave>Combined Effects Test</wave></rainbow>"));
         }
     }
-    
+
     /**
      * Helper method to create case-insensitive key lookup for NBT tags (used in test cases).
      */
@@ -610,17 +359,11 @@ public class MessageCommands {
         TextColor c = parseColor(value);
         return c != null ? new ImmersiveColor(0xFF000000 | c.getValue()) : null;
     }
-    
+
     /**
      * Applies NBT data attributes to a span-based message.
-     * Background attributes are applied to the whole message.
-     * Font attributes can be applied to specific spans or globally.
      */
     private static void applyNbtToSpanMessage(ImmersiveMessage msg, CompoundTag tag, java.util.Map<String, String> keys) {
-        // Apply global message attributes (background, etc.)
-        // Note: Fade-in/out are now handled via markup tags, not NBT
-        
-        // Background attributes (applied to whole message)
         if (tag.contains("background") && tag.getBoolean("background")) {
             msg.background(true);
         }
@@ -630,8 +373,7 @@ public class MessageCommands {
         if (tag.contains("bgAlpha")) {
             msg.bgAlpha(tag.getFloat("bgAlpha"));
         }
-        
-        // Background gradient
+
         if (tag.contains("bgGradient", Tag.TAG_LIST)) {
             ListTag list = tag.getList("bgGradient", Tag.TAG_STRING);
             java.util.List<ImmersiveColor> cols = new java.util.ArrayList<>();
@@ -652,8 +394,7 @@ public class MessageCommands {
                 msg.backgroundGradient(start, end);
             }
         }
-        
-        // Border gradient
+
         if (tag.contains("borderGradient", Tag.TAG_LIST)) {
             ListTag list = tag.getList("borderGradient", Tag.TAG_STRING);
             java.util.List<ImmersiveColor> cols = new java.util.ArrayList<>();
@@ -674,8 +415,7 @@ public class MessageCommands {
                 msg.borderGradient(start, end);
             }
         }
-        
-        // Border color
+
         if (tag.contains("borderColor")) {
             ImmersiveColor border = parseImmersiveColor(tag.getString("borderColor"));
             if (border != null) {
@@ -683,8 +423,7 @@ public class MessageCommands {
                 msg.borderGradient(border, border);
             }
         }
-        
-        // Other global attributes
+
         if (tag.contains("size")) {
             msg.scale(tag.getFloat("size"));
         }
@@ -705,8 +444,7 @@ public class MessageCommands {
         if (tag.contains("shadow")) {
             msg.shadow(tag.getBoolean("shadow"));
         }
-        
-        // Texture background
+
         if (tag.contains("textureBackground", Tag.TAG_STRING)) {
             ResourceLocation texture = ResourceLocation.tryParse(tag.getString("textureBackground"));
             if (texture != null) {
@@ -714,8 +452,8 @@ public class MessageCommands {
             }
         } else if (tag.contains("textureBackground", Tag.TAG_COMPOUND)) {
             CompoundTag tex = tag.getCompound("textureBackground");
-            String key = tex.contains("location") ? "location" : tex.contains("texture") ? "texture" : null;
-            ResourceLocation texture = key != null ? ResourceLocation.tryParse(tex.getString(key)) : null;
+            String k = tex.contains("location") ? "location" : tex.contains("texture") ? "texture" : null;
+            ResourceLocation texture = k != null ? ResourceLocation.tryParse(tex.getString(k)) : null;
             if (texture != null) {
                 int u = tex.contains("u") ? tex.getInt("u") : 0;
                 int v = tex.contains("v") ? tex.getInt("v") : 0;
@@ -724,51 +462,36 @@ public class MessageCommands {
                 int atlasWidth = tex.contains("atlasWidth") ? tex.getInt("atlasWidth") : regionWidth;
                 int atlasHeight = tex.contains("atlasHeight") ? tex.getInt("atlasHeight") : regionHeight;
                 msg.textureBackground(texture, u, v, regionWidth, regionHeight, atlasWidth, atlasHeight);
-                
                 if (tex.contains("padding")) {
                     msg.textureBackgroundPadding(tex.getFloat("padding"));
-                }
-                if (tex.contains("paddingX") || tex.contains("paddingY")) {
-                    float padX = tex.contains("paddingX") ? tex.getFloat("paddingX") : Float.NaN;
-                    float padY = tex.contains("paddingY") ? tex.getFloat("paddingY") : Float.NaN;
-                    msg.textureBackgroundPadding(padX, padY);
                 }
                 if (tex.contains("scale")) {
                     msg.textureBackgroundScale(tex.getFloat("scale"));
                 }
             }
         }
-        
-        // Apply font to all spans if specified globally
+
         if (tag.contains("font")) {
             ResourceLocation font = ResourceLocation.tryParse(tag.getString("font"));
             if (font != null && msg.isSpanMode()) {
                 applyFontToAllSpans(msg, font);
             }
         }
-        
-        // Handle span-specific font attributes (e.g., font0, font1, etc.)
+
         if (msg.isSpanMode()) {
             applySpanSpecificFonts(msg, tag);
         }
     }
-    
-    /**
-     * Applies a font to all spans in a message.
-     */
+
     private static void applyFontToAllSpans(ImmersiveMessage msg, ResourceLocation font) {
         java.util.List<TextSpan> spans = msg.getSpans();
         for (TextSpan span : spans) {
             span.font(font);
         }
     }
-    
-    /**
-     * Applies span-specific fonts (font0, font1, etc.) to individual spans.
-     */
+
     private static void applySpanSpecificFonts(ImmersiveMessage msg, CompoundTag tag) {
         java.util.List<TextSpan> spans = msg.getSpans();
-        
         for (int i = 0; i < spans.size(); i++) {
             String fontKey = "font" + i;
             if (tag.contains(fontKey)) {

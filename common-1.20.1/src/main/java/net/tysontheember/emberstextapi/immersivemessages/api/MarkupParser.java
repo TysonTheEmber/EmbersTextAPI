@@ -800,4 +800,23 @@ public class MarkupParser {
         }
         return Collections.singletonList(new TextSpan(text));
     }
+
+    /**
+     * Extracts {@code <dur:N>} from a markup string.
+     * @return Object array: {@code {float durValue, String strippedMarkup}}.
+     *         durValue is {@code -1f} if the tag is absent.
+     */
+    public static Object[] extractDuration(String markup) {
+        if (markup == null) {
+            return new Object[]{-1f, ""};
+        }
+        Pattern durPattern = Pattern.compile("<dur:(\\d+(?:\\.\\d+)?)>");
+        Matcher m = durPattern.matcher(markup);
+        if (m.find()) {
+            float dur = Float.parseFloat(m.group(1));
+            String stripped = m.replaceFirst("").trim();
+            return new Object[]{dur, stripped};
+        }
+        return new Object[]{-1f, markup};
+    }
 }

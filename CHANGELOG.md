@@ -1,1 +1,1 @@
-Rewrote and fixed anchoring and alignment of immersive messages
+Added queues and stuff https://tysontheember.dev/embers-text-api/general/feature-overview/#message-queues

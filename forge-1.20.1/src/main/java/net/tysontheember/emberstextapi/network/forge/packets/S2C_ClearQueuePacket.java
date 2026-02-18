@@ -4,19 +4,22 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
-import net.tysontheember.emberstextapi.immersivemessages.ImmersiveMessagesManager;
+import net.tysontheember.emberstextapi.client.ClientMessageManager;
 
 import java.util.function.Supplier;
 
 /**
- * Packet to clear the ImmersiveMessagesManager queue on the client.
+ * Packet to clear a named channel queue on the client.
+ * An empty channel string clears all queues immediately.
  */
-public record S2C_ClearQueuePacket() {
+public record S2C_ClearQueuePacket(String channel) {
+
     public static void encode(S2C_ClearQueuePacket packet, FriendlyByteBuf buf) {
+        buf.writeUtf(packet.channel);
     }
 
     public static S2C_ClearQueuePacket decode(FriendlyByteBuf buf) {
-        return new S2C_ClearQueuePacket();
+        return new S2C_ClearQueuePacket(buf.readUtf());
     }
 
     public static void handle(S2C_ClearQueuePacket packet, Supplier<NetworkEvent.Context> ctx) {
@@ -25,7 +28,11 @@ public record S2C_ClearQueuePacket() {
             context.enqueueWork(() -> {
                 Minecraft mc = Minecraft.getInstance();
                 if (mc.player != null) {
-                    ImmersiveMessagesManager.clear();
+                    if (packet.channel.isEmpty()) {
+                        ClientMessageManager.clearAllQueues();
+                    } else {
+                        ClientMessageManager.clearQueue(packet.channel);
+                    }
                 }
             });
         }
