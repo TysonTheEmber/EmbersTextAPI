@@ -10,8 +10,6 @@ Advanced text rendering API for Minecraft mods with visual effects, animations, 
 For full documentation, guides, and examples, visit **[tysontheember.dev](https://tysontheember.dev)**.
 
 
-PS: For some reason Claude keeps stealing credit for commits, I can't seem to find why so just act like they where done by me(because they where) 
-
 ## Features
 
 - **Visual Effects**: Rainbow, glitch, wave, shake, pulse, and more
