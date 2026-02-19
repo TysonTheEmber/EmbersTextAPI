@@ -27,7 +27,7 @@ public class FabricEffectTestCommands {
     private static final List<String> EFFECT_NAMES = List.of(
             "rainbow", "glitch", "wave", "bounce", "shake", "pulse",
             "swing", "turb", "circle", "wiggle", "pend", "scroll",
-            "grad", "fade", "shadow", "neon", "type", "font", "obfuscate",
+            "grad", "shadow", "neon", "type", "font", "obfuscate",
             "all"
     );
 
@@ -47,10 +47,9 @@ public class FabricEffectTestCommands {
             new EffectDef("pend", "<pend>Pendulum - Swaying motion</pend>", Items.CHAIN),
             new EffectDef("scroll", "<scroll>Scroll - Directional wave</scroll>", Items.MAP),
             new EffectDef("grad", "<grad from=FF0000 to=00FF00>Gradient - Color blend</grad>", Items.LEATHER),
-            new EffectDef("fade", "<fade>Fade - Opacity cycle</fade>", Items.GLASS),
             new EffectDef("shadow", "<shadow c=FF0000 x=2 y=2>Shadow - Drop shadow</shadow>", Items.INK_SAC),
             new EffectDef("neon", "<neon c=00FFFF>Neon - Glow effect</neon>", Items.GLOWSTONE),
-            new EffectDef("type", "<type s=1.5>Typewriter - Reveal effect</type>", Items.WRITABLE_BOOK),
+            new EffectDef("type", "<type speed=50>Typewriter - Reveal effect</type>", Items.WRITABLE_BOOK),
             new EffectDef("font", "<font id=emberstextapi:metamorphous>Metamorphous Fantasy Font!</font>", Items.ENCHANTED_BOOK),
             new EffectDef("obfuscate", "<obfuscate mode=reveal speed=80>Revealing obfuscation</obfuscate>", Items.ENDER_EYE)
     );
@@ -151,39 +150,27 @@ public class FabricEffectTestCommands {
                     player.sendSystemMessage(Component.literal("Gave you 4 obfuscate items!"));
                 }
                 default -> {
-                    var server = player.getServer();
-                    if (server == null) return 0;
-
-                    NetworkHelper.getInstance().sendClearAllQueues(player);
-
-                    String[] modes = {
+                    // Immersive - show all 4 sequentially via queue
+                    String[] obfModes = {
                         "<obfuscate>Constant obfuscation</obfuscate>",
                         "<obfuscate mode=reveal speed=80 direction=left>Revealing left to right</obfuscate>",
                         "<obfuscate mode=hide speed=80 direction=right>Hiding right to left</obfuscate>",
                         "<obfuscate mode=random>Random flickering mask</obfuscate>"
                     };
 
-                    int baseTick = server.getTickCount();
-                    for (int i = 0; i < modes.length; i++) {
-                        String markup = modes[i];
-                        int delayTicks = i * 100;
-
-                        server.tell(new net.minecraft.server.TickTask(baseTick + delayTicks, () -> {
-                            if (player.isAlive() && player.connection != null) {
-                                NetworkHelper.getInstance().sendClearAllQueues(player);
-
-                                var msg = net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage
-                                        .fromMarkup(90f, markup)
-                                        .anchor(net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor.MIDDLE)
-                                        .scale(2.5f)
-                                        .fadeInTicks(10)
-                                        .fadeOutTicks(10)
-                                        .background(true);
-
-                                NetworkHelper.getInstance().sendMessage(player, msg);
-                            }
-                        }));
+                    java.util.List<java.util.List<net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage>> steps = new java.util.ArrayList<>();
+                    for (String markup : obfModes) {
+                        var msg = net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage
+                                .fromMarkup(100f, markup)
+                                .anchor(net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor.MIDDLE)
+                                .scale(2.5f)
+                                .fadeInTicks(10)
+                                .fadeOutTicks(10)
+                                .background(true);
+                        steps.add(java.util.List.of(msg));
                     }
+
+                    NetworkHelper.getInstance().sendQueue(player, "effect_test", steps);
 
                     player.sendSystemMessage(Component.literal("Playing 4 obfuscate modes..."));
                 }
@@ -268,39 +255,25 @@ public class FabricEffectTestCommands {
     }
 
     private static void runAllImmersive(ServerPlayer player) {
-        var server = player.getServer();
-        if (server == null) return;
-
-        NetworkHelper.getInstance().sendClearAllQueues(player);
-
         java.util.List<EffectDef> allEffects = new java.util.ArrayList<>();
         allEffects.addAll(INDIVIDUAL_EFFECTS);
         allEffects.addAll(COMBO_EFFECTS);
 
         player.sendSystemMessage(Component.literal("Playing " + allEffects.size() + " effects (8 sec each)..."));
 
-        int baseTick = server.getTickCount();
-
-        for (int i = 0; i < allEffects.size(); i++) {
-            EffectDef effect = allEffects.get(i);
-            int delayTicks = i * EFFECT_DURATION_TICKS;
-
-            server.tell(new net.minecraft.server.TickTask(baseTick + delayTicks, () -> {
-                if (player.isAlive() && player.connection != null) {
-                    NetworkHelper.getInstance().sendClearAllQueues(player);
-
-                    var msg = net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage
-                            .fromMarkup(EFFECT_DURATION_TICKS - 20f, effect.markup)
-                            .anchor(net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor.MIDDLE)
-                            .scale(2.5f)
-                            .fadeInTicks(10)
-                            .fadeOutTicks(10)
-                            .background(true);
-
-                    NetworkHelper.getInstance().sendMessage(player, msg);
-                }
-            }));
+        java.util.List<java.util.List<net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage>> steps = new java.util.ArrayList<>();
+        for (EffectDef effect : allEffects) {
+            var msg = net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage
+                    .fromMarkup(EFFECT_DURATION_TICKS - 20f, effect.markup)
+                    .anchor(net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor.MIDDLE)
+                    .scale(2.5f)
+                    .fadeInTicks(10)
+                    .fadeOutTicks(10)
+                    .background(true);
+            steps.add(java.util.List.of(msg));
         }
+
+        NetworkHelper.getInstance().sendQueue(player, "effect_test", steps);
     }
 
     private static String buildMarkup(String effect) {
@@ -318,10 +291,9 @@ public class FabricEffectTestCommands {
             case "pend", "pendulum" -> "<pend>Pendulum swing effect</pend>";
             case "scroll" -> "<scroll>Scrolling wave motion</scroll>";
             case "grad", "gradient" -> "<grad from=FF0000 to=00FF00>Gradient color blend</grad>";
-            case "fade" -> "<fade>Fading in and out</fade>";
             case "shadow" -> "<shadow c=FF0000 x=2 y=2>Text with shadow</shadow>";
             case "neon", "glow" -> "<neon c=00FFFF>Glowing neon effect</neon>";
-            case "type", "typewriter" -> "<type s=1>Typewriter reveal...</type>";
+            case "type", "typewriter" -> "<type speed=50>Typewriter reveal...</type>";
             case "font" -> "<font id=emberstextapi:metamorphous><rainbow>Metamorphous with Rainbow!</rainbow></font>";
             case "obfuscate", "obf" -> null; // handled specially
             default -> null;
@@ -343,10 +315,9 @@ public class FabricEffectTestCommands {
             case "pend", "pendulum" -> "pend";
             case "scroll" -> "scroll";
             case "grad", "gradient" -> "grad from=FF0000 to=0000FF";
-            case "fade" -> "fade";
             case "shadow" -> "shadow";
             case "neon", "glow" -> "neon c=00FFFF";
-            case "type", "typewriter" -> "type s=1";
+            case "type", "typewriter" -> "type speed=50";
             case "font" -> "font id=emberstextapi:metamorphous";
             case "obfuscate", "obf" -> "obfuscate mode=random";
             default -> null;

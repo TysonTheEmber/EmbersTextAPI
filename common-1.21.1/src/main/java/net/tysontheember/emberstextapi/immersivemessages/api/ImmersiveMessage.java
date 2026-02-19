@@ -62,7 +62,7 @@ public class ImmersiveMessage {
     private float yOffset = 55f;
     private boolean shadow = true;
     private TextAnchor anchor = TextAnchor.TOP_CENTER;
-    private TextAlign align = TextAlign.LEFT;
+    private TextAlign align = TextAlign.CENTER;
     private float textScale = 1f;
     private boolean background = false;
     private ImmersiveColor backgroundColor = new ImmersiveColor(0xAA000000);
@@ -1259,8 +1259,8 @@ public class ImmersiveMessage {
 
     public int renderColour() {
         int base = text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF;
-        int alpha = Mth.clamp(Math.round(computeAlpha(age) * 255f), 0, 255);
-        return (alpha << 24) | base;
+        int alpha = normalizeFontAlpha(Mth.clamp(Math.round(computeAlpha(age) * 255f), 0, 255));
+        return (alpha << 24) | (base & 0x00FFFFFF);
     }
 
     /**
@@ -1271,8 +1271,8 @@ public class ImmersiveMessage {
      */
     public int renderColour(float partialTick) {
         int base = text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF;
-        int alpha = Mth.clamp(Math.round(computeAlpha(sampleAge(partialTick)) * 255f), 0, 255);
-        return (alpha << 24) | base;
+        int alpha = normalizeFontAlpha(Mth.clamp(Math.round(computeAlpha(sampleAge(partialTick)) * 255f), 0, 255));
+        return (alpha << 24) | (base & 0x00FFFFFF);
     }
 
     public float getTextScale() {
@@ -1496,6 +1496,14 @@ public class ImmersiveMessage {
         return Mth.lerp(clamped, previousAge, age);
     }
 
+    /**
+     * Vanilla Font#drawInBatch forces colors with alpha 0..3 to full opacity.
+     * Collapse that range to 0 so fade edges do not flash for one frame.
+     */
+    private static int normalizeFontAlpha(int alpha) {
+        return alpha <= 3 ? 0 : alpha;
+    }
+
     public TextLayoutCache.Layout buildLayout(Component draw) {
         var font = Minecraft.getInstance().font;
         List<FormattedCharSequence> lines = null;
@@ -1581,7 +1589,9 @@ public class ImmersiveMessage {
         }
 
         float alpha = computeAlpha(renderAge);
-        int colour = ((int)(alpha * 255) << 24) | (text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF);
+        int alphaByte = normalizeFontAlpha(Mth.clamp(Math.round(alpha * 255f), 0, 255));
+        int colour = (alphaByte << 24) | ((text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF) & 0x00FFFFFF);
+        boolean textVisible = alphaByte > 0;
 
         if (typewriter && typewriterCenter && wrapMaxWidth <= 0) {
             float fullWidth = font.width(text);
@@ -1630,6 +1640,8 @@ public class ImmersiveMessage {
 
         if (onRender != null) {
             onRender.render(graphics, this, 0, 0, alpha);
+        } else if (!textVisible) {
+            // Skip font rendering when alpha is in vanilla's unsafe 0..3 range.
         } else if (hasGlobalEffects || hasSpanEffects) {
             // Use new effect rendering system (v2.0.0)
             LOGGER.debug("Calling renderWithEffects");
@@ -2207,8 +2219,8 @@ public class ImmersiveMessage {
                                    int codePoint, net.minecraft.network.chat.Style style,
                                    float x, float y, float rotation, int color,
                                    float[] xAdvanceOut) {
-        // Skip fully transparent characters (e.g. typewriter unrevealed)
-        if ((color & 0xFF000000) == 0) {
+        // Skip alpha values that vanilla Font can force to opaque (0..3).
+        if (((color >>> 24) & 0xFF) <= 3) {
             if (xAdvanceOut != null) {
                 xAdvanceOut[0] += font.width(new String(Character.toChars(codePoint)));
             }
