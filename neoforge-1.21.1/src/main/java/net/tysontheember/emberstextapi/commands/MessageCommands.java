@@ -7,25 +7,15 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.logging.LogUtils;
-import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
-import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage.TextureSizingMode;
 import net.tysontheember.emberstextapi.immersivemessages.api.MarkupParser;
-import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
-import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
-import net.tysontheember.emberstextapi.immersivemessages.api.TextAlign;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
@@ -33,6 +23,7 @@ import net.tysontheember.emberstextapi.platform.NetworkHelper;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class MessageCommands {
@@ -73,7 +64,7 @@ public class MessageCommands {
 
     private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> sendSubcommand() {
         return Commands.literal("send")
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(Commands.argument("player", EntityArgument.players())
                 .then(Commands.argument("duration", FloatArgumentType.floatArg())
                     .then(Commands.argument("text", StringArgumentType.greedyString())
                         .executes(ctx -> sendBasicMessage(ctx)))));
@@ -81,7 +72,7 @@ public class MessageCommands {
 
     private static int sendBasicMessage(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx)
             throws com.mojang.brigadier.exceptions.CommandSyntaxException {
-        ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+        Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "player");
         float duration = FloatArgumentType.getFloat(ctx, "duration");
         String text = StringArgumentType.getString(ctx, "text");
 
@@ -93,17 +84,19 @@ public class MessageCommands {
             msg = ImmersiveMessage.builder(duration, text);
         }
 
-        EmbersTextAPI.sendMessage(target, msg);
+        for (ServerPlayer target : targets) {
+            EmbersTextAPI.sendMessage(target, msg);
+        }
         return Command.SINGLE_SUCCESS;
     }
 
     private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> queueSubcommand() {
         return Commands.literal("queue")
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(Commands.argument("player", EntityArgument.players())
                 .then(Commands.argument("channel", StringArgumentType.word())
                     .then(Commands.argument("queue_definition", StringArgumentType.greedyString())
                         .executes(ctx -> {
-                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "player");
                             String channel = StringArgumentType.getString(ctx, "channel");
                             String queueDef = StringArgumentType.getString(ctx, "queue_definition");
 
@@ -141,387 +134,215 @@ public class MessageCommands {
                                 steps.add(stepMsgs);
                             }
 
-                            NetworkHelper.getInstance().sendQueue(target, channel, steps);
+                            for (ServerPlayer target : targets) {
+                                NetworkHelper.getInstance().sendQueue(target, channel, steps);
+                            }
                             return Command.SINGLE_SUCCESS;
                         }))));
     }
 
     private static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> clearQueueSubcommand() {
         return Commands.literal("clearqueue")
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(Commands.argument("player", EntityArgument.players())
                 .executes(ctx -> {
-                    ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
-                    NetworkHelper.getInstance().sendClearAllQueues(target);
+                    Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "player");
+                    for (ServerPlayer target : targets) {
+                        NetworkHelper.getInstance().sendClearAllQueues(target);
+                    }
                     return Command.SINGLE_SUCCESS;
                 })
                 .then(Commands.argument("channel", StringArgumentType.word())
                     .executes(ctx -> {
-                        ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                        Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "player");
                         String channel = StringArgumentType.getString(ctx, "channel");
-                        NetworkHelper.getInstance().sendClearQueue(target, channel);
+                        for (ServerPlayer target : targets) {
+                            NetworkHelper.getInstance().sendClearQueue(target, channel);
+                        }
                         return Command.SINGLE_SUCCESS;
                     })));
     }
 
     private static void runTest(ServerPlayer player, int id) {
         switch (id) {
+            // --- Group 1: Layout & Display (1-7) ---
             case 1 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(75f, "Basic message"));
+                    ImmersiveMessage.builder(100f, "Plain text message")
+                            .anchor(TextAnchor.MIDDLE)
+                            .scale(2f));
             case 2 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(100f, "Typewriter demo").typewriter(1f));
+                    ImmersiveMessage.builder(100f, "Background box")
+                            .background(true)
+                            .anchor(TextAnchor.MIDDLE)
+                            .scale(2f));
             case 3 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(200f, "Secret text").obfuscate(ObfuscateMode.RANDOM, 0.1f));
+                    ImmersiveMessage.builder(100f, "Gold border")
+                            .background(true)
+                            .borderGradient(new ImmersiveColor(0xFFFFAA00), new ImmersiveColor(0xFFFFAA00))
+                            .anchor(TextAnchor.MIDDLE)
+                            .scale(2f));
             case 4 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(100f, "Framed text").background(true));
+                    ImmersiveMessage.builder(100f, "Large scale 3x")
+                            .scale(3f)
+                            .anchor(TextAnchor.MIDDLE));
             case 5 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(100f, "Wrapped text demo that is quite long").wrap(120));
-            case 6 -> {
-                ResourceLocation font = ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "norse");
-                Component text = Component.literal("\u16A0\u16A2\u16A6\u16A8\u16AB\u16B2").withStyle(s -> s.withFont(font));
-                EmbersTextAPI.sendMessage(player, new ImmersiveMessage(text, 100f).scale(5));
-            }
-            case 7 -> {
-                MutableComponent component = Component.literal("You shall die here...")
-                        .withStyle(s -> s.withFont(ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "norse")))
-                        .withStyle(s -> s.withBold(true));
-                ImmersiveMessage msg = new ImmersiveMessage(component, 250f)
-                        .scale(2f)
-                        .background(true)
-                        .obfuscate(ObfuscateMode.LEFT, 0.1f)
-                        .anchor(TextAnchor.MIDDLE)
-                        .charShake(ShakeType.RANDOM, 0.5f);
-                EmbersTextAPI.sendMessage(player, msg);
-            }
+                    ImmersiveMessage.builder(140f, "This is a long message that wraps onto multiple lines when there is enough text to overflow the line width.")
+                            .wrap(180)
+                            .background(true)
+                            .anchor(TextAnchor.MIDDLE));
+            case 6 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.builder(140f, "Smooth fade in and fade out")
+                            .fadeInTicks(20)
+                            .fadeOutTicks(20)
+                            .anchor(TextAnchor.MIDDLE)
+                            .scale(2f));
+            case 7 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.builder(100f, "Shifted up 40px")
+                            .anchor(TextAnchor.MIDDLE)
+                            .offset(0f, -40f)
+                            .scale(2f));
+
+            // --- Group 2: Text Formatting (8-13) ---
             case 8 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(100f, "Jittery chars").charShake(ShakeType.RANDOM, 0.5f));
+                    ImmersiveMessage.fromMarkup(100f, "<bold>Bold</bold>  <italic>Italic</italic>  <c value=#FF5555>Red</c>")
+                            .anchor(TextAnchor.MIDDLE)
+                            .scale(1.5f));
             case 9 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.builder(100f, "Wavy jitter")
-                            .shake(ShakeType.WAVE, 0.5f)
-                            .charShake(ShakeType.RANDOM, 2f));
-            // NEW: Span-based test cases (v2.0.0)
-            case 10 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(100f, "<bold>Bold</bold> and <italic>italic</italic> text"));
+                    ImmersiveMessage.fromMarkup(100f, "<c value=gold>Gold</c>  <c value=aqua>Aqua</c>  <c value=#FF55FF>Pink</c>  <c value=green>Green</c>")
+                            .anchor(TextAnchor.MIDDLE)
+                            .scale(1.5f));
+            case 10 -> {
+                Component norse = Component.literal("\u16A0\u16A2\u16A6\u16A8\u16AB\u16B2")
+                        .withStyle(s -> s.withFont(ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "norse")));
+                EmbersTextAPI.sendMessage(player, new ImmersiveMessage(norse, 100f).scale(4f).anchor(TextAnchor.MIDDLE));
+            }
             case 11 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(150f, "<grad from=#ff0000 to=#00ff00>Gradient</grad> <typewriter speed=2.0>text!</typewriter>"));
+                    ImmersiveMessage.fromMarkup(100f, "<font id=emberstextapi:metamorphous>Metamorphous Fantasy Font!</font>")
+                            .scale(2f)
+                            .anchor(TextAnchor.MIDDLE));
             case 12 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(200f, "<shake><grad from=#ff0000 to=#0000ff>Nested effects!</grad></shake>"));
+                    ImmersiveMessage.fromMarkup(100f, "<grad from=FF0000 to=00FFFF>Red to Cyan Gradient</grad>")
+                            .scale(2f)
+                            .anchor(TextAnchor.MIDDLE));
             case 13 -> {
-                // Test global background with span markup
-                CompoundTag data = new CompoundTag();
-                data.putBoolean("background", true);
-                data.putString("bgColor", "#AA004400");
-                data.putString("borderColor", "gold");
-                ImmersiveMessage msg = ImmersiveMessage.fromMarkup(150f, "<c value=white><bold>Framed markup text</bold></c> with <italic>styling</italic>");
-                applyNbtToSpanMessage(msg, data, createKeysMap(data));
-                EmbersTextAPI.sendMessage(player, msg);
+                List<TextSpan> spans = new ArrayList<>();
+                spans.add(new TextSpan("\u16A0\u16A2\u16A6 ").font(ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "norse")));
+                spans.add(new TextSpan("and default italic"));
+                EmbersTextAPI.sendMessage(player, new ImmersiveMessage(spans, 100f).background(true).scale(1.5f).anchor(TextAnchor.MIDDLE));
             }
-            case 14 -> {
-                // Test global font with span markup
-                CompoundTag data = new CompoundTag();
-                data.putString("font", "emberstextapi:norse");
-                data.putBoolean("background", true);
-                ImmersiveMessage msg = ImmersiveMessage.fromMarkup(120f, "<grad from=gold to=red><bold>Norse font with gradient!</bold></grad>");
-                applyNbtToSpanMessage(msg, data, createKeysMap(data));
-                EmbersTextAPI.sendMessage(player, msg);
-            }
-            case 15 -> {
-                // Test per-span fonts (font0, font1, etc.)
-                CompoundTag data = new CompoundTag();
-                data.putString("font0", "emberstextapi:norse");  // First span gets Norse font
-                data.putString("font1", "minecraft:alt");        // Second span gets alt font
-                // Note: Third span uses default font
-                data.putBoolean("background", true);
-                data.putString("bgColor", "#33000000");
-                ImmersiveMessage msg = ImmersiveMessage.fromMarkup(180f, "<bold>Norse</bold> <italic>Alt</italic> <c value=gold>Default</c>");
-                applyNbtToSpanMessage(msg, data, createKeysMap(data));
-                EmbersTextAPI.sendMessage(player, msg);
-            }
+
+            // --- Group 3: Text Animation (14-19) ---
+            case 14 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(140f, "<type speed=50>Typewriter reveal effect!</type>")
+                            .scale(1.5f)
+                            .background(true)
+                            .anchor(TextAnchor.MIDDLE));
+            case 15 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(120f, "<obfuscate mode=reveal speed=60 direction=left>Revealing left to right</obfuscate>")
+                            .scale(1.5f)
+                            .background(true)
+                            .anchor(TextAnchor.MIDDLE));
             case 16 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(150f, "You found <item value=\"minecraft:dirt\" size=1></item> x5 and <item value=\"minecraft:diamond\" size=1></item>!"));
-            case 17 -> {
-                // Programmatic item test
-                List<TextSpan> spans = new java.util.ArrayList<>();
-                spans.add(new TextSpan("You got "));
-                spans.add(new TextSpan("").item("minecraft:diamond", 3));
-                spans.add(new TextSpan(" diamonds!"));
-                ImmersiveMessage msg = new ImmersiveMessage(spans, 100f);
-                EmbersTextAPI.sendMessage(player, msg);
-            }
-            case 18 -> {
-                // Simple markup test to debug parsing
-                String markup = "Test <item value=\"minecraft:gold_ingot\"></item> item";
-                LOGGER.info("Sending markup: {}", markup);
-                ImmersiveMessage msg = ImmersiveMessage.fromMarkup(100f, markup);
-                LOGGER.info("Parsed {} spans", msg.getSpans().size());
-                for (int idx = 0; idx < msg.getSpans().size(); idx++) {
-                    TextSpan s = msg.getSpans().get(idx);
-                    LOGGER.info("Span {}: content='{}', itemId='{}', itemCount={}",
-                        idx, s.getContent(), s.getItemId(), s.getItemCount());
-                }
-                EmbersTextAPI.sendMessage(player, msg);
-            }
-            case 19 -> {
-                // Item with custom offsets
-                EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(150f, "Item with offset: <item value=\"minecraft:emerald\" offsetX=2 offsetY=-3></item> test"));
-            }
-            case 20 -> {
-                // Programmatic item with offset
-                List<TextSpan> spans = new java.util.ArrayList<>();
-                spans.add(new TextSpan("Offset item: "));
-                spans.add(new TextSpan("").item("minecraft:redstone", 1).itemOffset(0, -2));
-                spans.add(new TextSpan(" raised"));
-                ImmersiveMessage msg = new ImmersiveMessage(spans, 100f);
-                EmbersTextAPI.sendMessage(player, msg);
-            }
+                    ImmersiveMessage.fromMarkup(100f, "<obfuscate mode=random>Random obfuscation mask</obfuscate>")
+                            .scale(1.5f)
+                            .background(true)
+                            .anchor(TextAnchor.MIDDLE));
+            case 17 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<rainbow>Rainbow color cycling</rainbow>")
+                            .scale(2f)
+                            .anchor(TextAnchor.MIDDLE));
+            case 18 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<neon c=00FFFF>Neon glow effect</neon>")
+                            .scale(2f)
+                            .anchor(TextAnchor.MIDDLE));
+            case 19 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<shadow c=FF0000 x=3 y=3>Red drop shadow</shadow>")
+                            .scale(2f)
+                            .anchor(TextAnchor.MIDDLE));
+
+            // --- Group 4: Motion Effects (20-25) ---
+            case 20 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<wave>Wave vertical motion</wave>")
+                            .scale(2f)
+                            .anchor(TextAnchor.MIDDLE));
             case 21 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(150f, "Beware of <entity value=\"minecraft:creeper\"></entity> ahead!").scale(4));
+                    ImmersiveMessage.fromMarkup(100f, "<bounce>Bounce animation</bounce>")
+                            .scale(2f)
+                            .anchor(TextAnchor.MIDDLE));
             case 22 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(150f, "Small <entity value=\"minecraft:zombie\" scale=0.5></entity> mob").scale(4));
+                    ImmersiveMessage.fromMarkup(100f, "<pulse>Pulse opacity</pulse>")
+                            .scale(2f)
+                            .anchor(TextAnchor.MIDDLE));
             case 23 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(150f, "Side view <entity value=\"minecraft:skeleton\" yaw=90 pitch=0></entity> mob"));
-            case 24 -> {
-                // Programmatic entity test
-                List<TextSpan> spans = new java.util.ArrayList<>();
-                spans.add(new TextSpan("You see a "));
-                spans.add(new TextSpan("").entity("minecraft:pig", 0.7f));
-                spans.add(new TextSpan(" nearby"));
-                ImmersiveMessage msg = new ImmersiveMessage(spans, 100f).scale(4);
-                EmbersTextAPI.sendMessage(player, msg);
-            }
-            case 25 -> {
-                // Entity with rotation
-                List<TextSpan> spans = new java.util.ArrayList<>();
-                spans.add(new TextSpan("Rotated "));
-                spans.add(new TextSpan("").entity("minecraft:cow", 0.7f).entityRotation(180, 20));
-                spans.add(new TextSpan(" facing away"));
-                ImmersiveMessage msg = new ImmersiveMessage(spans, 100f);
-                EmbersTextAPI.sendMessage(player, msg);
-            }
+                    ImmersiveMessage.fromMarkup(100f, "<shake>Shake jitter</shake>")
+                            .scale(2f)
+                            .anchor(TextAnchor.MIDDLE));
+            case 24 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<glitch>Glitch distortion</glitch>")
+                            .scale(2f)
+                            .anchor(TextAnchor.MIDDLE));
+            case 25 -> EmbersTextAPI.sendMessage(player,
+                    ImmersiveMessage.fromMarkup(100f, "<turb>Turbulence chaos</turb>")
+                            .scale(2f)
+                            .anchor(TextAnchor.MIDDLE));
 
-            // NEW: Visual effects tests (v2.0.0)
+            // --- Group 5: Items & Entities (26-29) ---
             case 26 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(100f, "<rainbow>Rainbow Test</rainbow>"));
-            case 27 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(100f, "<glitch>Glitch Test</glitch>"));
+                    ImmersiveMessage.fromMarkup(120f,
+                            "Found <item value=\"minecraft:diamond\" size=1></item> x3 and <item value=\"minecraft:gold_ingot\" size=1></item> x5!")
+                            .anchor(TextAnchor.MIDDLE));
+            case 27 -> {
+                List<TextSpan> spans = new ArrayList<>();
+                spans.add(new TextSpan("Raised "));
+                spans.add(new TextSpan("").item("minecraft:emerald", 1).itemOffset(0, -3));
+                spans.add(new TextSpan(" item offset"));
+                EmbersTextAPI.sendMessage(player, new ImmersiveMessage(spans, 100f).anchor(TextAnchor.MIDDLE));
+            }
             case 28 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(100f, "<bounce>Bounce Test</bounce>"));
-            case 29 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(100f, "<pulse>Pulse Test</pulse>"));
+                    ImmersiveMessage.fromMarkup(120f, "Beware <entity value=\"minecraft:creeper\" scale=0.6></entity>!")
+                            .scale(3f)
+                            .anchor(TextAnchor.MIDDLE));
+            case 29 -> {
+                List<TextSpan> spans = new ArrayList<>();
+                spans.add(new TextSpan("Side-view "));
+                spans.add(new TextSpan("").entity("minecraft:pig", 0.7f).entityRotation(90, 0));
+                spans.add(new TextSpan(" pig"));
+                EmbersTextAPI.sendMessage(player, new ImmersiveMessage(spans, 100f).scale(3f).anchor(TextAnchor.MIDDLE));
+            }
+
+            // --- Group 6: Combinations & Queue (30-33) ---
             case 30 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(100f, "<swing>Swing Test</swing>"));
+                    ImmersiveMessage.fromMarkup(120f, "<grad from=FF0000 to=0000FF><wave><neon>Gradient + Wave + Neon</neon></wave></grad>")
+                            .scale(2f)
+                            .background(true)
+                            .anchor(TextAnchor.MIDDLE));
             case 31 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(100f, "<turb>Turbulence Test</turb>"));
+                    ImmersiveMessage.fromMarkup(120f, "<font id=emberstextapi:metamorphous><rainbow><bounce>Font + Rainbow + Bounce</bounce></rainbow></font>")
+                            .scale(2f)
+                            .background(true)
+                            .anchor(TextAnchor.MIDDLE));
             case 32 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(100f, "<wave>Wave Test</wave>"));
-            case 33 -> EmbersTextAPI.sendMessage(player,
-                    ImmersiveMessage.fromMarkup(150f, "<rainbow><wave>Combined Effects Test</wave></rainbow>"));
-        }
-    }
-
-    /**
-     * Helper method to create case-insensitive key lookup for NBT tags (used in test cases).
-     */
-    private static java.util.Map<String, String> createKeysMap(CompoundTag tag) {
-        java.util.Map<String, String> keys = new java.util.HashMap<>();
-        for (String k : tag.getAllKeys()) {
-            keys.put(k.toLowerCase(java.util.Locale.ROOT), k);
-        }
-        return keys;
-    }
-
-    private static TextColor parseColor(String value) {
-        ChatFormatting fmt = ChatFormatting.getByName(value);
-        if (fmt != null) {
-            return TextColor.fromLegacyFormat(fmt);
-        }
-        return TextColor.parseColor(value).result().orElse(null);
-    }
-
-    private static ImmersiveColor parseImmersiveColor(String value) {
-        if (value == null) return null;
-
-        String v = value.trim();
-        try {
-            if (v.startsWith("#")) v = v.substring(1);
-            if (v.startsWith("0x")) v = v.substring(2);
-            if (v.length() == 8) {
-                return new ImmersiveColor((int) Long.parseLong(v, 16));
-            } else if (v.length() == 6) {
-                return new ImmersiveColor(0xFF000000 | Integer.parseInt(v, 16));
-            }
-        } catch (NumberFormatException ignored) {
-        }
-
-        TextColor c = parseColor(value);
-        return c != null ? new ImmersiveColor(0xFF000000 | c.getValue()) : null;
-    }
-
-    /**
-     * Applies NBT data attributes to a span-based message.
-     * Background attributes are applied to the whole message.
-     * Font attributes can be applied to specific spans or globally.
-     */
-    private static void applyNbtToSpanMessage(ImmersiveMessage msg, CompoundTag tag, java.util.Map<String, String> keys) {
-        // Apply global message attributes (background, etc.)
-        // Note: Fade-in/out are now handled via markup tags, not NBT
-
-        // Background attributes (applied to whole message)
-        if (tag.contains("background") && tag.getBoolean("background")) {
-            msg.background(true);
-        }
-        if (tag.contains("bgColor")) {
-            msg.bgColor(tag.getString("bgColor"));
-        }
-        if (tag.contains("bgAlpha")) {
-            msg.bgAlpha(tag.getFloat("bgAlpha"));
-        }
-
-        // Background gradient
-        if (tag.contains("bgGradient", Tag.TAG_LIST)) {
-            ListTag list = tag.getList("bgGradient", Tag.TAG_STRING);
-            java.util.List<ImmersiveColor> cols = new java.util.ArrayList<>();
-            for (int i = 0; i < list.size(); i++) {
-                ImmersiveColor c = parseImmersiveColor(list.getString(i));
-                if (c != null) cols.add(c);
-            }
-            if (cols.size() >= 2) {
-                msg.background(true);
-                msg.backgroundGradient(cols.get(0), cols.get(cols.size() - 1));
-            }
-        } else if (tag.contains("bgGradient", Tag.TAG_COMPOUND)) {
-            CompoundTag grad = tag.getCompound("bgGradient");
-            ImmersiveColor start = parseImmersiveColor(grad.getString("start"));
-            ImmersiveColor end = parseImmersiveColor(grad.getString("end"));
-            if (start != null && end != null) {
-                msg.background(true);
-                msg.backgroundGradient(start, end);
-            }
-        }
-
-        // Border gradient
-        if (tag.contains("borderGradient", Tag.TAG_LIST)) {
-            ListTag list = tag.getList("borderGradient", Tag.TAG_STRING);
-            java.util.List<ImmersiveColor> cols = new java.util.ArrayList<>();
-            for (int i = 0; i < list.size(); i++) {
-                ImmersiveColor c = parseImmersiveColor(list.getString(i));
-                if (c != null) cols.add(c);
-            }
-            if (cols.size() >= 2) {
-                msg.background(true);
-                msg.borderGradient(cols.get(0), cols.get(cols.size() - 1));
-            }
-        } else if (tag.contains("borderGradient", Tag.TAG_COMPOUND)) {
-            CompoundTag grad = tag.getCompound("borderGradient");
-            ImmersiveColor start = parseImmersiveColor(grad.getString("start"));
-            ImmersiveColor end = parseImmersiveColor(grad.getString("end"));
-            if (start != null && end != null) {
-                msg.background(true);
-                msg.borderGradient(start, end);
-            }
-        }
-
-        // Border color
-        if (tag.contains("borderColor")) {
-            ImmersiveColor border = parseImmersiveColor(tag.getString("borderColor"));
-            if (border != null) {
-                msg.background(true);
-                msg.borderGradient(border, border);
-            }
-        }
-
-        // Other global attributes
-        if (tag.contains("size")) {
-            msg.scale(tag.getFloat("size"));
-        }
-        if (tag.contains("wrap")) {
-            msg.wrap(tag.getInt("wrap"));
-        }
-        if (tag.contains("anchor")) {
-            msg.anchor(TextAnchor.valueOf(tag.getString("anchor").toUpperCase()));
-        }
-        if (tag.contains("align")) {
-            msg.align(TextAlign.valueOf(tag.getString("align").toUpperCase()));
-        }
-        if (tag.contains("offsetX") || tag.contains("offsetY")) {
-            float x = tag.contains("offsetX") ? tag.getFloat("offsetX") : 0f;
-            float y = tag.contains("offsetY") ? tag.getFloat("offsetY") : 0f;
-            msg.offset(x, y);
-        }
-        if (tag.contains("shadow")) {
-            msg.shadow(tag.getBoolean("shadow"));
-        }
-
-        // Texture background
-        if (tag.contains("textureBackground", Tag.TAG_STRING)) {
-            ResourceLocation texture = ResourceLocation.tryParse(tag.getString("textureBackground"));
-            if (texture != null) {
-                msg.textureBackground(texture);
-            }
-        } else if (tag.contains("textureBackground", Tag.TAG_COMPOUND)) {
-            CompoundTag tex = tag.getCompound("textureBackground");
-            String key = tex.contains("location") ? "location" : tex.contains("texture") ? "texture" : null;
-            ResourceLocation texture = key != null ? ResourceLocation.tryParse(tex.getString(key)) : null;
-            if (texture != null) {
-                int u = tex.contains("u") ? tex.getInt("u") : 0;
-                int v = tex.contains("v") ? tex.getInt("v") : 0;
-                int regionWidth = tex.contains("width") ? tex.getInt("width") : 256;
-                int regionHeight = tex.contains("height") ? tex.getInt("height") : 256;
-                int atlasWidth = tex.contains("atlasWidth") ? tex.getInt("atlasWidth") : regionWidth;
-                int atlasHeight = tex.contains("atlasHeight") ? tex.getInt("atlasHeight") : regionHeight;
-                msg.textureBackground(texture, u, v, regionWidth, regionHeight, atlasWidth, atlasHeight);
-
-                if (tex.contains("padding")) {
-                    msg.textureBackgroundPadding(tex.getFloat("padding"));
-                }
-                if (tex.contains("paddingX") || tex.contains("paddingY")) {
-                    float padX = tex.contains("paddingX") ? tex.getFloat("paddingX") : Float.NaN;
-                    float padY = tex.contains("paddingY") ? tex.getFloat("paddingY") : Float.NaN;
-                    msg.textureBackgroundPadding(padX, padY);
-                }
-                if (tex.contains("scale")) {
-                    msg.textureBackgroundScale(tex.getFloat("scale"));
-                }
-            }
-        }
-
-        // Apply font to all spans if specified globally
-        if (tag.contains("font")) {
-            ResourceLocation font = ResourceLocation.tryParse(tag.getString("font"));
-            if (font != null && msg.isSpanMode()) {
-                applyFontToAllSpans(msg, font);
-            }
-        }
-
-        // Handle span-specific font attributes (e.g., font0, font1, etc.)
-        if (msg.isSpanMode()) {
-            applySpanSpecificFonts(msg, tag);
-        }
-    }
-
-    /**
-     * Applies a font to all spans in a message.
-     */
-    private static void applyFontToAllSpans(ImmersiveMessage msg, ResourceLocation font) {
-        java.util.List<TextSpan> spans = msg.getSpans();
-        for (TextSpan span : spans) {
-            span.font(font);
-        }
-    }
-
-    /**
-     * Applies span-specific fonts (font0, font1, etc.) to individual spans.
-     */
-    private static void applySpanSpecificFonts(ImmersiveMessage msg, CompoundTag tag) {
-        java.util.List<TextSpan> spans = msg.getSpans();
-
-        for (int i = 0; i < spans.size(); i++) {
-            String fontKey = "font" + i;
-            if (tag.contains(fontKey)) {
-                ResourceLocation font = ResourceLocation.tryParse(tag.getString(fontKey));
-                if (font != null) {
-                    spans.get(i).font(font);
-                }
+                    ImmersiveMessage.fromMarkup(160f, "<font id=emberstextapi:norse><obfuscate mode=reveal speed=60><shake>You shall not pass!</shake></obfuscate></font>")
+                            .scale(2.5f)
+                            .background(true)
+                            .backgroundGradient(new ImmersiveColor(0xFF220000), new ImmersiveColor(0xFF000022))
+                            .fadeInTicks(15)
+                            .fadeOutTicks(15)
+                            .anchor(TextAnchor.MIDDLE));
+            case 33 -> {
+                List<List<ImmersiveMessage>> steps = new ArrayList<>();
+                steps.add(List.of(
+                        ImmersiveMessage.fromMarkup(80f, "<rainbow><bold>Quest Complete!</bold></rainbow>")
+                                .scale(2.5f).background(true).anchor(TextAnchor.MIDDLE)
+                                .fadeInTicks(10).fadeOutTicks(10)));
+                steps.add(List.of(
+                        ImmersiveMessage.fromMarkup(80f, "<type speed=40>You have slain the dragon...</type>")
+                                .scale(1.5f).background(true).anchor(TextAnchor.MIDDLE)
+                                .fadeInTicks(10).fadeOutTicks(10)));
+                steps.add(List.of(
+                        ImmersiveMessage.fromMarkup(100f, "<neon c=FFD700><wave>+ 1000 XP</wave></neon>")
+                                .scale(2f).background(true).anchor(TextAnchor.MIDDLE)
+                                .fadeInTicks(10).fadeOutTicks(10)));
+                NetworkHelper.getInstance().sendQueue(player, "test_quest", steps);
             }
         }
     }
