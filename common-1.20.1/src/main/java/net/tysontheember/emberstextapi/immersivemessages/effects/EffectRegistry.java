@@ -249,6 +249,8 @@ public class EffectRegistry {
         registerBuiltIn("rainb", net.tysontheember.emberstextapi.immersivemessages.effects.visual.RainbowEffect::new); // Alias
         registerBuiltIn("grad", net.tysontheember.emberstextapi.immersivemessages.effects.visual.GradientEffect::new);
         registerBuiltIn("gradient", net.tysontheember.emberstextapi.immersivemessages.effects.visual.GradientEffect::new); // Alias
+        registerBuiltIn("color", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ColorEffect::new);
+        registerBuiltIn("col", net.tysontheember.emberstextapi.immersivemessages.effects.visual.ColorEffect::new); // Alias
         registerBuiltIn("pulse", net.tysontheember.emberstextapi.immersivemessages.effects.visual.PulseEffect::new);
         registerBuiltIn("fade", net.tysontheember.emberstextapi.immersivemessages.effects.visual.FadeEffect::new);
 

@@ -146,12 +146,43 @@ tasks.named('jar', Jar).configure {
 publishing {
     publications {
         register('mavenJava', MavenPublication) {
+            groupId = rootProject.group
+            artifactId = project.base.archivesName.get()
+            version = project.version
+
+            // jar is finalized by reobfJar, so this publishes the reobfuscated (SRG-mapped) jar.
+            // Consumers depending on this artifact must wrap it with fg.deobf() in ForgeGradle.
             artifact jar
+            artifact sourcesJar
+
+            pom {
+                name = "Ember's Text API (Forge 1.20.1)"
+                description = 'Advanced text rendering API with visual effects and animations for Minecraft mods'
+                url = 'https://github.com/TysonTheEmber/EmbersTextAPI'
+                licenses {
+                    license {
+                        name = 'GNU General Public License v3.0'
+                        url = 'https://www.gnu.org/licenses/gpl-3.0.html'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'tysontheember'
+                        name = 'TysonTheEmber'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/TysonTheEmber/EmbersTextAPI.git'
+                    developerConnection = 'scm:git:ssh://github.com/TysonTheEmber/EmbersTextAPI.git'
+                    url = 'https://github.com/TysonTheEmber/EmbersTextAPI'
+                }
+            }
         }
     }
     repositories {
         maven {
-            url "file://${project.projectDir}/mcmodsrepo"
+            name = 'LocalMaven'
+            url = uri("file://${findProperty('mavenRepoPath') ?: "${rootProject.buildDir}/maven-repo"}")
         }
     }
 }

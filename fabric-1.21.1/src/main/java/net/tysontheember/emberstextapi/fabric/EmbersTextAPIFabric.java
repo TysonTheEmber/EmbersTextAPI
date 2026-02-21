@@ -4,6 +4,7 @@ import net.fabricmc.api.ModInitializer;
 import net.tysontheember.emberstextapi.commands.FabricCommands;
 import net.tysontheember.emberstextapi.platform.ConfigHelper;
 import net.tysontheember.emberstextapi.platform.NetworkHelper;
+import net.tysontheember.emberstextapi.welcome.FabricPlayerJoinHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +28,9 @@ public class EmbersTextAPIFabric implements ModInitializer {
 
         // Register commands
         FabricCommands.register();
+
+        // Register welcome message handler
+        FabricPlayerJoinHandler.register();
 
         LOGGER.info("EmbersTextAPI initialization complete");
     }
