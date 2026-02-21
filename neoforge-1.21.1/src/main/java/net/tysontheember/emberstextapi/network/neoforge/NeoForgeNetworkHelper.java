@@ -52,4 +52,14 @@ public class NeoForgeNetworkHelper implements NetworkHelper {
     public void sendClearAllQueues(ServerPlayer player) {
         NeoForgeNetworkHandler.sendClearAllQueues(player);
     }
+
+    @Override
+    public void sendStopQueue(ServerPlayer player, String channel) {
+        NeoForgeNetworkHandler.sendStopQueue(player, channel);
+    }
+
+    @Override
+    public void sendStopAllQueues(ServerPlayer player) {
+        NeoForgeNetworkHandler.sendStopAllQueues(player);
+    }
 }

@@ -22,7 +22,7 @@ import java.util.UUID;
  * </p>
  */
 public final class ForgeNetworkHandler implements NetworkHandler {
-    private static final String PROTOCOL = "4";
+    private static final String PROTOCOL = "5";
     private static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "tooltip");
 
     /**
@@ -57,7 +57,8 @@ public final class ForgeNetworkHandler implements NetworkHandler {
         CHANNEL.registerMessage(id++, S2C_CloseMessagePacket.class, S2C_CloseMessagePacket::encode, S2C_CloseMessagePacket::decode, S2C_CloseMessagePacket::handle);
         CHANNEL.registerMessage(id++, S2C_CloseAllMessagesPacket.class, S2C_CloseAllMessagesPacket::encode, S2C_CloseAllMessagesPacket::decode, S2C_CloseAllMessagesPacket::handle);
         CHANNEL.registerMessage(id++, S2C_ClearQueuePacket.class, S2C_ClearQueuePacket::encode, S2C_ClearQueuePacket::decode, S2C_ClearQueuePacket::handle);
-        CHANNEL.registerMessage(id, S2C_OpenQueuePacket.class, S2C_OpenQueuePacket::encode, S2C_OpenQueuePacket::decode, S2C_OpenQueuePacket::handle);
+        CHANNEL.registerMessage(id++, S2C_OpenQueuePacket.class, S2C_OpenQueuePacket::encode, S2C_OpenQueuePacket::decode, S2C_OpenQueuePacket::handle);
+        CHANNEL.registerMessage(id, S2C_StopQueuePacket.class, S2C_StopQueuePacket::encode, S2C_StopQueuePacket::decode, S2C_StopQueuePacket::handle);
     }
 
     @Override
@@ -113,5 +114,15 @@ public final class ForgeNetworkHandler implements NetworkHandler {
     @Override
     public void sendClearAllQueues(ServerPlayer player) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new S2C_ClearQueuePacket(""));
+    }
+
+    @Override
+    public void sendStopQueue(ServerPlayer player, String channel) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new S2C_StopQueuePacket(channel));
+    }
+
+    @Override
+    public void sendStopAllQueues(ServerPlayer player) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new S2C_StopQueuePacket(""));
     }
 }

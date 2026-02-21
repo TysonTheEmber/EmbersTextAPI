@@ -69,13 +69,24 @@ public class FabricClientPacketHandlers {
             });
         });
 
-        // Clear queue packet
+        // Clear queue packet — empty channel means clear all pending
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.ClearQueuePayload.TYPE, (payload, context) -> {
+            context.client().execute(() -> {
+                if (payload.channel().isEmpty()) {
+                    ClientMessageManager.clearAllQueuesPending();
+                } else {
+                    ClientMessageManager.clearQueue(payload.channel());
+                }
+            });
+        });
+
+        // Stop queue packet — closes current message + clears pending steps; empty channel means stop all
+        ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.StopQueuePayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
                 if (payload.channel().isEmpty()) {
                     ClientMessageManager.clearAllQueues();
                 } else {
-                    ClientMessageManager.clearQueue(payload.channel());
+                    ClientMessageManager.stopQueue(payload.channel());
                 }
             });
         });

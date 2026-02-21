@@ -54,14 +54,26 @@ public class FabricClientPacketHandlers {
             client.execute(ClientMessageManager::closeAll);
         });
 
-        // Clear queue packet — empty channel means clear all
+        // Clear queue packet — empty channel means clear all pending
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.CLEAR_QUEUE_PACKET, (client, handler, buf, responseSender) -> {
+            String channel = buf.readUtf();
+            client.execute(() -> {
+                if (channel.isEmpty()) {
+                    ClientMessageManager.clearAllQueuesPending();
+                } else {
+                    ClientMessageManager.clearQueue(channel);
+                }
+            });
+        });
+
+        // Stop queue packet — closes current message + clears pending steps; empty channel means stop all
+        ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.STOP_QUEUE_PACKET, (client, handler, buf, responseSender) -> {
             String channel = buf.readUtf();
             client.execute(() -> {
                 if (channel.isEmpty()) {
                     ClientMessageManager.clearAllQueues();
                 } else {
-                    ClientMessageManager.clearQueue(channel);
+                    ClientMessageManager.stopQueue(channel);
                 }
             });
         });

@@ -41,6 +41,7 @@ public final class FabricNetworkHandler implements NetworkHandler {
         PayloadTypeRegistry.playS2C().register(CloseAllMessagesPayload.TYPE, CloseAllMessagesPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(OpenQueuePayload.TYPE, OpenQueuePayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(ClearQueuePayload.TYPE, ClearQueuePayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(StopQueuePayload.TYPE, StopQueuePayload.STREAM_CODEC);
 
         EmbersTextAPIFabric.LOGGER.info("Fabric network handler registered");
     }
@@ -98,6 +99,16 @@ public final class FabricNetworkHandler implements NetworkHandler {
     @Override
     public void sendClearAllQueues(ServerPlayer player) {
         ServerPlayNetworking.send(player, new ClearQueuePayload(""));
+    }
+
+    @Override
+    public void sendStopQueue(ServerPlayer player, String channel) {
+        ServerPlayNetworking.send(player, new StopQueuePayload(channel));
+    }
+
+    @Override
+    public void sendStopAllQueues(ServerPlayer player) {
+        ServerPlayNetworking.send(player, new StopQueuePayload(""));
     }
 
     // ===== Payload Records =====
@@ -228,6 +239,24 @@ public final class FabricNetworkHandler implements NetworkHandler {
         public static final StreamCodec<FriendlyByteBuf, ClearQueuePayload> STREAM_CODEC = StreamCodec.of(
             (buf, payload) -> buf.writeUtf(payload.channel),
             buf -> new ClearQueuePayload(buf.readUtf())
+        );
+
+        @Override
+        public @NotNull Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    /**
+     * Payload for force-stopping a channel queue. Empty channel string means stop all.
+     */
+    public record StopQueuePayload(String channel) implements CustomPacketPayload {
+        public static final CustomPacketPayload.Type<StopQueuePayload> TYPE =
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("emberstextapi", "stop_queue"));
+
+        public static final StreamCodec<FriendlyByteBuf, StopQueuePayload> STREAM_CODEC = StreamCodec.of(
+            (buf, payload) -> buf.writeUtf(payload.channel),
+            buf -> new StopQueuePayload(buf.readUtf())
         );
 
         @Override
