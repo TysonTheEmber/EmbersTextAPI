@@ -36,6 +36,7 @@ public class MessageCommands {
         // Register full command name
         event.getDispatcher().register(
             Commands.literal("emberstextapi")
+                .requires(source -> source.hasPermission(2))
                 .then(testSubcommand())
                 .then(sendSubcommand())
                 .then(queueSubcommand())
@@ -45,6 +46,7 @@ public class MessageCommands {
         // Register short alias
         event.getDispatcher().register(
             Commands.literal("eta")
+                .requires(source -> source.hasPermission(2))
                 .then(testSubcommand())
                 .then(sendSubcommand())
                 .then(queueSubcommand())

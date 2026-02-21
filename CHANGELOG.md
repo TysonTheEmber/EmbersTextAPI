@@ -1,7 +1,7 @@
-Set align to center by default
-Set test immersive messages to queue
-Revamped the tests(/eta test 1-33)
-Made /eta test effect immersive use the new queue system
-Fixed @a not working in eta commands
-Fixed chat transparency issues with immersive messages
-Fixed/Improved fade transition
+* Fixed https://github.com/TysonTheEmber/EmbersTextAPI/issues/30
+* Added <color> effect(don't know why it didn't already exist)
+* Added my own maven https://maven.tysontheember.dev
+* Fixed some inconsistencies
+* Rebuilt the docs
+* Fixed some other small stuff
+* Fixed permissions allowing anyone to use /eta

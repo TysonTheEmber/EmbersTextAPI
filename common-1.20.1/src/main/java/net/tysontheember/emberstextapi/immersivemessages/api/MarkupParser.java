@@ -39,7 +39,8 @@ public class MarkupParser {
         
         List<TextSpan> result = new ArrayList<>();
         Stack<TextSpan> styleStack = new Stack<>();
-        
+        TextSpan globalAttrsCollector = new TextSpan(""); // accumulates global attrs from any tag position
+
         Matcher matcher = TAG_PATTERN.matcher(markup);
         int lastEnd = 0;
         
@@ -102,9 +103,10 @@ public class MarkupParser {
                     }
                     result.add(entitySpan);
                 } else {
-                    // For other effects, push and immediately pop (applies to enclosed text)
-                    styleStack.push(currentStyle);
-                    styleStack.pop();
+                    // Self-closing non-container tags: collect any global attrs but don't push/pop
+                    if (currentStyle.hasGlobalAttributes()) {
+                        mergeGlobalAttrs(globalAttrsCollector, currentStyle);
+                    }
                 }
             } else if ("/".equals(isClosing)) {
                 // Closing tag - pop from stack
@@ -155,6 +157,9 @@ public class MarkupParser {
                 // Opening tag - push new style to stack
                 TextSpan currentStyle = styleStack.isEmpty() ? new TextSpan("") : styleStack.peek().inherit();
                 applyTagToSpan(currentStyle, tagName, attributes);
+                if (currentStyle.hasGlobalAttributes()) {
+                    mergeGlobalAttrs(globalAttrsCollector, currentStyle);
+                }
                 styleStack.push(currentStyle);
             }
             
@@ -169,7 +174,13 @@ public class MarkupParser {
                 result.add(span);
             }
         }
-        
+
+        // Prepend accumulated global attrs so ImmersiveMessage always finds them,
+        // even when global attr tags appear after text or are self-closing.
+        if (globalAttrsCollector.hasGlobalAttributes()) {
+            result.add(0, globalAttrsCollector);
+        }
+
         return result;
     }
     
@@ -288,6 +299,33 @@ public class MarkupParser {
         }
     }
     
+    /**
+     * Merges global message attributes from {@code source} into {@code target}.
+     * Only non-null fields in source are copied, preserving any previously merged values.
+     */
+    private static void mergeGlobalAttrs(TextSpan target, TextSpan source) {
+        if (source.getGlobalBackground() != null) target.globalBackground(source.getGlobalBackground());
+        if (source.getGlobalBackgroundColor() != null) target.globalBackgroundColor(source.getGlobalBackgroundColor());
+        if (source.getGlobalBackgroundGradient() != null) target.globalBackgroundGradient(source.getGlobalBackgroundGradient());
+        if (source.getGlobalBorderStart() != null) target.globalBorder(source.getGlobalBorderStart(), source.getGlobalBorderEnd());
+        if (source.getGlobalXOffset() != null || source.getGlobalYOffset() != null) {
+            target.globalOffset(
+                source.getGlobalXOffset() != null ? source.getGlobalXOffset() : 0f,
+                source.getGlobalYOffset() != null ? source.getGlobalYOffset() : 0f
+            );
+        }
+        if (source.getGlobalAnchor() != null) target.globalAnchor(source.getGlobalAnchor());
+        if (source.getGlobalAlign() != null) target.globalAlign(source.getGlobalAlign());
+        if (source.getGlobalScale() != null) target.globalScale(source.getGlobalScale());
+        if (source.getGlobalShadow() != null) target.globalShadow(source.getGlobalShadow());
+        if (source.getGlobalFadeInTicks() != null) target.globalFadeIn(source.getGlobalFadeInTicks());
+        if (source.getGlobalFadeOutTicks() != null) target.globalFadeOut(source.getGlobalFadeOutTicks());
+        if (source.getGlobalTypewriterSpeed() != null) target.globalTypewriter(
+            source.getGlobalTypewriterSpeed(),
+            source.getGlobalTypewriterCenter() != null ? source.getGlobalTypewriterCenter() : false
+        );
+    }
+
     private static void applyTagToSpan(TextSpan span, String tagName, String attributes) {
         Map<String, String> attrs = parseAttributes(attributes);
         
@@ -299,8 +337,15 @@ public class MarkupParser {
             case "obfuscated", "obf" -> span.obfuscated(true);
             
             case "color", "c" -> {
-                String colorValue = attrs.getOrDefault("value", attrs.get("color"));
-                if (colorValue != null) span.color(colorValue);
+                if (attrs.containsKey("col")) {
+                    // Effect-based color (stackable with other effects)
+                    String tagContent = buildEffectTag("color", attributes);
+                    span.effect(tagContent);
+                } else {
+                    // Direct color setting (legacy: <color value=FF0000> or <c value=FF0000>)
+                    String colorValue = attrs.getOrDefault("value", attrs.get("color"));
+                    if (colorValue != null) span.color(colorValue);
+                }
             }
             
             case "font" -> {

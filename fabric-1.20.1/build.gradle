@@ -70,3 +70,49 @@ tasks.named('jar', Jar).configure {
         rename { "${it}_${project.base.archivesName.get()}" }
     }
 }
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId = rootProject.group
+            artifactId = project.base.archivesName.get()
+            version = project.version
+
+            // Fabric Loom remaps the jar to obfuscated Minecraft names at runtime.
+            // remapJar is the distributable artifact; remapSourcesJar has the readable sources.
+            artifact(project.tasks.named('remapJar'))
+            artifact(project.tasks.named('remapSourcesJar')) {
+                classifier = 'sources'
+            }
+
+            pom {
+                name = "Ember's Text API (Fabric 1.20.1)"
+                description = 'Advanced text rendering API with visual effects and animations for Minecraft mods'
+                url = 'https://github.com/TysonTheEmber/EmbersTextAPI'
+                licenses {
+                    license {
+                        name = 'GNU General Public License v3.0'
+                        url = 'https://www.gnu.org/licenses/gpl-3.0.html'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'tysontheember'
+                        name = 'TysonTheEmber'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/TysonTheEmber/EmbersTextAPI.git'
+                    developerConnection = 'scm:git:ssh://github.com/TysonTheEmber/EmbersTextAPI.git'
+                    url = 'https://github.com/TysonTheEmber/EmbersTextAPI'
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = 'LocalMaven'
+            url = uri("file://${findProperty('mavenRepoPath') ?: "${rootProject.buildDir}/maven-repo"}")
+        }
+    }
+}

@@ -19,6 +19,7 @@ public class FabricCommands {
             // Register full command name
             dispatcher.register(
                 Commands.literal("emberstextapi")
+                    .requires(source -> source.hasPermission(2))
                     .then(FabricMessageCommands.testSubcommand())
                     .then(FabricMessageCommands.sendSubcommand())
                     .then(FabricMessageCommands.queueSubcommand())
@@ -28,6 +29,7 @@ public class FabricCommands {
             // Register short alias with all subcommands
             dispatcher.register(
                 Commands.literal("eta")
+                    .requires(source -> source.hasPermission(2))
                     .executes(context -> {
                         showHelp(context);
                         return 1;

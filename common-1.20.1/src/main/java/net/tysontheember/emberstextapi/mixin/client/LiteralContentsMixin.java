@@ -120,10 +120,15 @@ public abstract class LiteralContentsMixin {
                                    (span.getStrikethrough() != null && span.getStrikethrough()) ||
                                    (span.getObfuscated() != null && span.getObfuscated());
             boolean hasFont = span.getFont() != null;
+            boolean hasColor = span.getColor() != null;
             boolean hasItem = span.getItemId() != null;
             boolean hasEntity = span.getEntityId() != null;
+            // Global attributes (background, anchor, scale, offset, shadow, align, fade) are
+            // message-level, not per-char, but tags still need to be consumed so they don't
+            // render as literal text.
+            boolean hasGlobal = span.hasGlobalAttributes();
 
-            if (hasEffects || hasFormatting || hasFont || hasItem || hasEntity) {
+            if (hasEffects || hasFormatting || hasFont || hasColor || hasItem || hasEntity || hasGlobal) {
                 hasEffectsOrFormattingOrItems = true;
             }
 
