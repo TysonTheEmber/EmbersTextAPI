@@ -24,6 +24,8 @@ public class FabricCommands {
                     .then(FabricMessageCommands.sendSubcommand())
                     .then(FabricMessageCommands.queueSubcommand())
                     .then(FabricMessageCommands.clearQueueSubcommand())
+                    .then(FabricMessageCommands.stopQueueSubcommand())
+                    .then(FabricMessageCommands.closeAllSubcommand())
             );
 
             // Register short alias with all subcommands
@@ -62,6 +64,8 @@ public class FabricCommands {
                     .then(FabricMessageCommands.sendSubcommand())
                     .then(FabricMessageCommands.queueSubcommand())
                     .then(FabricMessageCommands.clearQueueSubcommand())
+                    .then(FabricMessageCommands.stopQueueSubcommand())
+                    .then(FabricMessageCommands.closeAllSubcommand())
             );
 
             EmbersTextAPIFabric.LOGGER.info("Registered commands");

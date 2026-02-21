@@ -27,6 +27,7 @@ public final class FabricNetworkHandler implements NetworkHandler {
     public static final ResourceLocation CLOSE_ALL_MESSAGES_PACKET = new ResourceLocation(EmbersTextAPIFabric.MODID, "close_all_messages");
     public static final ResourceLocation CLEAR_QUEUE_PACKET = new ResourceLocation(EmbersTextAPIFabric.MODID, "clear_queue");
     public static final ResourceLocation OPEN_QUEUE_PACKET = new ResourceLocation(EmbersTextAPIFabric.MODID, "open_queue");
+    public static final ResourceLocation STOP_QUEUE_PACKET = new ResourceLocation(EmbersTextAPIFabric.MODID, "stop_queue");
 
     private static final FabricNetworkHandler INSTANCE = new FabricNetworkHandler();
 
@@ -105,5 +106,17 @@ public final class FabricNetworkHandler implements NetworkHandler {
     public void sendClearAllQueues(ServerPlayer player) {
         ServerPlayNetworking.send(player, CLEAR_QUEUE_PACKET,
             FabricPacketCodecs.encodeClearQueue(""));
+    }
+
+    @Override
+    public void sendStopQueue(ServerPlayer player, String channel) {
+        ServerPlayNetworking.send(player, STOP_QUEUE_PACKET,
+            FabricPacketCodecs.encodeStopQueue(channel));
+    }
+
+    @Override
+    public void sendStopAllQueues(ServerPlayer player) {
+        ServerPlayNetworking.send(player, STOP_QUEUE_PACKET,
+            FabricPacketCodecs.encodeStopQueue(""));
     }
 }

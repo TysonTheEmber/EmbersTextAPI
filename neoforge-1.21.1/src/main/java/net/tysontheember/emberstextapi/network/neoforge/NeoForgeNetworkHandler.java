@@ -71,6 +71,14 @@ public final class NeoForgeNetworkHandler {
         PacketDistributor.sendToPlayer(player, new ClearQueuePayload(""));
     }
 
+    public static void sendStopQueue(ServerPlayer player, String channel) {
+        PacketDistributor.sendToPlayer(player, new StopQueuePayload(channel));
+    }
+
+    public static void sendStopAllQueues(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, new StopQueuePayload(""));
+    }
+
     // Payload records
 
     public record TooltipPayload(CompoundTag data) implements CustomPacketPayload {
@@ -222,6 +230,24 @@ public final class NeoForgeNetworkHandler {
         }
     }
 
+    /**
+     * Payload for force-stopping a channel queue. Empty channel string means stop all.
+     */
+    public record StopQueuePayload(String channel) implements CustomPacketPayload {
+        public static final CustomPacketPayload.Type<StopQueuePayload> TYPE =
+            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("emberstextapi", "stop_queue"));
+
+        public static final StreamCodec<FriendlyByteBuf, StopQueuePayload> STREAM_CODEC = StreamCodec.of(
+            (buf, payload) -> buf.writeUtf(payload.channel),
+            buf -> new StopQueuePayload(buf.readUtf())
+        );
+
+        @Override
+        public @NotNull Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     // Client handlers
 
     public static void handleTooltip(TooltipPayload payload, IPayloadContext context) {
@@ -283,9 +309,19 @@ public final class NeoForgeNetworkHandler {
     public static void handleClearQueue(ClearQueuePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (payload.channel().isEmpty()) {
-                net.tysontheember.emberstextapi.client.ClientMessageManager.clearAllQueues();
+                net.tysontheember.emberstextapi.client.ClientMessageManager.clearAllQueuesPending();
             } else {
                 net.tysontheember.emberstextapi.client.ClientMessageManager.clearQueue(payload.channel());
+            }
+        });
+    }
+
+    public static void handleStopQueue(StopQueuePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (payload.channel().isEmpty()) {
+                net.tysontheember.emberstextapi.client.ClientMessageManager.clearAllQueues();
+            } else {
+                net.tysontheember.emberstextapi.client.ClientMessageManager.stopQueue(payload.channel());
             }
         });
     }

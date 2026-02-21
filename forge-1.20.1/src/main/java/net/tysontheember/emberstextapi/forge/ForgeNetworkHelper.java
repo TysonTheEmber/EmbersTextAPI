@@ -57,4 +57,14 @@ public class ForgeNetworkHelper implements NetworkHelper {
     public void sendClearAllQueues(ServerPlayer player) {
         handler.sendClearAllQueues(player);
     }
+
+    @Override
+    public void sendStopQueue(ServerPlayer player, String channel) {
+        handler.sendStopQueue(player, channel);
+    }
+
+    @Override
+    public void sendStopAllQueues(ServerPlayer player) {
+        handler.sendStopAllQueues(player);
+    }
 }

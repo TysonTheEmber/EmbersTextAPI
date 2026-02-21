@@ -45,6 +45,15 @@ public class FabricPacketCodecs {
     }
 
     /**
+     * Encode a stop-queue packet. Empty channel means stop all.
+     */
+    public static FriendlyByteBuf encodeStopQueue(String channel) {
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        buf.writeUtf(channel);
+        return buf;
+    }
+
+    /**
      * Encode an open-queue packet.
      */
     public static FriendlyByteBuf encodeOpenQueue(String channel, List<List<UUID>> ids, List<List<CompoundTag>> stepData) {

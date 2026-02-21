@@ -121,6 +121,31 @@ public final class ClientMessageManager {
     }
 
     /**
+     * Stop a channel queue immediately: close the currently active messages for
+     * that channel and clear all pending steps.
+     */
+    public static void stopQueue(String channel) {
+        if (channel == null) {
+            return;
+        }
+        Set<UUID> activeIds = CHANNEL_ACTIVE_IDS.remove(channel);
+        if (activeIds != null) {
+            activeIds.forEach(ACTIVE::remove);
+        }
+        CHANNEL_QUEUES.remove(channel);
+    }
+
+    /**
+     * Clear pending (not-yet-started) steps from all channel queues.
+     * Currently active steps play to completion.
+     */
+    public static void clearAllQueuesPending() {
+        for (String channel : new ArrayList<>(CHANNEL_QUEUES.keySet())) {
+            clearQueue(channel);
+        }
+    }
+
+    /**
      * Clear all channel queues and immediately close all active messages.
      */
     public static void clearAllQueues() {

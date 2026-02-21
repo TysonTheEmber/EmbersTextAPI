@@ -62,4 +62,15 @@ public interface NetworkHelper {
      * Clear all channel queues on the client.
      */
     void sendClearAllQueues(ServerPlayer player);
+
+    /**
+     * Stop a specific channel queue: closes the currently-active messages for that
+     * channel and clears pending steps.
+     */
+    void sendStopQueue(ServerPlayer player, String channel);
+
+    /**
+     * Stop all channel queues immediately, closing their active messages.
+     */
+    void sendStopAllQueues(ServerPlayer player);
 }

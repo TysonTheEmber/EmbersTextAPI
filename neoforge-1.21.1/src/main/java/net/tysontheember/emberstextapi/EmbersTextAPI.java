@@ -104,6 +104,12 @@ public class EmbersTextAPI {
             NeoForgeNetworkHandler::handleClearQueue
         );
 
+        registrar.playToClient(
+            NeoForgeNetworkHandler.StopQueuePayload.TYPE,
+            NeoForgeNetworkHandler.StopQueuePayload.STREAM_CODEC,
+            NeoForgeNetworkHandler::handleStopQueue
+        );
+
         LOGGER.info("Network payloads registered");
     }
 
