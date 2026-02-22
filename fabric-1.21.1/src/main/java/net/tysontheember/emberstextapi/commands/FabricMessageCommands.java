@@ -33,6 +33,7 @@ public class FabricMessageCommands {
 
     public static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> testSubcommand() {
         return Commands.literal("test")
+            .requires(source -> source.hasPermission(2))
             .then(Commands.argument("id", IntegerArgumentType.integer(1, 33))
                 .executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
@@ -46,6 +47,7 @@ public class FabricMessageCommands {
 
     public static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> sendSubcommand() {
         return Commands.literal("send")
+            .requires(source -> source.hasPermission(2))
             .then(Commands.argument("player", EntityArgument.players())
                 .then(Commands.argument("duration", FloatArgumentType.floatArg())
                     .then(Commands.argument("text", StringArgumentType.greedyString())
@@ -74,6 +76,7 @@ public class FabricMessageCommands {
 
     public static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> queueSubcommand() {
         return Commands.literal("queue")
+            .requires(source -> source.hasPermission(2))
             .then(Commands.argument("player", EntityArgument.players())
                 .then(Commands.argument("channel", StringArgumentType.word())
                     .then(Commands.argument("queue_definition", StringArgumentType.greedyString())
@@ -125,6 +128,7 @@ public class FabricMessageCommands {
 
     public static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> clearQueueSubcommand() {
         return Commands.literal("clearqueue")
+            .requires(source -> source.hasPermission(2))
             .then(Commands.argument("player", EntityArgument.players())
                 .executes(ctx -> {
                     Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "player");
@@ -146,6 +150,7 @@ public class FabricMessageCommands {
 
     public static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> stopQueueSubcommand() {
         return Commands.literal("stopqueue")
+            .requires(source -> source.hasPermission(2))
             .then(Commands.argument("player", EntityArgument.players())
                 .executes(ctx -> {
                     Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "player");
@@ -167,6 +172,7 @@ public class FabricMessageCommands {
 
     public static ArgumentBuilder<net.minecraft.commands.CommandSourceStack, ?> closeAllSubcommand() {
         return Commands.literal("closeall")
+            .requires(source -> source.hasPermission(2))
             .then(Commands.argument("player", EntityArgument.players())
                 .executes(ctx -> {
                     Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "player");

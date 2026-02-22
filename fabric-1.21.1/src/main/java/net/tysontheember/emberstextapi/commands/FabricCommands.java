@@ -19,7 +19,6 @@ public class FabricCommands {
             // Register full command name
             dispatcher.register(
                 Commands.literal("emberstextapi")
-                    .requires(source -> source.hasPermission(2))
                     .then(FabricMessageCommands.testSubcommand())
                     .then(FabricMessageCommands.sendSubcommand())
                     .then(FabricMessageCommands.queueSubcommand())
@@ -31,7 +30,6 @@ public class FabricCommands {
             // Register short alias with all subcommands
             dispatcher.register(
                 Commands.literal("eta")
-                    .requires(source -> source.hasPermission(2))
                     .executes(context -> {
                         showHelp(context);
                         return 1;
@@ -43,7 +41,6 @@ public class FabricCommands {
                         })
                     )
                     .then(Commands.literal("welcome")
-                        .requires(source -> source.hasPermission(2))
                         .then(Commands.literal("enable")
                             .then(Commands.argument("enabled", BoolArgumentType.bool())
                                 .executes(context -> {
