@@ -34,7 +34,6 @@ public class WelcomeMessageCommands {
                     })
                 )
                 .then(Commands.literal("welcome")
-                    .requires(source -> source.hasPermission(2)) // Require operator permission
                     .then(Commands.literal("enable")
                         .then(Commands.argument("enabled", BoolArgumentType.bool())
                             .executes(context -> {
