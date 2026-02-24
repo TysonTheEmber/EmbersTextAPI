@@ -3,6 +3,7 @@ package net.tysontheember.emberstextapi.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
+import net.tysontheember.emberstextapi.platform.ConfigHelper;
 
 import java.util.*;
 
@@ -33,6 +34,24 @@ public final class ClientMessageManager {
         if (id == null || message == null) {
             return;
         }
+
+        // Enforce immersive messages toggle
+        try {
+            if (!ConfigHelper.getInstance().isImmersiveMessagesEnabled()) {
+                return;
+            }
+        } catch (Exception ignored) {
+        }
+
+        // Enforce max active messages limit
+        try {
+            int max = ConfigHelper.getInstance().getMaxActiveMessages();
+            if (max > 0 && !ACTIVE.containsKey(id) && ACTIVE.size() >= max) {
+                return;
+            }
+        } catch (Exception ignored) {
+        }
+
         ACTIVE.remove(id);
         ACTIVE.put(id, new ActiveMessage(id, message));
     }
@@ -54,6 +73,10 @@ public final class ClientMessageManager {
             return;
         }
         ACTIVE.remove(id);
+    }
+
+    public static int getActiveMessageCount() {
+        return ACTIVE.size();
     }
 
     public static void closeAll() {

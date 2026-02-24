@@ -337,13 +337,13 @@ public class MarkupParser {
             case "obfuscated", "obf" -> span.obfuscated(true);
             
             case "color", "c" -> {
-                if (attrs.containsKey("col")) {
+                if (attrs.containsKey("col") || attrs.containsKey("value")) {
                     // Effect-based color (stackable with other effects)
                     String tagContent = buildEffectTag("color", attributes);
                     span.effect(tagContent);
                 } else {
-                    // Direct color setting (legacy: <color value=FF0000> or <c value=FF0000>)
-                    String colorValue = attrs.getOrDefault("value", attrs.get("color"));
+                    // Direct color setting (legacy: <c color=FF0000>)
+                    String colorValue = attrs.get("color");
                     if (colorValue != null) span.color(colorValue);
                 }
             }
