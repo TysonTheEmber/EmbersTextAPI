@@ -8,6 +8,8 @@ import net.tysontheember.emberstextapi.platform.PlatformHelper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Fabric implementation of ConfigHelper.
@@ -25,11 +27,14 @@ public class FabricConfigHelper implements ConfigHelper {
 
         try {
             if (Files.exists(configPath)) {
-                // Load existing config
                 String json = Files.readString(configPath);
                 config = GSON.fromJson(json, Config.class);
+                if (config == null) {
+                    config = new Config();
+                }
+                // Re-save to pick up any new fields with defaults
+                save();
             } else {
-                // Create default config
                 config = new Config();
                 String json = GSON.toJson(config);
                 Files.createDirectories(configPath.getParent());
@@ -46,15 +51,42 @@ public class FabricConfigHelper implements ConfigHelper {
         return config != null && config.welcomeMessageEnabled;
     }
 
-    /**
-     * Sets whether the welcome message is enabled and saves the config to disk.
-     */
     public void setWelcomeMessageEnabled(boolean enabled) {
         if (config == null) {
             config = new Config();
         }
         config.welcomeMessageEnabled = enabled;
         save();
+    }
+
+    @Override
+    public boolean isImmersiveMessagesEnabled() {
+        return config != null && config.immersiveMessagesEnabled;
+    }
+
+    @Override
+    public List<String> getDisabledEffects() {
+        return config != null && config.disabledEffects != null ? config.disabledEffects : new ArrayList<>();
+    }
+
+    @Override
+    public String getMarkupPermissionMode() {
+        return config != null && config.markupPermissionMode != null ? config.markupPermissionMode : "NONE";
+    }
+
+    @Override
+    public List<String> getMarkupPlayerList() {
+        return config != null && config.markupPlayerList != null ? config.markupPlayerList : new ArrayList<>();
+    }
+
+    @Override
+    public int getMaxMessageDuration() {
+        return config != null ? config.maxMessageDuration : 0;
+    }
+
+    @Override
+    public int getMaxActiveMessages() {
+        return config != null ? config.maxActiveMessages : 0;
     }
 
     private void save() {
@@ -73,5 +105,11 @@ public class FabricConfigHelper implements ConfigHelper {
      */
     private static class Config {
         public boolean welcomeMessageEnabled = true;
+        public boolean immersiveMessagesEnabled = true;
+        public List<String> disabledEffects = new ArrayList<>();
+        public String markupPermissionMode = "NONE";
+        public List<String> markupPlayerList = new ArrayList<>();
+        public int maxMessageDuration = 0;
+        public int maxActiveMessages = 0;
     }
 }

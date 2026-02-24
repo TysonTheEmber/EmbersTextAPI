@@ -2,6 +2,7 @@ package net.tysontheember.emberstextapi.fabric;
 
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.server.level.ServerPlayer;
+import net.tysontheember.emberstextapi.chat.FabricChatMarkupHandler;
 import net.tysontheember.emberstextapi.commands.FabricCommands;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.platform.ConfigHelper;
@@ -33,6 +34,9 @@ public class EmbersTextAPIFabric implements ModInitializer {
 
         // Register player join handler for welcome messages
         FabricPlayerJoinHandler.register();
+
+        // Register chat markup handler
+        FabricChatMarkupHandler.register();
 
         LOGGER.info("EmbersTextAPI initialization complete");
     }

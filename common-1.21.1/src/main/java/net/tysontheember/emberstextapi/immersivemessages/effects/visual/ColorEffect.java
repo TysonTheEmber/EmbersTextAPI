@@ -15,13 +15,13 @@ import org.jetbrains.annotations.NotNull;
  *
  * <h3>Parameters:</h3>
  * <ul>
- *   <li>{@code col} (hex color, default: "FFFFFF") - The color to apply</li>
+ *   <li>{@code col} or {@code value} (hex color, default: "FFFFFF") - The color to apply</li>
  * </ul>
  *
  * <h3>Example Usage:</h3>
  * <pre>{@code
  * <color col=FF0000>Red text</color>
- * <color col=#00FF00>Green text</color>
+ * <color value=#00FF00>Green text</color>
  * <color col=5BCEFA>Blue text</color>
  * }</pre>
  */
@@ -38,7 +38,9 @@ public class ColorEffect extends BaseEffect {
      */
     public ColorEffect(@NotNull Params params) {
         super(params);
-        this.rgb = parseColor(params, "col", DEFAULT_COLOR);
+        this.rgb = params.getString("col").isPresent()
+                ? parseColor(params, "col", DEFAULT_COLOR)
+                : parseColor(params, "value", DEFAULT_COLOR);
     }
 
     @Override

@@ -9,6 +9,8 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.tysontheember.emberstextapi.platform.ConfigHelper;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -120,6 +122,18 @@ public class EffectRegistry {
     @NotNull
     public static Effect create(@NotNull String name, @NotNull Params params) {
         String normalizedName = name.toLowerCase();
+
+        // Check if this effect is disabled via config
+        try {
+            if (ConfigHelper.getInstance().isEffectDisabled(normalizedName)) {
+                LOGGER.debug("Effect '{}' is disabled via config, returning no-op", normalizedName);
+                return new NoOpEffect(normalizedName);
+            }
+        } catch (Exception e) {
+            // Config may not be available yet during early initialization
+            LOGGER.trace("Could not check disabled effects for '{}': {}", normalizedName, e.getMessage());
+        }
+
         Function<Params, Effect> factory = EFFECTS.get(normalizedName);
 
         if (factory == null) {
