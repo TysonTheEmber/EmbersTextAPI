@@ -1,5 +1,6 @@
 package net.tysontheember.emberstextapi.mixin.client;
 
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.contents.TranslatableContents;
@@ -12,6 +13,8 @@ import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
 import net.tysontheember.emberstextapi.typewriter.TypewriterTracks;
 import net.tysontheember.emberstextapi.util.StyleUtil;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -27,14 +30,15 @@ import java.util.Optional;
  * Mixin for detecting inline markup in translatable text components.
  * <p>
  * This mixin intercepts the visit() method of TranslatableContents to detect
- * markup tags in the fallback translation string. When markup is found, it parses
+ * markup tags in resolved translation values. When markup is found, it parses
  * the text into TextSpan objects with effects and attaches those effects to the
  * Style objects passed to the consumer.
  * </p>
  * <p>
- * Note: This implementation uses a simplified approach that only processes markup
- * in the fallback string. For proper translation key processing, additional work
- * would be needed to intercept the translation resolution process.
+ * The mixin resolves the translation key via {@link Language#getInstance()} to
+ * obtain the actual translated string, then checks it for markup. This allows
+ * markup tags like {@code <rainbow>} to be used directly in lang file values
+ * (e.g. {@code "item.mymod.sword": "<rainbow>Epic Sword</rainbow>"}).
  * </p>
  * <p>
  * This is Phase 3 of the Global Text Styling implementation plan.
@@ -47,12 +51,15 @@ import java.util.Optional;
 @Mixin(TranslatableContents.class)
 public abstract class TranslatableContentsMixin {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/TranslatableContentsMixin");
+
     @Unique
     private final long emberstextapi$obfInstanceId = java.util.concurrent.ThreadLocalRandom.current().nextLong();
 
-    /**
-     * Shadow the fallback field (the raw translation string when no translation is available).
-     */
+    @Shadow
+    @Final
+    private String key;
+
     @Shadow
     @Final
     private String fallback;
@@ -60,18 +67,8 @@ public abstract class TranslatableContentsMixin {
     /**
      * Intercept the visit method to detect markup in translatable text.
      * <p>
-     * This simplified approach only processes markup in the fallback string.
-     * For most use cases, this is sufficient since the fallback is typically
-     * the translation key itself or a plain text alternative.
-     * </p>
-     * <p>
-     * This method performs the same steps as LiteralContentsMixin:
-     * <ol>
-     *   <li>Quick check: If fallback doesn't contain angle brackets, skip markup detection</li>
-     *   <li>Parse markup: Use MarkupParser to extract TextSpan objects with effects</li>
-     *   <li>Process spans: For each span, clone the style, add effects, and emit characters</li>
-     *   <li>Cancel original: Prevent vanilla from processing to avoid duplicate emission</li>
-     * </ol>
+     * Resolves the translation key to get the actual translated string, then
+     * checks it for markup tags. Falls back to the fallback string if present.
      * </p>
      *
      * @param consumer The consumer that accepts styled character data
@@ -88,18 +85,22 @@ public abstract class TranslatableContentsMixin {
             Style style,
             CallbackInfoReturnable<Optional<T>> cir) {
 
-        // Only process if we have a fallback string
-        if (fallback == null) {
+        // Resolve the translated string from the language system
+        String resolved = emberstextapi$resolveTranslation();
+        if (resolved == null || resolved.isEmpty()) {
             return;
         }
 
-        // Quick check: if fallback doesn't contain markup indicators, let vanilla handle it
-        if (!fallback.contains("<") || !fallback.contains(">")) {
+        // Quick check: if resolved text doesn't contain markup indicators, let vanilla handle it
+        if (!resolved.contains("<") || !resolved.contains(">")) {
             return;
         }
+
+        LOGGER.debug("[DIAG] TranslatableContentsMixin.visit() HIT — key: {}, resolved: {}", key,
+                resolved.length() > 120 ? resolved.substring(0, 120) + "..." : resolved);
 
         // Parse the markup into spans with effects
-        List<TextSpan> spans = MarkupParser.parse(fallback);
+        List<TextSpan> spans = MarkupParser.parse(resolved);
 
         // If no valid markup was found, let vanilla handle it
         if (spans == null || spans.isEmpty()) {
@@ -119,9 +120,12 @@ public abstract class TranslatableContentsMixin {
                                    (span.getStrikethrough() != null && span.getStrikethrough()) ||
                                    (span.getObfuscated() != null && span.getObfuscated());
             boolean hasFont = span.getFont() != null;
+            boolean hasColor = span.getColor() != null;
             boolean hasItem = span.getItemId() != null;
+            boolean hasEntity = span.getEntityId() != null;
+            boolean hasGlobal = span.hasGlobalAttributes();
 
-            if (hasEffects || hasFormatting || hasFont || hasItem) {
+            if (hasEffects || hasFormatting || hasFont || hasColor || hasItem || hasEntity || hasGlobal) {
                 hasEffectsOrFormattingOrItems = true;
             }
 
@@ -131,6 +135,9 @@ public abstract class TranslatableContentsMixin {
                     if (effect instanceof TypewriterEffect) {
                         hasTypewriter = true;
                     }
+                    if (effect instanceof net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfuscateEffect) {
+                        hasObfuscate = true;
+                    }
                 }
             }
         }
@@ -138,11 +145,13 @@ public abstract class TranslatableContentsMixin {
             return; // Let vanilla handle plain text
         }
 
+        LOGGER.debug("[DIAG] hasTypewriter={}, hasObfuscate={}, hasEffectsOrFormatting={}", hasTypewriter, hasObfuscate, hasEffectsOrFormattingOrItems);
+
         // Get typewriter track if any span has typewriter effect
-        // Use fallback.intern() as key so same text always gets same track
+        // Use resolved.intern() as key so same text always gets same track
         TypewriterTrack track = null;
         if (hasTypewriter) {
-            track = TypewriterTracks.getInstance().get(fallback.intern());
+            track = TypewriterTracks.getInstance().get(resolved.intern());
 
             // Calculate total character count for play completion detection
             int totalChars = 0;
@@ -150,8 +159,8 @@ public abstract class TranslatableContentsMixin {
                 String c = s.getContent();
                 if (c != null && !c.isEmpty()) {
                     totalChars += c.length();
-                } else if (s.getItemId() != null) {
-                    totalChars += 1; // Space for item
+                } else if (s.getItemId() != null || s.getEntityId() != null) {
+                    totalChars += 1; // Space for item/entity
                 }
             }
             track.setTotalChars(totalChars);
@@ -159,19 +168,21 @@ public abstract class TranslatableContentsMixin {
 
         // Track global character index for typewriter effect
         int globalCharIndex = 0;
-        // Obfuscate base key stable per component (per instance) so tooltips persist
-        Object baseObfKey = null;
+        // Obfuscate keys: per-component stable id to persist across frames, per span index
+        Object baseObfKey = hasObfuscate ? this.emberstextapi$obfInstanceId : null;
+        Object stableObfKey = hasObfuscate ? resolved.intern() : null;
 
         // Process each span with its effects
         for (int spanIdx = 0; spanIdx < spans.size(); spanIdx++) {
             TextSpan span = spans.get(spanIdx);
             String content = span.getContent();
 
-            // For item spans with empty content, use a space so the item has something to render on
+            // For item/entity spans with empty content, use a space so they have something to render on
             boolean isItemSpan = span.getItemId() != null;
+            boolean isEntitySpan = span.getEntityId() != null;
             if (content == null || content.isEmpty()) {
-                if (isItemSpan) {
-                    content = " "; // Emit a space for the item to replace
+                if (isItemSpan || isEntitySpan) {
+                    content = " "; // Emit a space for the item/entity to replace
                 } else {
                     continue; // Skip truly empty spans
                 }
@@ -181,19 +192,15 @@ public abstract class TranslatableContentsMixin {
             Style spanStyle = StyleUtil.applyTextSpanFormatting(style, span);
 
             // Emit each character with the modified style
-            // For typewriter, each character needs its own Style with the correct index
             int spanStartIndex = globalCharIndex;
             int spanLength = content.length();
 
             for (int i = 0; i < content.length(); i++) {
                 int codePoint = content.codePointAt(i);
 
-                // For typewriter effect, clone the style and set the index for THIS character
+                // For typewriter/obfuscate, clone the style and set per-character data
                 Style charStyle = spanStyle;
                 if (track != null || hasObfuscate) {
-                    // Clone the style so each character has its own per-char data.
-                    // MC 1.21.1 optimizes withX() to return 'this' when value is unchanged,
-                    // so we toggle bold to guarantee a new instance, then restore original value.
                     charStyle = emberstextapi$forceCloneStyle(spanStyle);
                     ETAStyle etaCharStyle = (ETAStyle) charStyle;
                     if (track != null) {
@@ -202,9 +209,10 @@ public abstract class TranslatableContentsMixin {
                     }
                     if (hasObfuscate) {
                         etaCharStyle.emberstextapi$setObfuscateKey(new ObfKey(baseObfKey, spanIdx));
+                        etaCharStyle.emberstextapi$setObfuscateStableKey(new ObfKey(stableObfKey, spanIdx));
+                        etaCharStyle.emberstextapi$setObfuscateSpanStart(spanStartIndex);
+                        etaCharStyle.emberstextapi$setObfuscateSpanLength(spanLength);
                     }
-                    etaCharStyle.emberstextapi$setObfuscateSpanStart(spanStartIndex);
-                    etaCharStyle.emberstextapi$setObfuscateSpanLength(spanLength);
                 }
 
                 // Accept the character with the styled content consumer
@@ -231,10 +239,36 @@ public abstract class TranslatableContentsMixin {
     }
 
     /**
+     * Resolve the translation key to get the actual translated string.
+     * Uses the current language to look up the key, falling back to the
+     * fallback string if the key is not found in the language file.
+     *
+     * @return the resolved translation string, or null if unavailable
+     */
+    @Unique
+    private String emberstextapi$resolveTranslation() {
+        Language language = Language.getInstance();
+        if (language == null) {
+            return fallback;
+        }
+
+        // Try to get the translated value; if not found, Language returns the key itself
+        String translated = language.getOrDefault(key);
+
+        // If Language returned the key back (meaning no translation found), use fallback
+        if (translated.equals(key)) {
+            return fallback;
+        }
+
+        return translated;
+    }
+
+    /**
      * Force-clone a Style to guarantee a new instance.
      * MC 1.21.1 optimizes Style.withX() to return 'this' when the value doesn't change,
      * so withClickEvent(getClickEvent()) no longer creates a copy. We toggle bold to
      * guarantee two new instances (toggle + restore), then return the restored one.
+     * StyleMixin propagation hooks ensure effects and typewriter data are copied through.
      */
     @Unique
     private static Style emberstextapi$forceCloneStyle(Style original) {
