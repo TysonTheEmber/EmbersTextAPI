@@ -223,6 +223,9 @@ public class StyleUtil {
                 span.getItemOffsetX() != null ? span.getItemOffsetX() : -4.0f,
                 span.getItemOffsetY() != null ? span.getItemOffsetY() : -4.0f
             );
+            if (span.getItemNbt() != null) {
+                ((ETAStyle) result).emberstextapi$setItemNbt(span.getItemNbt());
+            }
         }
 
         // Apply entity data (if any)
@@ -240,6 +243,9 @@ public class StyleUtil {
                 span.getEntitySpin(),
                 span.getEntityAnimation()
             );
+            if (span.getEntityNbt() != null) {
+                ((ETAStyle) result).emberstextapi$setEntityNbt(span.getEntityNbt());
+            }
         }
 
         return result;

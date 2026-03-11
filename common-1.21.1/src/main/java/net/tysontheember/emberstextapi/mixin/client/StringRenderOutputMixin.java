@@ -417,6 +417,17 @@ public abstract class StringRenderOutputMixin {
             int count = etaStyle.emberstextapi$getItemCount() != null ? etaStyle.emberstextapi$getItemCount() : 1;
             net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item, count);
 
+            // Apply NBT data if specified (stored as CustomData component in 1.21.1)
+            String itemNbt = etaStyle.emberstextapi$getItemNbt();
+            if (itemNbt != null && !itemNbt.isEmpty()) {
+                try {
+                    net.minecraft.nbt.CompoundTag nbtTag = net.minecraft.nbt.TagParser.parseTag(itemNbt);
+                    stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(nbtTag));
+                } catch (Exception e) {
+                    // If NBT parsing fails, continue with default item
+                }
+            }
+
             // Get offsets - default -4, -4 for best visual alignment
             float offsetX = etaStyle.emberstextapi$getItemOffsetX() != null ? etaStyle.emberstextapi$getItemOffsetX() : -4.0f;
             float offsetY = etaStyle.emberstextapi$getItemOffsetY() != null ? etaStyle.emberstextapi$getItemOffsetY() : -4.0f;
@@ -532,7 +543,8 @@ public abstract class StringRenderOutputMixin {
                     pitch,
                     roll,
                     lighting,
-                    spin
+                    spin,
+                    etaStyle.emberstextapi$getEntityNbt()
             );
 
             // Flush entity rendering

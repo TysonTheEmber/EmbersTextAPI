@@ -76,7 +76,8 @@ public class TextSpan {
     private Integer itemCount;  // Stack size (defaults to 1 if not specified)
     private Float itemOffsetX;  // X offset for item rendering (pixels)
     private Float itemOffsetY;  // Y offset for item rendering (pixels)
-    
+    private String itemNbt;  // SNBT string for item NBT data (e.g., "{CustomModelData:1}")
+
     // Entity rendering
     private String entityId;  // Minecraft entity ID (e.g., "minecraft:creeper")
     private Float entityScale;  // Scale multiplier for entity (defaults to 1.0)
@@ -88,6 +89,7 @@ public class TextSpan {
     private Integer entityLighting;  // Light level 0-15 (default: 15 = full bright)
     private Float entitySpin;  // Continuous rotation speed in degrees/tick (positive=clockwise, negative=counter-clockwise)
     private String entityAnimation;  // Animation state: "idle", "walk", "attack", "hurt" (default: "idle")
+    private String entityNbt;  // SNBT string for entity NBT data
     
     // Global message attributes (only used by top-level/wrapper spans)
     private Boolean globalBackground;
@@ -143,6 +145,7 @@ public class TextSpan {
         this.itemCount = other.itemCount;
         this.itemOffsetX = other.itemOffsetX;
         this.itemOffsetY = other.itemOffsetY;
+        this.itemNbt = other.itemNbt;
         this.entityId = other.entityId;
         this.entityScale = other.entityScale;
         this.entityOffsetX = other.entityOffsetX;
@@ -153,6 +156,7 @@ public class TextSpan {
         this.entityLighting = other.entityLighting;
         this.entitySpin = other.entitySpin;
         this.entityAnimation = other.entityAnimation;
+        this.entityNbt = other.entityNbt;
         this.globalBackground = other.globalBackground;
         this.globalBackgroundColor = other.globalBackgroundColor;
         this.globalBackgroundGradient = other.globalBackgroundGradient != null ? other.globalBackgroundGradient.clone() : null;
@@ -205,6 +209,7 @@ public class TextSpan {
     public Integer getItemCount() { return itemCount; }
     public Float getItemOffsetX() { return itemOffsetX; }
     public Float getItemOffsetY() { return itemOffsetY; }
+    public String getItemNbt() { return itemNbt; }
     public String getEntityId() { return entityId; }
     public Float getEntityScale() { return entityScale; }
     public Float getEntityOffsetX() { return entityOffsetX; }
@@ -215,7 +220,8 @@ public class TextSpan {
     public Integer getEntityLighting() { return entityLighting; }
     public Float getEntitySpin() { return entitySpin; }
     public String getEntityAnimation() { return entityAnimation; }
-    
+    public String getEntityNbt() { return entityNbt; }
+
     // Global message attribute getters
     public Boolean getGlobalBackground() { return globalBackground; }
     public ImmersiveColor getGlobalBackgroundColor() { return globalBackgroundColor; }
@@ -526,7 +532,12 @@ public class TextSpan {
         this.itemOffsetY = y;
         return this;
     }
-    
+
+    public TextSpan itemNbt(String nbt) {
+        this.itemNbt = nbt;
+        return this;
+    }
+
     public TextSpan entity(String entityId) {
         this.entityId = entityId;
         this.entityScale = 1.0f;
@@ -577,7 +588,12 @@ public class TextSpan {
         this.entityAnimation = animation;
         return this;
     }
-    
+
+    public TextSpan entityNbt(String nbt) {
+        this.entityNbt = nbt;
+        return this;
+    }
+
     // Global message attribute setters
     public TextSpan globalBackground(boolean enabled) {
         this.globalBackground = enabled;

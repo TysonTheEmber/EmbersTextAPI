@@ -7,6 +7,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import org.joml.Matrix4f;
@@ -49,7 +51,7 @@ public final class EntityRenderer {
             float roll,
             int lighting
     ) {
-        return render(graphics, entityId, x, y, scale, offsetX, offsetY, yaw, pitch, roll, lighting, null);
+        return render(graphics, entityId, x, y, scale, offsetX, offsetY, yaw, pitch, roll, lighting, null, null);
     }
 
     /**
@@ -81,7 +83,8 @@ public final class EntityRenderer {
             float pitch,
             float roll,
             int lighting,
-            @Nullable Float spin
+            @Nullable Float spin,
+            @Nullable String nbt
     ) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return 0;
@@ -95,6 +98,16 @@ public final class EntityRenderer {
 
             Entity entity = entityType.create(mc.level);
             if (entity == null) return 0;
+
+            // Apply NBT data if specified
+            if (nbt != null && !nbt.isEmpty()) {
+                try {
+                    CompoundTag nbtTag = TagParser.parseTag(nbt);
+                    entity.load(nbtTag);
+                } catch (Exception e) {
+                    // If NBT parsing fails, continue with default entity
+                }
+            }
 
             // Apply spin animation to yaw if spin is set
             float finalYaw = yaw;

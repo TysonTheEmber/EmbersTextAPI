@@ -55,6 +55,9 @@ public class StyleMixin implements ETAStyle {
     @Unique
     private Float emberstextapi$itemOffsetY = null;
 
+    @Unique
+    private String emberstextapi$itemNbt = null;
+
     /**
      * Entity rendering properties
      */
@@ -87,6 +90,9 @@ public class StyleMixin implements ETAStyle {
 
     @Unique
     private String emberstextapi$entityAnimation = null;
+
+    @Unique
+    private String emberstextapi$entityNbt = null;
 
     /**
      * Typewriter track for animation state.
@@ -179,6 +185,16 @@ public class StyleMixin implements ETAStyle {
     @Override
     public void emberstextapi$setItemOffsetY(Float offsetY) {
         this.emberstextapi$itemOffsetY = offsetY;
+    }
+
+    @Override
+    public String emberstextapi$getItemNbt() {
+        return emberstextapi$itemNbt;
+    }
+
+    @Override
+    public void emberstextapi$setItemNbt(String nbt) {
+        this.emberstextapi$itemNbt = nbt;
     }
 
     // Entity rendering getters/setters
@@ -281,6 +297,16 @@ public class StyleMixin implements ETAStyle {
     @Override
     public void emberstextapi$setEntityAnimation(String animation) {
         this.emberstextapi$entityAnimation = animation;
+    }
+
+    @Override
+    public String emberstextapi$getEntityNbt() {
+        return emberstextapi$entityNbt;
+    }
+
+    @Override
+    public void emberstextapi$setEntityNbt(String nbt) {
+        this.emberstextapi$entityNbt = nbt;
     }
 
     @Override
