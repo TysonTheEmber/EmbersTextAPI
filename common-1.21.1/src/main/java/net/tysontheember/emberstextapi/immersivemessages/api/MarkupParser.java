@@ -75,6 +75,9 @@ public class MarkupParser {
                             currentStyle.getItemOffsetY() != null ? currentStyle.getItemOffsetY() : 0f
                         );
                     }
+                    if (currentStyle.getItemNbt() != null) {
+                        itemSpan.itemNbt(currentStyle.getItemNbt());
+                    }
                     result.add(itemSpan);
                 } else if ("entity".equals(tagName) && currentStyle.getEntityId() != null) {
                     TextSpan entitySpan = new TextSpan("");
@@ -101,6 +104,9 @@ public class MarkupParser {
                     if (currentStyle.getEntityAnimation() != null) {
                         entitySpan.entityAnimation(currentStyle.getEntityAnimation());
                     }
+                    if (currentStyle.getEntityNbt() != null) {
+                        entitySpan.entityNbt(currentStyle.getEntityNbt());
+                    }
                     result.add(entitySpan);
                 } else {
                     // Self-closing non-container tags: collect any global attrs but don't push/pop
@@ -124,6 +130,9 @@ public class MarkupParser {
                                 itemStyle.getItemOffsetY() != null ? itemStyle.getItemOffsetY() : 0f
                             );
                         }
+                        if (itemStyle.getItemNbt() != null) {
+                            itemSpan.itemNbt(itemStyle.getItemNbt());
+                        }
                         result.add(itemSpan);
                     }
                 } else if ("entity".equals(tagName) && !styleStack.isEmpty()) {
@@ -146,6 +155,9 @@ public class MarkupParser {
                         }
                         if (entityStyle.getEntityAnimation() != null) {
                             entitySpan.entityAnimation(entityStyle.getEntityAnimation());
+                        }
+                        if (entityStyle.getEntityNbt() != null) {
+                            entitySpan.entityNbt(entityStyle.getEntityNbt());
                         }
                         result.add(entitySpan);
                     }
@@ -575,7 +587,8 @@ public class MarkupParser {
                 String sizeStr = attrs.getOrDefault("size", attrs.getOrDefault("count", "1"));
                 String offsetXStr = attrs.getOrDefault("offsetx", attrs.getOrDefault("x", "0"));
                 String offsetYStr = attrs.getOrDefault("offsety", attrs.getOrDefault("y", "0"));
-                
+                String nbtStr = attrs.get("nbt");
+
                 if (itemId != null) {
                     try {
                         int size = Integer.parseInt(sizeStr);
@@ -594,6 +607,11 @@ public class MarkupParser {
                         }
                     } catch (NumberFormatException e) {
                         LOGGER.debug("Failed to parse item offset x='{}', y='{}': {}", offsetXStr, offsetYStr, e.getMessage());
+                    }
+
+                    // Parse NBT data
+                    if (nbtStr != null && !nbtStr.isEmpty()) {
+                        span.itemNbt(nbtStr);
                     }
                 }
             }
@@ -661,6 +679,12 @@ public class MarkupParser {
                     // Set animation
                     if (animation != null && !animation.isEmpty()) {
                         span.entityAnimation(animation);
+                    }
+
+                    // Parse NBT data
+                    String entityNbtStr = attrs.get("nbt");
+                    if (entityNbtStr != null && !entityNbtStr.isEmpty()) {
+                        span.entityNbt(entityNbtStr);
                     }
                 }
             }

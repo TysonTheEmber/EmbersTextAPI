@@ -10,6 +10,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -1840,6 +1841,16 @@ public class ImmersiveMessage {
                         if (item != null) {
                             net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item, span.getItemCount() != null ? span.getItemCount() : 1);
 
+                            // Apply NBT data if specified
+                            if (span.getItemNbt() != null) {
+                                try {
+                                    CompoundTag nbtTag = TagParser.parseTag(span.getItemNbt());
+                                    stack.setTag(nbtTag);
+                                } catch (Exception e) {
+                                    LOGGER.debug("Failed to parse item NBT '{}': {}", span.getItemNbt(), e.getMessage());
+                                }
+                            }
+
                             // Render the item at 16x16 size (standard Minecraft item size)
                             int itemSize = 16;
                             // Center item vertically with text (font height is 9, item is 16)
@@ -1889,7 +1900,8 @@ public class ImmersiveMessage {
                         pitch,
                         roll,
                         lighting,
-                        spin
+                        spin,
+                        span.getEntityNbt()
                 );
 
                 if (renderedWidth > 0) {

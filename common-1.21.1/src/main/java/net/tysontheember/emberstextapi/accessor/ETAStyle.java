@@ -109,6 +109,20 @@ public interface ETAStyle {
      */
     void emberstextapi$setItemOffsetY(Float offsetY);
 
+    /**
+     * Get the SNBT string for item NBT data.
+     *
+     * @return SNBT string, or null if not set
+     */
+    String emberstextapi$getItemNbt();
+
+    /**
+     * Set the SNBT string for item NBT data.
+     *
+     * @param nbt SNBT string
+     */
+    void emberstextapi$setItemNbt(String nbt);
+
     // ===== Typewriter Effect Support =====
 
     /**
@@ -303,4 +317,18 @@ public interface ETAStyle {
      * @param animation Animation state string
      */
     void emberstextapi$setEntityAnimation(String animation);
+
+    /**
+     * Get the SNBT string for entity NBT data.
+     *
+     * @return SNBT string, or null if not set
+     */
+    String emberstextapi$getEntityNbt();
+
+    /**
+     * Set the SNBT string for entity NBT data.
+     *
+     * @param nbt SNBT string
+     */
+    void emberstextapi$setEntityNbt(String nbt);
 }

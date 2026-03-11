@@ -211,6 +211,10 @@ public final class TextSpanCodec {
             if (span.getItemOffsetY() != null) {
                 buf.writeFloat(span.getItemOffsetY());
             }
+            buf.writeBoolean(span.getItemNbt() != null);
+            if (span.getItemNbt() != null) {
+                buf.writeUtf(span.getItemNbt());
+            }
         }
 
         // Encode entity rendering
@@ -249,6 +253,10 @@ public final class TextSpanCodec {
             buf.writeBoolean(span.getEntityAnimation() != null);
             if (span.getEntityAnimation() != null) {
                 buf.writeUtf(span.getEntityAnimation());
+            }
+            buf.writeBoolean(span.getEntityNbt() != null);
+            if (span.getEntityNbt() != null) {
+                buf.writeUtf(span.getEntityNbt());
             }
         }
 
@@ -443,6 +451,9 @@ public final class TextSpanCodec {
             if (buf.readBoolean()) {
                 span.itemOffsetY(clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET));
             }
+            if (buf.readBoolean()) {
+                span.itemNbt(buf.readUtf(MAX_EFFECT_TAG_LENGTH));
+            }
         }
 
         // Decode entity rendering with validation
@@ -475,6 +486,9 @@ public final class TextSpanCodec {
             }
             if (buf.readBoolean()) {
                 span.setEntityAnimation(buf.readUtf(MAX_ID_LENGTH));
+            }
+            if (buf.readBoolean()) {
+                span.entityNbt(buf.readUtf(MAX_EFFECT_TAG_LENGTH));
             }
         }
 
