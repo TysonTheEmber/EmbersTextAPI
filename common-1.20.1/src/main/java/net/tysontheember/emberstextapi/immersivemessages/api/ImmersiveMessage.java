@@ -26,8 +26,6 @@ import net.tysontheember.emberstextapi.immersivemessages.effects.animation.Obfus
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfKey;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterAnimator;
 import net.tysontheember.emberstextapi.immersivemessages.effects.color.FadeCalculator;
-import net.tysontheember.emberstextapi.immersivemessages.effects.color.GradientCalculator;
-import net.tysontheember.emberstextapi.immersivemessages.effects.position.ShakeCalculator;
 import net.tysontheember.emberstextapi.immersivemessages.effects.rendering.BackgroundRenderer;
 import net.tysontheember.emberstextapi.immersivemessages.effects.util.ColorUtil;
 import net.tysontheember.emberstextapi.immersivemessages.util.ColorParser;
@@ -84,10 +82,6 @@ public class ImmersiveMessage {
     private float textureOverrideHeight = -1f;
     private TextureSizingMode textureSizingMode = TextureSizingMode.STRETCH;
 
-    // Text gradient (multi-stop)
-    private TextColor[] gradientStops;
-    private TextColor[] gradientColors;
-
     // Background gradient (multi-stop ARGB ImmersiveColor)
     private ImmersiveColor[] backgroundGradientStops;
 
@@ -115,23 +109,6 @@ public class ImmersiveMessage {
     private int wrapMaxWidth = -1;
     private float delay = 0f;
 
-    // Shake (whole text)
-    private boolean shake = false;
-    private float shakeStrength = 0f;
-    private ShakeType shakeType = ShakeType.RANDOM;
-    private float shakeSpeed = 10f; // multiplier for shake animation speed
-    private float shakeWavelength = 1f; // wavelength for WAVE shake type (in arbitrary units)
-
-    // Per-character shake
-    private boolean charShake = false;
-    private float charShakeStrength = 0f;
-    private ShakeType charShakeType = ShakeType.RANDOM;
-    private float charShakeSpeed = 10f; // multiplier for char shake animation speed
-    private float charShakeWavelength = 1f; // wavelength for WAVE char shake type
-    // Span-scoped char shake (per-span effects in markup-driven messages)
-    private boolean spanCharShake = false;
-    private float spanCharShakeMaxStrength = 0f;
-    private List<CharShakeSegment> spanCharShakeSegments = Collections.emptyList();
 
     // NEW: Span-based rendering (v2.0.0)
     private List<TextSpan> spans;
@@ -191,23 +168,6 @@ public class ImmersiveMessage {
             this.typewriter = true;
         }
 
-        // Check if any spans have shake effects (global) or per-span char shakes
-        boolean shakeConfigured = false;
-        for (TextSpan span : spans) {
-            if (!shakeConfigured && span.getShakeType() != null && span.getShakeAmplitude() != null) {
-                this.shake = true;
-                this.shakeType = span.getShakeType();
-                this.shakeStrength = span.getShakeAmplitude();
-                if (span.getShakeSpeed() != null) {
-                    this.shakeSpeed = span.getShakeSpeed();
-                }
-                if (span.getShakeWavelength() != null) {
-                    this.shakeWavelength = span.getShakeWavelength();
-                }
-                shakeConfigured = true; // Use first shake effect found for global shake
-            }
-        }
-        evaluateSpanCharShake();
         buildEffectSegments();
 
         // Extract global message attributes from any span that has them (typically the first one)
@@ -497,41 +457,6 @@ public class ImmersiveMessage {
         return this;
     }
 
-    // ----- Text gradient convenience overloads -----
-    public ImmersiveMessage gradient(int startRgb, int endRgb) {
-        return gradient(TextColor.fromRgb(startRgb), TextColor.fromRgb(endRgb));
-    }
-    public ImmersiveMessage gradient(String start, String end) {
-        TextColor s = parseColor(start);
-        TextColor e = parseColor(end);
-        if (s != null && e != null) return gradient(s, e);
-        return this;
-    }
-    public ImmersiveMessage gradient(TextColor start, TextColor end) {
-        if (start == null || end == null) return this;
-        return gradient(new TextColor[]{start, end});
-    }
-    public ImmersiveMessage gradient(int... rgbs) {
-        TextColor[] arr = new TextColor[rgbs.length];
-        for (int i = 0; i < rgbs.length; i++) arr[i] = TextColor.fromRgb(rgbs[i]);
-        return gradient(arr);
-    }
-    public ImmersiveMessage gradient(String... values) {
-        TextColor[] arr = new TextColor[values.length];
-        for (int i = 0; i < values.length; i++) arr[i] = parseColor(values[i]);
-        return gradient(arr);
-    }
-    public ImmersiveMessage gradient(List<TextColor> colors) {
-        return gradient(colors.toArray(new TextColor[0]));
-    }
-    public ImmersiveMessage gradient(TextColor... colors) {
-        if (colors == null || colors.length < 2) return this;
-        this.gradientStops = colors;
-        buildGradientColors();
-        rebuildGradientCurrent();
-        return this;
-    }
-
     // ----- Background gradient convenience overloads (ARGB) -----
     public ImmersiveMessage backgroundGradient(int startArgb, int endArgb) {
         return backgroundGradient(new ImmersiveColor(startArgb), new ImmersiveColor(endArgb));
@@ -576,7 +501,7 @@ public class ImmersiveMessage {
         this.typewriterSpeed = speed;
         this.typewriterCenter = center;
         this.typewriterIndex = 0;
-        rebuildGradientCurrent();
+        current = Component.literal("").withStyle(text.getStyle());
         return this;
     }
 
@@ -595,33 +520,7 @@ public class ImmersiveMessage {
             this.revealMask = null;
             this.revealOrder = null;
             this.revealIndex = 0;
-            rebuildGradientCurrent();
-        }
-        return this;
-    }
-
-    public ImmersiveMessage shake(ShakeType type, float strength) {
-        if (type != null && strength > 0f) {
-            this.shake = true;
-            this.shakeType = type;
-            this.shakeStrength = strength;
-        } else {
-            this.shake = false;
-            this.shakeStrength = 0f;
-            if (type != null) this.shakeType = type;
-        }
-        return this;
-    }
-
-    public ImmersiveMessage charShake(ShakeType type, float strength) {
-        if (type != null && strength > 0f) {
-            this.charShake = true;
-            this.charShakeType = type;
-            this.charShakeStrength = strength;
-        } else {
-            this.charShake = false;
-            this.charShakeStrength = 0f;
-            if (type != null) this.charShakeType = type;
+            current = Component.literal(text.getString()).withStyle(text.getStyle());
         }
         return this;
     }
@@ -682,51 +581,15 @@ public class ImmersiveMessage {
         return globalEffects;
     }
 
-    private static TextColor parseColor(String value) {
+    private static ImmersiveColor parseImmersiveColor(String value) {
         if (value == null) return null;
         ChatFormatting fmt = ChatFormatting.getByName(value);
-        if (fmt != null) return TextColor.fromLegacyFormat(fmt);
-        return TextColor.parseColor(value);
-    }
-
-    private static ImmersiveColor parseImmersiveColor(String value) {
-        TextColor c = parseColor(value);
+        if (fmt != null) {
+            TextColor c = TextColor.fromLegacyFormat(fmt);
+            return new ImmersiveColor(0xFF000000 | c.getValue());
+        }
+        TextColor c = TextColor.parseColor(value);
         return c != null ? new ImmersiveColor(0xFF000000 | c.getValue()) : null;
-    }
-
-    private void buildGradientColors() {
-        String str = text.getString();
-        gradientColors = GradientCalculator.buildGradientColors(str.length(), gradientStops);
-    }
-
-    private static int lerpColor(int start, int end, float t) {
-        return GradientCalculator.lerpColor(start, end, t);
-    }
-
-    private void rebuildGradientCurrent() {
-        if (obfuscateMode != ObfuscateMode.NONE && baseText != null) {
-            rebuildObfuscation();
-        } else if (typewriter) {
-            current = buildGradientComponent(typewriterIndex);
-        } else {
-            current = buildGradientComponent(text.getString().length());
-        }
-    }
-
-    private MutableComponent buildGradientComponent(int limit) {
-        MutableComponent result = Component.literal("");
-        String str = text.getString();
-        int end = Math.min(limit, str.length());
-        for (int i = 0; i < end; i++) {
-            char c = str.charAt(i);
-            MutableComponent ch = Component.literal(String.valueOf(c)).withStyle(text.getStyle());
-            if (gradientColors != null && i < gradientColors.length) {
-                TextColor col = gradientColors[i];
-                if (col != null) ch = ch.withStyle(s -> s.withColor(col));
-            }
-            result.append(ch);
-        }
-        return result;
     }
 
     private void initObfuscation() {
@@ -744,10 +607,6 @@ public class ImmersiveMessage {
         for (int i = 0; i < limit; i++) {
             char c = baseText.charAt(i);
             MutableComponent ch = Component.literal(String.valueOf(c)).withStyle(text.getStyle());
-            if (gradientColors != null && i < gradientColors.length) {
-                TextColor col = gradientColors[i];
-                if (col != null) ch = ch.withStyle(s -> s.withColor(col));
-            }
             if (!revealMask[i]) ch = ch.withStyle(s -> s.withObfuscated(true));
             result.append(ch);
         }
@@ -807,17 +666,6 @@ public class ImmersiveMessage {
             texture.putString("SizingMode", textureSizingMode.name());
             tag.put("Texture", texture);
         }
-        if (gradientStops != null) {
-            ListTag list = new ListTag();
-            for (TextColor color : gradientStops) {
-                if (color != null) {
-                    list.add(IntTag.valueOf(color.getValue()));
-                }
-            }
-            if (!list.isEmpty()) {
-                tag.put("Gradient", list);
-            }
-        }
         if (backgroundGradientStops != null) {
             ListTag list = new ListTag();
             for (ImmersiveColor color : backgroundGradientStops) {
@@ -829,12 +677,6 @@ public class ImmersiveMessage {
                 tag.put("BackgroundGradient", list);
             }
         }
-        tag.putBoolean("Shake", shake);
-        tag.putString("ShakeType", shakeType.name());
-        tag.putFloat("ShakeStrength", shakeStrength);
-        tag.putBoolean("CharShake", charShake);
-        tag.putString("CharShakeType", charShakeType.name());
-        tag.putFloat("CharShakeStrength", charShakeStrength);
         tag.putInt("WrapWidth", wrapMaxWidth);
         tag.putFloat("Delay", delay);
         return tag;
@@ -917,14 +759,6 @@ public class ImmersiveMessage {
             msg.useTextureBackground = true;
             msg.background = true;
         }
-        if (tag.contains("Gradient")) {
-            ListTag list = tag.getList("Gradient", Tag.TAG_INT);
-            TextColor[] cols = new TextColor[list.size()];
-            for (int i = 0; i < list.size(); i++) {
-                cols[i] = TextColor.fromRgb(((IntTag) list.get(i)).getAsInt());
-            }
-            msg.gradient(cols);
-        }
         if (tag.contains("BackgroundGradient")) {
             ListTag list = tag.getList("BackgroundGradient", Tag.TAG_INT);
             ImmersiveColor[] cols = new ImmersiveColor[list.size()];
@@ -933,22 +767,6 @@ public class ImmersiveMessage {
             }
             msg.backgroundGradient(cols);
         }
-        if (tag.contains("Shake")) msg.shake = tag.getBoolean("Shake");
-        if (tag.contains("ShakeType")) {
-            try {
-                msg.shakeType = ShakeType.valueOf(tag.getString("ShakeType"));
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-        if (tag.contains("ShakeStrength")) msg.shakeStrength = tag.getFloat("ShakeStrength");
-        if (tag.contains("CharShake")) msg.charShake = tag.getBoolean("CharShake");
-        if (tag.contains("CharShakeType")) {
-            try {
-                msg.charShakeType = ShakeType.valueOf(tag.getString("CharShakeType"));
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-        if (tag.contains("CharShakeStrength")) msg.charShakeStrength = tag.getFloat("CharShakeStrength");
         if (tag.contains("WrapWidth")) msg.wrapMaxWidth = tag.getInt("WrapWidth");
         if (tag.contains("Delay")) msg.delay = tag.getFloat("Delay");
 
@@ -1020,13 +838,6 @@ public class ImmersiveMessage {
             buf.writeEnum(textureSizingMode);
         }
 
-        // Text gradient stops
-        buf.writeBoolean(gradientStops != null);
-        if (gradientStops != null) {
-            buf.writeVarInt(gradientStops.length);
-            for (TextColor c : gradientStops) buf.writeInt(c.getValue());
-        }
-
         // Background gradient stops
         buf.writeBoolean(backgroundGradientStops != null);
         if (backgroundGradientStops != null) {
@@ -1034,18 +845,6 @@ public class ImmersiveMessage {
             for (ImmersiveColor c : backgroundGradientStops) buf.writeInt(c.getARGB());
         }
 
-        // Shake
-        buf.writeBoolean(shake);
-        buf.writeEnum(shakeType);
-        buf.writeFloat(shakeStrength);
-        buf.writeFloat(shakeSpeed);
-        buf.writeFloat(shakeWavelength);
-        // Per-char shake
-        buf.writeBoolean(charShake);
-        buf.writeEnum(charShakeType);
-        buf.writeFloat(charShakeStrength);
-        buf.writeFloat(charShakeSpeed);
-        buf.writeFloat(charShakeWavelength);
         buf.writeInt(wrapMaxWidth);
         buf.writeFloat(delay);
         buf.writeVarInt(fadeInTicks);
@@ -1082,7 +881,6 @@ public class ImmersiveMessage {
             msg.spanMode = true;
             msg.spans = spans;
             msg.spanTypewriterIndices = new int[spans.size()];
-            msg.evaluateSpanCharShake();
             msg.buildEffectSegments();
         } else {
             // Legacy deserialization
@@ -1125,14 +923,6 @@ public class ImmersiveMessage {
             msg.background = true;
         }
 
-        // Text gradient stops
-        if (buf.readBoolean()) {
-            int count = buf.readVarInt();
-            TextColor[] cols = new TextColor[count];
-            for (int i = 0; i < count; i++) cols[i] = TextColor.fromRgb(buf.readInt());
-            msg.gradient(cols);
-        }
-
         // Background gradient stops
         if (buf.readBoolean()) {
             int count = buf.readVarInt();
@@ -1141,18 +931,6 @@ public class ImmersiveMessage {
             msg.backgroundGradient(cols);
         }
 
-        // Shake
-        msg.shake = buf.readBoolean();
-        msg.shakeType = buf.readEnum(ShakeType.class);
-        msg.shakeStrength = buf.readFloat();
-        msg.shakeSpeed = buf.readFloat();
-        msg.shakeWavelength = buf.readFloat();
-        // Per-char shake
-        msg.charShake = buf.readBoolean();
-        msg.charShakeType = buf.readEnum(ShakeType.class);
-        msg.charShakeStrength = buf.readFloat();
-        msg.charShakeSpeed = buf.readFloat();
-        msg.charShakeWavelength = buf.readFloat();
         msg.wrapMaxWidth = buf.readInt();
         msg.delay = buf.readFloat();
         if (buf.isReadable()) {
@@ -1334,14 +1112,9 @@ public class ImmersiveMessage {
                 continue;
             }
 
-            // Handle gradients by building character-by-character
-            if (span.getGradientColors() != null && span.getGradientColors().length >= 2) {
-                spanComponent = buildGradientComponent(span, content);
-            } else {
-                // Simple span with single styling
-                spanComponent = Component.literal(content);
-                applySpanStyling(spanComponent, span);
-            }
+            // Simple span with single styling
+            spanComponent = Component.literal(content);
+            applySpanStyling(spanComponent, span);
 
             result.append(spanComponent);
             currentCharIndex += span.getContent().length();
@@ -1356,40 +1129,6 @@ public class ImmersiveMessage {
     private boolean hasAnyTypewriterSpans() {
         if (spans == null) return false;
         return spans.stream().anyMatch(span -> span.getTypewriterSpeed() != null);
-    }
-
-    /**
-     * Builds a gradient component for a span character by character.
-     */
-    private MutableComponent buildGradientComponent(TextSpan span) {
-        return buildGradientComponent(span, span.getContent());
-    }
-
-    /**
-     * Builds a gradient component for a span with custom content (for typewriter effects).
-     */
-    private MutableComponent buildGradientComponent(TextSpan span, String content) {
-        TextColor[] gradientColors = span.getGradientColors();
-
-        MutableComponent result = Component.literal("");
-
-        for (int i = 0; i < content.length(); i++) {
-            char c = content.charAt(i);
-            MutableComponent charComponent = Component.literal(String.valueOf(c));
-
-            // Apply base styling (bold, italic, etc.)
-            applySpanStyling(charComponent, span);
-
-            // Apply gradient color for this character
-            TextColor gradColor = computeGradientColor(gradientColors, i, content.length());
-            if (gradColor != null) {
-                charComponent = charComponent.withStyle(style -> style.withColor(gradColor));
-            }
-
-            result.append(charComponent);
-        }
-
-        return result;
     }
 
     /**
@@ -1426,24 +1165,6 @@ public class ImmersiveMessage {
 
             return style;
         });
-    }
-
-    /**
-     * Computes gradient color for a character at a specific index.
-     */
-    private TextColor computeGradientColor(TextColor[] gradientStops, int index, int totalLength) {
-        if (gradientStops.length < 2 || totalLength <= 1) return gradientStops[0];
-
-        float t = totalLength <= 1 ? 0f : index / (float) (totalLength - 1);
-        int segments = gradientStops.length - 1;
-        float scaled = t * segments;
-        int segIndex = Mth.clamp((int) Math.floor(scaled), 0, segments - 1);
-        float local = scaled - segIndex;
-
-        int start = gradientStops[segIndex].getValue();
-        int end = gradientStops[segIndex + 1].getValue();
-        int rgb = lerpColor(start, end, local);
-        return TextColor.fromRgb(rgb);
     }
 
     private float computeAlpha(float sampleAge) {
@@ -1501,7 +1222,7 @@ public class ImmersiveMessage {
         int baseWidth = layout.width();
         int baseHeight = layout.height();
 
-        float charPadding = charShake ? charShakeStrength : (hasCharShakeSpans() ? spanCharShakeMaxStrength : 0f);
+        float charPadding = 0f;
         float textAreaWidth = baseWidth + charPadding * 2f;
         float textAreaHeight = baseHeight + charPadding * 2f;
 
@@ -1540,14 +1261,6 @@ public class ImmersiveMessage {
             return;
         }
 
-        if (shake) {
-            // Use tick-based timing for frame-rate independence (20 TPS = 0.05 seconds per tick)
-            float shakeTime = renderAge * 0.05f * shakeSpeed;
-            float[] offset = ShakeCalculator.calculateShakeOffset(shakeType, shakeTime, shakeStrength, shakeWavelength, random);
-            x += offset[0];
-            y += offset[1];
-        }
-
         float alpha = computeAlpha(renderAge);
         int alphaByte = normalizeFontAlpha(Mth.clamp(Math.round(alpha * 255f), 0, 255));
         int colour = (alphaByte << 24) | ((text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF) & 0x00FFFFFF);
@@ -1563,7 +1276,7 @@ public class ImmersiveMessage {
         graphics.pose().translate(x - textStartX * textScale, y - textStartY * textScale, 0);
         graphics.pose().scale(textScale, textScale, 1f);
         if (background) {
-            int widthForBg = BackgroundRenderer.calculateShakeAdjustedWidth(backgroundWidthInt, shake, shakeStrength);
+            int widthForBg = backgroundWidthInt;
 
             if (useTextureBackground && backgroundTexture != null) {
                 BackgroundRenderer.renderTextureBackground(graphics, 0, 0, widthForBg, backgroundHeightInt,
@@ -1606,8 +1319,6 @@ public class ImmersiveMessage {
             // Use new effect rendering system (v2.0.0)
             LOGGER.debug("Calling renderWithEffects");
             renderWithEffects(graphics, lines, draw, colour, textStartX, textStartY);
-        } else if ((charShake || hasCharShakeSpans()) && !hasInlineItems) {
-            renderCharShake(graphics, lines, draw, colour, textStartX, textStartY);
         } else if (hasInlineItems) {
             // Render spans with items/entities inline (entities static; no animations)
             renderSpansWithItems(graphics, textStartX, textStartY, colour, alpha);
@@ -1637,8 +1348,6 @@ public class ImmersiveMessage {
                 typewriterIndex = next;
                 if (obfuscateMode != ObfuscateMode.NONE) {
                     rebuildObfuscation();
-                } else if (gradientColors != null) {
-                    current = buildGradientComponent(typewriterIndex);
                 } else {
                     current = Component.literal(text.getString().substring(0, typewriterIndex))
                             .withStyle(text.getStyle());
@@ -1705,43 +1414,6 @@ public class ImmersiveMessage {
         return spans.stream().anyMatch(span -> span.getItemId() != null || span.getEntityId() != null);
     }
 
-    private boolean hasCharShakeSpans() {
-        return spanCharShake;
-    }
-
-    private void evaluateSpanCharShake() {
-        spanCharShake = false;
-        spanCharShakeMaxStrength = 0f;
-        spanCharShakeSegments = Collections.emptyList();
-        if (spans == null) return;
-
-        List<CharShakeSegment> segments = new ArrayList<>();
-        int charIndex = 0;
-        for (TextSpan span : spans) {
-            String content = span.getContent();
-            int length = content != null ? content.length() : 0;
-            if (length > 0 && span.getCharShakeType() != null && span.getCharShakeAmplitude() != null
-                && span.getCharShakeAmplitude() > 0f) {
-                spanCharShake = true;
-                spanCharShakeMaxStrength = Math.max(spanCharShakeMaxStrength, span.getCharShakeAmplitude());
-                float speed = span.getCharShakeSpeed() != null ? span.getCharShakeSpeed() : this.charShakeSpeed;
-                float wavelength = span.getCharShakeWavelength() != null ? span.getCharShakeWavelength() : this.charShakeWavelength;
-                segments.add(new CharShakeSegment(
-                    charIndex,
-                    charIndex + length,
-                    span.getCharShakeType(),
-                    span.getCharShakeAmplitude(),
-                    speed,
-                    wavelength
-                ));
-            }
-            charIndex += length;
-        }
-        if (spanCharShake) {
-            spanCharShakeSegments = segments;
-        }
-    }
-
     /**
      * Build effect segments from spans with effects (v2.0.0).
      * This creates a mapping of character indices to their associated effects.
@@ -1781,24 +1453,6 @@ public class ImmersiveMessage {
             }
         }
         return null;
-    }
-
-    private static class CharShakeSegment {
-        final int startIndex;
-        final int endIndex;
-        final ShakeType type;
-        final float amplitude;
-        final float speed;
-        final float wavelength;
-
-        CharShakeSegment(int startIndex, int endIndex, ShakeType type, float amplitude, float speed, float wavelength) {
-            this.startIndex = startIndex;
-            this.endIndex = endIndex;
-            this.type = type;
-            this.amplitude = amplitude;
-            this.speed = speed;
-            this.wavelength = wavelength;
-        }
     }
 
     /**
@@ -1923,11 +1577,6 @@ public class ImmersiveMessage {
                     Component spanComponent = Component.literal(content);
                     applySpanStyling((MutableComponent) spanComponent, span, alpha);
 
-                    // Apply gradient if needed
-                    if (span.getGradientColors() != null && span.getGradientColors().length >= 2) {
-                        spanComponent = buildGradientComponent(span, content);
-                    }
-
                     int spanColor = colour;
                     if (span.getColor() != null) {
                         spanColor = ((int)(alpha * 255) << 24) | span.getColor().getValue();
@@ -1937,122 +1586,6 @@ public class ImmersiveMessage {
                     xOffset += font.width(spanComponent);
                 }
             }
-        }
-    }
-
-    private void renderCharShake(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int colour, float baseX, float baseY) {
-        var font = Minecraft.getInstance().font;
-        int[] index = {0};
-        boolean useSegmentShake = !charShake && !spanCharShakeSegments.isEmpty();
-        int[] segmentCursor = {0};
-        CharShakeSegment[] activeSegment = {useSegmentShake ? spanCharShakeSegments.get(0) : null};
-
-        if (lines != null) {
-            for (int i = 0; i < lines.size(); i++) {
-                final float lineBaseY = baseY + i * font.lineHeight;
-                final float[] xAdvance = {baseX};
-                FormattedCharSequence lineSeq = lines.get(i);
-                lineSeq.accept((pos, style, codePoint) -> {
-                    String ch = new String(Character.toChars(codePoint));
-                    float sx = 0f, sy = 0f;
-                    ShakeType shakeTypeToUse = charShakeType;
-                    float amplitude = charShakeStrength;
-                    float speed = charShakeSpeed;
-                    float wavelength = charShakeWavelength;
-                    boolean applyShake = charShake;
-
-                    if (!charShake && useSegmentShake) {
-                        CharShakeSegment segment = activeSegment[0];
-                        while (segment != null && index[0] >= segment.endIndex) {
-                            segmentCursor[0]++;
-                            segment = segmentCursor[0] < spanCharShakeSegments.size() ? spanCharShakeSegments.get(segmentCursor[0]) : null;
-                            activeSegment[0] = segment;
-                        }
-                        if (segment != null && index[0] >= segment.startIndex) {
-                            shakeTypeToUse = segment.type;
-                            amplitude = segment.amplitude;
-                            speed = segment.speed;
-                            wavelength = segment.wavelength;
-                            applyShake = amplitude > 0f;
-                        } else {
-                            applyShake = false;
-                        }
-                    }
-
-                    if (applyShake) {
-                        float[] offset = ShakeCalculator.calculateCharShakeOffset(shakeTypeToUse, age, speed, amplitude, wavelength, index[0], random);
-                        sx = offset[0];
-                        sy = offset[1];
-                    }
-                    Component comp = Component.literal(ch).withStyle(style);
-                    FormattedCharSequence charSeq = comp.getVisualOrderText();
-                    float cw = font.width(charSeq);
-                    graphics.pose().pushPose();
-                    graphics.pose().translate(xAdvance[0] + sx, lineBaseY + sy, 0);
-                    graphics.drawString(font, charSeq, 0, 0, colour, shadow);
-                    graphics.pose().popPose();
-                    xAdvance[0] += cw;
-                    index[0]++;
-                    return true;
-                });
-            }
-        } else {
-            final float[] xAdvance = {baseX};
-            draw.getVisualOrderText().accept((pos, style, codePoint) -> {
-                String ch = new String(Character.toChars(codePoint));
-                float sx = 0f, sy = 0f;
-                ShakeType shakeTypeToUse = charShakeType;
-                float amplitude = charShakeStrength;
-                float speed = charShakeSpeed;
-                float wavelength = charShakeWavelength;
-                boolean applyShake = charShake;
-
-                if (!charShake && useSegmentShake) {
-                    CharShakeSegment segment = activeSegment[0];
-                    while (segment != null && index[0] >= segment.endIndex) {
-                        segmentCursor[0]++;
-                        segment = segmentCursor[0] < spanCharShakeSegments.size() ? spanCharShakeSegments.get(segmentCursor[0]) : null;
-                        activeSegment[0] = segment;
-                    }
-                    if (segment != null && index[0] >= segment.startIndex) {
-                        shakeTypeToUse = segment.type;
-                        amplitude = segment.amplitude;
-                        speed = segment.speed;
-                        wavelength = segment.wavelength;
-                        applyShake = amplitude > 0f;
-                    } else {
-                        applyShake = false;
-                    }
-                }
-
-                if (applyShake) {
-                    float charShakeTime = age * 0.05f * speed + index[0] * 0.1f;
-                    switch (shakeTypeToUse) {
-                        case WAVE -> {
-                            float safeWavelength = Math.max(0.0001f, wavelength);
-                            sy = (float) Math.sin(charShakeTime * 2 * Math.PI / safeWavelength) * amplitude;
-                        }
-                        case CIRCLE -> {
-                            sx = (float) Math.cos(charShakeTime) * amplitude;
-                            sy = (float) Math.sin(charShakeTime) * amplitude;
-                        }
-                        case RANDOM -> {
-                            sx = (random.nextFloat() - 0.5f) * 2f * amplitude;
-                            sy = (random.nextFloat() - 0.5f) * 2f * amplitude;
-                        }
-                    }
-                }
-                Component comp = Component.literal(ch).withStyle(style);
-                FormattedCharSequence charSeq = comp.getVisualOrderText();
-                float cw = font.width(charSeq);
-                graphics.pose().pushPose();
-                graphics.pose().translate(xAdvance[0] + sx, baseY + sy, 0);
-                graphics.drawString(font, charSeq, 0, 0, colour, shadow);
-                graphics.pose().popPose();
-                xAdvance[0] += cw;
-                index[0]++;
-                return true;
-            });
         }
     }
 
@@ -2263,7 +1796,6 @@ public class ImmersiveMessage {
             System.arraycopy(spanTypewriterIndices, 0, newIndices, 0, Math.min(spanTypewriterIndices.length, spans.size()));
             spanTypewriterIndices = newIndices;
         }
-        evaluateSpanCharShake();
         buildEffectSegments();
         return this;
     }

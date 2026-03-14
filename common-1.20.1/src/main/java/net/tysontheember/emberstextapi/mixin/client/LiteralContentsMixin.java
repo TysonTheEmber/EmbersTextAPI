@@ -9,8 +9,8 @@ import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterEffect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfKey;
-import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
-import net.tysontheember.emberstextapi.typewriter.TypewriterTracks;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTrack;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTracks;
 import net.tysontheember.emberstextapi.util.StyleUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -199,10 +199,6 @@ public abstract class LiteralContentsMixin {
             // For typewriter, each character needs its own Style with the correct index
             int spanStartIndex = globalCharIndex;
             int spanLength = content.length();
-
-            if (LOGGER.isInfoEnabled() && span.getEffects() != null && !span.getEffects().isEmpty()) {
-                LOGGER.info("LiteralContentsMixin: span {} content='{}' effects={}", spanIdx, content, span.getEffects());
-            }
 
             for (int i = 0; i < content.length(); i++) {
                 int codePoint = content.codePointAt(i);

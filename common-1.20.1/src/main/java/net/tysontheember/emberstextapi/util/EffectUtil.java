@@ -123,41 +123,6 @@ public class EffectUtil {
     }
 
     /**
-     * Linear interpolation between two values.
-     * <p>
-     * Commonly used for smooth transitions in effects.
-     * </p>
-     *
-     * @param a Start value
-     * @param b End value
-     * @param t Interpolation factor (0.0 to 1.0)
-     * @return Interpolated value
-     * @deprecated Use {@link ColorMath#lerp(float, float, float)} instead
-     */
-    @Deprecated(forRemoval = true, since = "2.0.0")
-    public static float lerp(float a, float b, float t) {
-        return ColorMath.lerp(a, b, t);
-    }
-
-    /**
-     * Convert HSV color to RGB.
-     * <p>
-     * Alternative to Minecraft's Mth.hsvToRgb for effect implementations.
-     * Returns packed RGB integer (no alpha).
-     * </p>
-     *
-     * @param hue Hue (0.0 to 1.0)
-     * @param saturation Saturation (0.0 to 1.0)
-     * @param value Value/Brightness (0.0 to 1.0)
-     * @return Packed RGB color (0xRRGGBB)
-     * @deprecated Use {@link ColorMath#hsvToRgbPacked(float, float, float)} instead
-     */
-    @Deprecated(forRemoval = true, since = "2.0.0")
-    public static int hsvToRgb(float hue, float saturation, float value) {
-        return ColorMath.hsvToRgbPacked(hue, saturation, value);
-    }
-
-    /**
      * Calculate Perlin-like noise for organic motion effects.
      * <p>
      * Simple noise function for effects like turbulence or shake.

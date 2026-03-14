@@ -28,11 +28,6 @@ public class TooltipPacket {
         this.message = message;
     }
 
-    @Deprecated(forRemoval = true)
-    public static void register() {
-        ForgeNetworkHandler.getInstance().register();
-    }
-
     public static void encode(TooltipPacket packet, FriendlyByteBuf buf) {
         packet.message.encode(buf);
     }

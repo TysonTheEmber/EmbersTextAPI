@@ -1,4 +1,4 @@
-package net.tysontheember.emberstextapi.typewriter;
+package net.tysontheember.emberstextapi.immersivemessages.effects.animation;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -24,11 +24,7 @@ import java.util.concurrent.TimeUnit;
  * </p>
  *
  * @see TypewriterTrack
- * @deprecated This class is part of the legacy typewriter API.
- *             Use {@link net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterEffect} instead.
- *             This class will be removed in version 3.0.0.
  */
-@Deprecated(forRemoval = true, since = "2.0.0")
 public class TypewriterTracks {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TypewriterTracks.class);

@@ -1,6 +1,6 @@
 package net.tysontheember.emberstextapi.immersivemessages.effects;
 
-import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTrack;
 
 import java.util.ArrayList;
 import java.util.Collections;

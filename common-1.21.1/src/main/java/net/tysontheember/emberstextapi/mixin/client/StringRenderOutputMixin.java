@@ -14,7 +14,7 @@ import net.tysontheember.emberstextapi.accessor.ETABakedGlyph;
 import net.tysontheember.emberstextapi.accessor.ETAStyle;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
-import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTrack;
 import net.tysontheember.emberstextapi.util.EffectUtil;
 import org.joml.Matrix4f;
 import org.slf4j.Logger;
@@ -407,7 +407,7 @@ public abstract class StringRenderOutputMixin {
                 return;
             }
 
-            // Get the item from registry (MC 1.21.1: use BuiltInRegistries)
+            // Get the item from registry
             net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(itemLocation);
             if (item == null) {
                 return;
@@ -417,7 +417,7 @@ public abstract class StringRenderOutputMixin {
             int count = etaStyle.emberstextapi$getItemCount() != null ? etaStyle.emberstextapi$getItemCount() : 1;
             net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item, count);
 
-            // Apply NBT data if specified (stored as CustomData component in 1.21.1)
+            // Apply NBT data if specified
             String itemNbt = etaStyle.emberstextapi$getItemNbt();
             if (itemNbt != null && !itemNbt.isEmpty()) {
                 try {
