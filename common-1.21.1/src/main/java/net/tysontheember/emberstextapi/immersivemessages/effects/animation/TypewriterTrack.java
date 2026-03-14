@@ -1,4 +1,4 @@
-package net.tysontheember.emberstextapi.typewriter;
+package net.tysontheember.emberstextapi.immersivemessages.effects.animation;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -21,11 +21,7 @@ import java.util.TreeSet;
  * </p>
  *
  * @see TypewriterTracks
- * @deprecated This class is part of the legacy typewriter API.
- *             Use {@link net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterEffect} instead.
- *             This class will be removed in version 3.0.0.
  */
-@Deprecated(forRemoval = true, since = "2.0.0")
 public class TypewriterTrack {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TypewriterTrack.class);
@@ -50,6 +46,12 @@ public class TypewriterTrack {
      * When a typewriter track isn't accessed for this duration, it resets on next access.
      */
     private static final long DEFAULT_RESET_DELAY_MS = 1000;
+
+    /** Default milliseconds per character. */
+    private static final int DEFAULT_SPEED_MS = 20;
+
+    /** Default max play count. -1 = infinite. */
+    private static final int DEFAULT_MAX_PLAYS = -1;
 
     /** Timestamp when this track was created/reset (milliseconds). */
     public long startedAt;
@@ -131,7 +133,7 @@ public class TypewriterTrack {
     /**
      * Create a new typewriter track with default settings.
      * <p>
-     * Initializes with current time and uses the global default speed.
+     * Initializes with current time and uses the default speed.
      * </p>
      */
     public TypewriterTrack() {
@@ -139,7 +141,7 @@ public class TypewriterTrack {
         this.startedAt = now;
         this.changedSince = now;
         this.index = 0;
-        this.interval = TypewriterConfig.getDefaultSpeedMs();
+        this.interval = DEFAULT_SPEED_MS;
         this.sound = null;
         this.lastSoundMs = 0;
         this.shadowRenderCounter = 0;
@@ -152,7 +154,7 @@ public class TypewriterTrack {
         this.previousFramePositions = new TreeSet<>();
         this.lastPositionFrame = 0;
         this.sortedPositionsCache = new int[0];
-        this.maxPlays = TypewriterConfig.getDefaultMaxPlays();
+        this.maxPlays = DEFAULT_MAX_PLAYS;
         this.playCount = 0;
         this.totalChars = -1;
         this.currentPlayCounted = false;

@@ -9,8 +9,8 @@ import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterEffect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfKey;
-import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
-import net.tysontheember.emberstextapi.typewriter.TypewriterTracks;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTrack;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTracks;
 import net.tysontheember.emberstextapi.util.StyleUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,11 +83,6 @@ public abstract class LiteralContentsMixin {
             Style style,
             CallbackInfoReturnable<Optional<T>> cir) {
 
-        // [DIAG] Confirm mixin is applying - log first time we see markup
-        if (text.contains("<") && text.contains(">")) {
-            LOGGER.info("[DIAG] LiteralContentsMixin.visit() HIT on 1.21.1 — text: {}", text.length() > 120 ? text.substring(0, 120) + "..." : text);
-        }
-
         // Quick check: if text doesn't contain markup indicators, let vanilla handle it
         if (!text.contains("<") || !text.contains(">")) {
             return;
@@ -153,9 +148,6 @@ public abstract class LiteralContentsMixin {
             return; // Let vanilla handle plain text
         }
 
-        // [DIAG] Log effect/typewriter detection
-        LOGGER.info("[DIAG] hasTypewriter={}, hasObfuscate={}, hasEffectsOrFormatting={}", hasTypewriter, hasObfuscate, hasEffectsOrFormattingOrItems);
-
         // Get typewriter track if any span has typewriter effect
         // Use text.intern() as key so same text always gets same track
         // This prevents tooltip hover from resetting chat typewriters
@@ -174,7 +166,6 @@ public abstract class LiteralContentsMixin {
                 }
             }
             track.setTotalChars(totalChars);
-            LOGGER.info("[DIAG] TypewriterTrack created: totalChars={}, trackKey={}", totalChars, text.intern().hashCode());
         }
 
         // Track global character index for typewriter effect
@@ -208,10 +199,6 @@ public abstract class LiteralContentsMixin {
             // For typewriter, each character needs its own Style with the correct index
             int spanStartIndex = globalCharIndex;
             int spanLength = content.length();
-
-            if (LOGGER.isInfoEnabled() && span.getEffects() != null && !span.getEffects().isEmpty()) {
-                LOGGER.info("LiteralContentsMixin: span {} content='{}' effects={}", spanIdx, content, span.getEffects());
-            }
 
             for (int i = 0; i < content.length(); i++) {
                 int codePoint = content.codePointAt(i);

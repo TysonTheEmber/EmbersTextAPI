@@ -215,37 +215,12 @@ public class MarkupParser {
         if (source.getStrikethrough() != null) target.strikethrough(source.getStrikethrough());
         if (source.getObfuscated() != null) target.obfuscated(source.getObfuscated());
         if (source.getFont() != null) target.font(source.getFont());
-        // OLD gradient system removed - use new GradientEffect instead (v2.0.0)
-        // Inherit effects (v2.0.0)
         if (source.getEffects() != null) {
             for (var effect : source.getEffects()) {
                 target.addEffect(effect);
             }
         }
         // DON'T inherit typewriter - it should be a container effect, not per-span
-        // Typewriter will be handled at the message level via ImmersiveMessage.typewriter flag
-        // if (source.getTypewriterSpeed() != null) {
-        //     target.typewriter(source.getTypewriterSpeed(), 
-        //         source.getTypewriterCenter() != null ? source.getTypewriterCenter() : false);
-        // }
-        if (source.getShakeType() != null && source.getShakeAmplitude() != null) {
-            if (source.getShakeSpeed() != null && source.getShakeWavelength() != null) {
-                target.shake(source.getShakeType(), source.getShakeAmplitude(), source.getShakeSpeed(), source.getShakeWavelength());
-            } else if (source.getShakeSpeed() != null) {
-                target.shake(source.getShakeType(), source.getShakeAmplitude(), source.getShakeSpeed());
-            } else {
-                target.shake(source.getShakeType(), source.getShakeAmplitude());
-            }
-        }
-        if (source.getCharShakeType() != null && source.getCharShakeAmplitude() != null) {
-            if (source.getCharShakeSpeed() != null && source.getCharShakeWavelength() != null) {
-                target.charShake(source.getCharShakeType(), source.getCharShakeAmplitude(), source.getCharShakeSpeed(), source.getCharShakeWavelength());
-            } else if (source.getCharShakeSpeed() != null) {
-                target.charShake(source.getCharShakeType(), source.getCharShakeAmplitude(), source.getCharShakeSpeed());
-            } else {
-                target.charShake(source.getCharShakeType(), source.getCharShakeAmplitude());
-            }
-        }
         if (source.getObfuscateMode() != null) {
             target.obfuscate(source.getObfuscateMode(), 
                 source.getObfuscateSpeed() != null ? source.getObfuscateSpeed() : 1.0f);
@@ -424,24 +399,6 @@ public class MarkupParser {
                 // Use new WaveEffect (v2.0.0) instead of charShake-based wave
                 String tagContent = buildEffectTag("wave", attributes);
                 span.effect(tagContent);
-
-                // OLD (deprecated): charShake-based wave - kept here as reference
-                // String amplitudeStr = attrs.getOrDefault("amplitude", "1.0");
-                // String speedStr = attrs.getOrDefault("speed", "1.0");
-                // String wavelengthStr = attrs.getOrDefault("wavelength", "1.0");
-                // try {
-                //     float amplitude = Float.parseFloat(amplitudeStr);
-                //     if (speedStr != null && wavelengthStr != null) {
-                //         float speed = Float.parseFloat(speedStr) * -1;
-                //         float wavelength = Float.parseFloat(wavelengthStr);
-                //         span.charShake(ShakeType.WAVE, amplitude, speed, wavelength);
-                //     } else if (speedStr != null) {
-                //         float speed = Float.parseFloat(speedStr)* -1;
-                //         span.charShake(ShakeType.WAVE, amplitude, speed);
-                //     } else {
-                //         span.charShake(ShakeType.WAVE, amplitude);
-                //     }
-                // } catch (NumberFormatException ignored) {}
             }
             
             // Global message attributes

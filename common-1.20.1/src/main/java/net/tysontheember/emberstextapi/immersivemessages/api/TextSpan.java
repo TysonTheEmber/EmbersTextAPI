@@ -1,7 +1,6 @@
 package net.tysontheember.emberstextapi.immersivemessages.api;
 
 import com.mojang.logging.LogUtils;
-import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
@@ -34,25 +33,10 @@ public class TextSpan {
     private Boolean obfuscated;
     private ResourceLocation font;
     
-    // Gradient settings
-    private TextColor[] gradientColors;
-    
     // Typewriter effect
     private Float typewriterSpeed;
     private Boolean typewriterCenter;
     
-    // Shake effects
-    private ShakeType shakeType;
-    private Float shakeAmplitude;
-    private Float shakeSpeed;
-    private Float shakeWavelength;
-    
-    // Character-level shake
-    private ShakeType charShakeType;
-    private Float charShakeAmplitude;
-    private Float charShakeSpeed;
-    private Float charShakeWavelength;
-
     // Runtime rendering metadata (not serialized or networked)
     private transient Integer renderCharIndex;
     private transient Integer renderTotalChars;
@@ -123,17 +107,8 @@ public class TextSpan {
         this.strikethrough = other.strikethrough;
         this.obfuscated = other.obfuscated;
         this.font = other.font;
-        this.gradientColors = other.gradientColors != null ? other.gradientColors.clone() : null;
         this.typewriterSpeed = other.typewriterSpeed;
         this.typewriterCenter = other.typewriterCenter;
-        this.shakeType = other.shakeType;
-        this.shakeAmplitude = other.shakeAmplitude;
-        this.shakeSpeed = other.shakeSpeed;
-        this.shakeWavelength = other.shakeWavelength;
-        this.charShakeType = other.charShakeType;
-        this.charShakeAmplitude = other.charShakeAmplitude;
-        this.charShakeSpeed = other.charShakeSpeed;
-        this.charShakeWavelength = other.charShakeWavelength;
         this.obfuscateMode = other.obfuscateMode;
         this.obfuscateSpeed = other.obfuscateSpeed;
         this.fadeInTicks = other.fadeInTicks;
@@ -184,17 +159,8 @@ public class TextSpan {
     public Boolean getStrikethrough() { return strikethrough; }
     public Boolean getObfuscated() { return obfuscated; }
     public ResourceLocation getFont() { return font; }
-    public TextColor[] getGradientColors() { return gradientColors; }
     public Float getTypewriterSpeed() { return typewriterSpeed; }
     public Boolean getTypewriterCenter() { return typewriterCenter; }
-    public ShakeType getShakeType() { return shakeType; }
-    public Float getShakeAmplitude() { return shakeAmplitude; }
-    public Float getShakeSpeed() { return shakeSpeed; }
-    public Float getShakeWavelength() { return shakeWavelength; }
-    public ShakeType getCharShakeType() { return charShakeType; }
-    public Float getCharShakeAmplitude() { return charShakeAmplitude; }
-    public Float getCharShakeSpeed() { return charShakeSpeed; }
-    public Float getCharShakeWavelength() { return charShakeWavelength; }
     public Integer getRenderCharIndex() { return renderCharIndex; }
     public Integer getRenderTotalChars() { return renderTotalChars; }
     public Integer getRenderAbsoluteIndex() { return renderAbsoluteIndex; }
@@ -257,7 +223,7 @@ public class TextSpan {
     public TextSpan obfuscated(boolean obfuscated) { this.obfuscated = obfuscated; return this; }
     public TextSpan font(ResourceLocation font) { this.font = font; return this; }
 
-    // NEW: Effect methods (v2.0.0)
+    // Effect methods
     /**
      * Add a visual effect to this span.
      * Effects are applied in the order they are added.
@@ -307,57 +273,6 @@ public class TextSpan {
         return this;
     }
 
-    /**
-     * @deprecated Use {@code effect("grad from=COLOR1 to=COLOR2")} with the new GradientEffect instead.
-     * The new effect system provides more features including HSV interpolation, animation, and cyclic modes.
-     */
-    @Deprecated
-    public TextSpan gradient(TextColor... colors) {
-        if (colors != null && colors.length >= 2) {
-            this.gradientColors = colors.clone();
-        }
-        return this;
-    }
-
-    /**
-     * @deprecated Use {@code effect("grad from=COLOR1 to=COLOR2")} with the new GradientEffect instead.
-     * The new effect system provides more features including HSV interpolation, animation, and cyclic modes.
-     */
-    @Deprecated
-    public TextSpan gradient(int... rgbs) {
-        if (rgbs != null && rgbs.length >= 2) {
-            TextColor[] colors = new TextColor[rgbs.length];
-            for (int i = 0; i < rgbs.length; i++) {
-                colors[i] = TextColor.fromRgb(rgbs[i]);
-            }
-            this.gradientColors = colors;
-        }
-        return this;
-    }
-
-    /**
-     * @deprecated Use {@code effect("grad from=COLOR1 to=COLOR2")} with the new GradientEffect instead.
-     * The new effect system provides more features including HSV interpolation, animation, and cyclic modes.
-     */
-    @Deprecated
-    public TextSpan gradient(String... values) {
-        if (values != null && values.length >= 2) {
-            TextColor[] colors = new TextColor[values.length];
-            boolean allValid = true;
-            for (int i = 0; i < values.length; i++) {
-                colors[i] = ColorParser.parseTextColor(values[i]);
-                if (colors[i] == null) {
-                    allValid = false;
-                    break;
-                }
-            }
-            if (allValid) {
-                this.gradientColors = colors;
-            }
-        }
-        return this;
-    }
-    
     public TextSpan typewriter(float speed) { return typewriter(speed, false); }
     public TextSpan typewriter(float speed, boolean center) {
         this.typewriterSpeed = speed;
@@ -365,105 +280,6 @@ public class TextSpan {
         return this;
     }
     
-    /**
-     * @deprecated Use the new effect system instead:
-     * <ul>
-     *   <li>For RANDOM shake: {@code effect("shake a=AMPLITUDE f=SPEED")}</li>
-     *   <li>For WAVE shake: {@code effect("wave a=AMPLITUDE f=SPEED w=WAVELENGTH")}</li>
-     *   <li>For CIRCLE shake: {@code effect("circle a=AMPLITUDE f=SPEED")}</li>
-     * </ul>
-     * The new effect system provides better performance and composability.
-     */
-    @Deprecated
-    public TextSpan shake(ShakeType type, float amplitude) {
-        this.shakeType = type;
-        this.shakeAmplitude = amplitude;
-        return this;
-    }
-
-    /**
-     * @deprecated Use the new effect system instead:
-     * <ul>
-     *   <li>For RANDOM shake: {@code effect("shake a=AMPLITUDE f=SPEED")}</li>
-     *   <li>For WAVE shake: {@code effect("wave a=AMPLITUDE f=SPEED w=WAVELENGTH")}</li>
-     *   <li>For CIRCLE shake: {@code effect("circle a=AMPLITUDE f=SPEED")}</li>
-     * </ul>
-     * The new effect system provides better performance and composability.
-     */
-    @Deprecated
-    public TextSpan shake(ShakeType type, float amplitude, float speed) {
-        this.shakeType = type;
-        this.shakeAmplitude = amplitude;
-        this.shakeSpeed = speed;
-        return this;
-    }
-
-    /**
-     * @deprecated Use the new effect system instead:
-     * <ul>
-     *   <li>For RANDOM shake: {@code effect("shake a=AMPLITUDE f=SPEED")}</li>
-     *   <li>For WAVE shake: {@code effect("wave a=AMPLITUDE f=SPEED w=WAVELENGTH")}</li>
-     *   <li>For CIRCLE shake: {@code effect("circle a=AMPLITUDE f=SPEED")}</li>
-     * </ul>
-     * The new effect system provides better performance and composability.
-     */
-    @Deprecated
-    public TextSpan shake(ShakeType type, float amplitude, float speed, float wavelength) {
-        this.shakeType = type;
-        this.shakeAmplitude = amplitude;
-        this.shakeSpeed = speed;
-        this.shakeWavelength = wavelength;
-        return this;
-    }
-
-    /**
-     * @deprecated All new effects are per-character by default. Use the new effect system instead:
-     * <ul>
-     *   <li>For RANDOM shake: {@code effect("shake a=AMPLITUDE f=SPEED")}</li>
-     *   <li>For WAVE motion: {@code effect("wave a=AMPLITUDE f=SPEED w=WAVELENGTH")}</li>
-     *   <li>For CIRCLE motion: {@code effect("circle a=AMPLITUDE f=SPEED")}</li>
-     * </ul>
-     */
-    @Deprecated
-    public TextSpan charShake(ShakeType type, float amplitude) {
-        this.charShakeType = type;
-        this.charShakeAmplitude = amplitude;
-        return this;
-    }
-
-    /**
-     * @deprecated All new effects are per-character by default. Use the new effect system instead:
-     * <ul>
-     *   <li>For RANDOM shake: {@code effect("shake a=AMPLITUDE f=SPEED")}</li>
-     *   <li>For WAVE motion: {@code effect("wave a=AMPLITUDE f=SPEED w=WAVELENGTH")}</li>
-     *   <li>For CIRCLE motion: {@code effect("circle a=AMPLITUDE f=SPEED")}</li>
-     * </ul>
-     */
-    @Deprecated
-    public TextSpan charShake(ShakeType type, float amplitude, float speed) {
-        this.charShakeType = type;
-        this.charShakeAmplitude = amplitude;
-        this.charShakeSpeed = speed;
-        return this;
-    }
-
-    /**
-     * @deprecated All new effects are per-character by default. Use the new effect system instead:
-     * <ul>
-     *   <li>For RANDOM shake: {@code effect("shake a=AMPLITUDE f=SPEED")}</li>
-     *   <li>For WAVE motion: {@code effect("wave a=AMPLITUDE f=SPEED w=WAVELENGTH")}</li>
-     *   <li>For CIRCLE motion: {@code effect("circle a=AMPLITUDE f=SPEED")}</li>
-     * </ul>
-     */
-    @Deprecated
-    public TextSpan charShake(ShakeType type, float amplitude, float speed, float wavelength) {
-        this.charShakeType = type;
-        this.charShakeAmplitude = amplitude;
-        this.charShakeSpeed = speed;
-        this.charShakeWavelength = wavelength;
-        return this;
-    }
-
     /**
      * Sets per-character rendering context data that is computed at render time.
      *
@@ -670,9 +486,8 @@ public class TextSpan {
     public boolean hasCustomStyling() {
         return color != null || bold != null || italic != null || underline != null ||
                strikethrough != null || obfuscated != null || font != null ||
-               gradientColors != null || typewriterSpeed != null ||
-               shakeType != null || shakeSpeed != null || charShakeType != null || charShakeSpeed != null ||
-               obfuscateMode != null || hasBackground != null || fadeInTicks != null || fadeOutTicks != null ||
+               typewriterSpeed != null || obfuscateMode != null ||
+               hasBackground != null || fadeInTicks != null || fadeOutTicks != null ||
                itemId != null || entityId != null || hasGlobalAttributes();
     }
     
@@ -705,75 +520,11 @@ public class TextSpan {
     // They are not intended for general use - prefer the builder methods above.
 
     /**
-     * Set gradient colors directly (for deserialization).
-     * @param colors Gradient color array
-     */
-    public void setGradientColors(net.minecraft.network.chat.TextColor[] colors) {
-        this.gradientColors = colors;
-    }
-
-    /**
      * Set typewriter centering (for deserialization).
      * @param center Whether to center typewriter effect
      */
     public void setTypewriterCenter(Boolean center) {
         this.typewriterCenter = center;
-    }
-
-    /**
-     * Set shake type directly (for deserialization).
-     */
-    public void setShakeType(ShakeType type) {
-        this.shakeType = type;
-    }
-
-    /**
-     * Set shake amplitude directly (for deserialization).
-     */
-    public void setShakeAmplitude(Float amplitude) {
-        this.shakeAmplitude = amplitude;
-    }
-
-    /**
-     * Set shake speed directly (for deserialization).
-     */
-    public void setShakeSpeed(Float speed) {
-        this.shakeSpeed = speed;
-    }
-
-    /**
-     * Set shake wavelength directly (for deserialization).
-     */
-    public void setShakeWavelength(Float wavelength) {
-        this.shakeWavelength = wavelength;
-    }
-
-    /**
-     * Set character shake type directly (for deserialization).
-     */
-    public void setCharShakeType(ShakeType type) {
-        this.charShakeType = type;
-    }
-
-    /**
-     * Set character shake amplitude directly (for deserialization).
-     */
-    public void setCharShakeAmplitude(Float amplitude) {
-        this.charShakeAmplitude = amplitude;
-    }
-
-    /**
-     * Set character shake speed directly (for deserialization).
-     */
-    public void setCharShakeSpeed(Float speed) {
-        this.charShakeSpeed = speed;
-    }
-
-    /**
-     * Set character shake wavelength directly (for deserialization).
-     */
-    public void setCharShakeWavelength(Float wavelength) {
-        this.charShakeWavelength = wavelength;
     }
 
     /**

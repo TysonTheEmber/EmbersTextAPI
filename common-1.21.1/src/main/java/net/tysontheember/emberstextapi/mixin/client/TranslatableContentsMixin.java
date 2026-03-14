@@ -9,8 +9,8 @@ import net.tysontheember.emberstextapi.immersivemessages.api.MarkupParser;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterEffect;
-import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
-import net.tysontheember.emberstextapi.typewriter.TypewriterTracks;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTrack;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTracks;
 import net.tysontheember.emberstextapi.util.StyleUtil;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfKey;
 import org.slf4j.Logger;
@@ -96,9 +96,6 @@ public abstract class TranslatableContentsMixin {
             return;
         }
 
-        LOGGER.debug("[DIAG] TranslatableContentsMixin.visit() HIT — key: {}, resolved: {}", key,
-                resolved.length() > 120 ? resolved.substring(0, 120) + "..." : resolved);
-
         // Parse the markup into spans with effects
         List<TextSpan> spans = MarkupParser.parse(resolved);
 
@@ -144,8 +141,6 @@ public abstract class TranslatableContentsMixin {
         if (!hasEffectsOrFormattingOrItems) {
             return; // Let vanilla handle plain text
         }
-
-        LOGGER.debug("[DIAG] hasTypewriter={}, hasObfuscate={}, hasEffectsOrFormatting={}", hasTypewriter, hasObfuscate, hasEffectsOrFormattingOrItems);
 
         // Get typewriter track if any span has typewriter effect
         // Use resolved.intern() as key so same text always gets same track

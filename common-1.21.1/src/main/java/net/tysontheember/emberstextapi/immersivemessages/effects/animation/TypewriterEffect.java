@@ -4,9 +4,6 @@ import net.tysontheember.emberstextapi.immersivemessages.effects.BaseEffect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
 import net.tysontheember.emberstextapi.immersivemessages.effects.params.Params;
 import net.tysontheember.emberstextapi.immersivemessages.effects.params.ValidationHelper;
-import net.tysontheember.emberstextapi.typewriter.TypewriterConfig;
-import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
-import net.tysontheember.emberstextapi.typewriter.TypewriterTracks;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -53,7 +50,6 @@ import org.slf4j.LoggerFactory;
  * </ul>
  * </p>
  *
- * @see TypewriterConfig
  * @see TypewriterTrack
  */
 public class TypewriterEffect extends BaseEffect {
@@ -89,7 +85,7 @@ public class TypewriterEffect extends BaseEffect {
                 .or(() -> params.getDouble("s").map(s -> s > 0 ? 1000.0 / s : 1000.0))
                 .map(Number::intValue)
                 .filter(ms -> ms > 0)
-                .orElse(TypewriterConfig.getDefaultSpeedMs());
+                .orElse(20);
         this.speedMs = ValidationHelper.clamp("typewriter", "speed", rawSpeed, 1, 10000);
 
         // Parse sound parameter
@@ -108,7 +104,7 @@ public class TypewriterEffect extends BaseEffect {
         this.maxPlays = params.getBoolean("loop")
                 .map(loop -> loop ? -1 : 1)
                 .or(() -> params.getString("repeat").map(TypewriterEffect::parseRepeat))
-                .orElse(TypewriterConfig.getDefaultMaxPlays());
+                .orElse(-1);
 
         LOGGER.debug("TypewriterEffect created: speedMs={}, maxPlays={}, loop={}, repeat={}",
                 speedMs, this.maxPlays,
@@ -124,7 +120,7 @@ public class TypewriterEffect extends BaseEffect {
      */
     private static int parseRepeat(String value) {
         if (value == null || value.isEmpty()) {
-            return TypewriterConfig.getDefaultMaxPlays();
+            return -1;
         }
 
         String lower = value.toLowerCase().trim();
@@ -144,17 +140,12 @@ public class TypewriterEffect extends BaseEffect {
             int n = Integer.parseInt(lower);
             return n <= 0 ? -1 : n; // Treat 0 or negative as infinite
         } catch (NumberFormatException e) {
-            return TypewriterConfig.getDefaultMaxPlays();
+            return -1;
         }
     }
 
     @Override
     public void apply(@NotNull EffectSettings settings) {
-        // Short-circuit if typewriter is globally disabled
-        if (!TypewriterConfig.isEnabled()) {
-            return; // All text visible immediately
-        }
-
         // Get track from EffectSettings (set by StringRenderOutputMixin from Style)
         // If no track was set (e.g., ImmersiveMessage rendering), create our own
         TypewriterTrack track = settings.typewriterTrack;

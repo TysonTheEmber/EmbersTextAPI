@@ -2,7 +2,7 @@ package net.tysontheember.emberstextapi.accessor;
 
 import com.google.common.collect.ImmutableList;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
-import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTrack;
 
 /**
  * Duck interface for augmenting Minecraft's Style class with effect storage.

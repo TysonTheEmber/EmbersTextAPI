@@ -4,7 +4,7 @@ import com.google.common.collect.ImmutableList;
 import net.minecraft.network.chat.Style;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.accessor.ETAStyle;
-import net.tysontheember.emberstextapi.typewriter.TypewriterTrack;
+import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTrack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

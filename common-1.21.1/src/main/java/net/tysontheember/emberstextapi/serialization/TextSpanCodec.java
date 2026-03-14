@@ -5,7 +5,6 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.tysontheember.emberstextapi.immersivemessages.api.ObfuscateMode;
-import net.tysontheember.emberstextapi.immersivemessages.api.ShakeType;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextAlign;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
@@ -63,48 +62,11 @@ public final class TextSpanCodec {
             buf.writeResourceLocation(span.getFont());
         }
 
-        // Encode gradient colors
-        buf.writeBoolean(span.getGradientColors() != null);
-        if (span.getGradientColors() != null) {
-            buf.writeVarInt(span.getGradientColors().length);
-            for (TextColor gradientColor : span.getGradientColors()) {
-                buf.writeInt(gradientColor.getValue());
-            }
-        }
-
         // Encode other effect properties
         buf.writeBoolean(span.getTypewriterSpeed() != null);
         if (span.getTypewriterSpeed() != null) {
             buf.writeFloat(span.getTypewriterSpeed());
             buf.writeBoolean(span.getTypewriterCenter() != null && span.getTypewriterCenter());
-        }
-
-        buf.writeBoolean(span.getShakeType() != null);
-        if (span.getShakeType() != null) {
-            buf.writeEnum(span.getShakeType());
-            buf.writeFloat(span.getShakeAmplitude() != null ? span.getShakeAmplitude() : 0f);
-            buf.writeBoolean(span.getShakeSpeed() != null);
-            if (span.getShakeSpeed() != null) {
-                buf.writeFloat(span.getShakeSpeed());
-            }
-            buf.writeBoolean(span.getShakeWavelength() != null);
-            if (span.getShakeWavelength() != null) {
-                buf.writeFloat(span.getShakeWavelength());
-            }
-        }
-
-        buf.writeBoolean(span.getCharShakeType() != null);
-        if (span.getCharShakeType() != null) {
-            buf.writeEnum(span.getCharShakeType());
-            buf.writeFloat(span.getCharShakeAmplitude() != null ? span.getCharShakeAmplitude() : 0f);
-            buf.writeBoolean(span.getCharShakeSpeed() != null);
-            if (span.getCharShakeSpeed() != null) {
-                buf.writeFloat(span.getCharShakeSpeed());
-            }
-            buf.writeBoolean(span.getCharShakeWavelength() != null);
-            if (span.getCharShakeWavelength() != null) {
-                buf.writeFloat(span.getCharShakeWavelength());
-            }
         }
 
         buf.writeBoolean(span.getObfuscateMode() != null);
@@ -296,57 +258,10 @@ public final class TextSpanCodec {
             span.font(buf.readResourceLocation());
         }
 
-        // Decode gradient colors with size validation
-        if (buf.readBoolean()) {
-            int colorCount = buf.readVarInt();
-            if (colorCount < 0 || colorCount > MAX_ARRAY_SIZE) {
-                throw new IllegalArgumentException("Invalid gradient color count: " + colorCount);
-            }
-            TextColor[] colors = new TextColor[colorCount];
-            for (int i = 0; i < colorCount; i++) {
-                colors[i] = TextColor.fromRgb(buf.readInt());
-            }
-            span.setGradientColors(colors);
-        }
-
         // Decode other effect properties
         if (buf.readBoolean()) {
             span.typewriter(clampFloat(buf.readFloat(), 0.001f, 1000f));
             span.setTypewriterCenter(buf.readBoolean());
-        }
-
-        if (buf.readBoolean()) {
-            ShakeType shakeType = buf.readEnum(ShakeType.class);
-            float amplitude = clampFloat(buf.readFloat(), 0f, MAX_OFFSET);
-            Float speed = null;
-            if (buf.readBoolean()) {
-                speed = clampFloat(buf.readFloat(), -1000f, 1000f);
-            }
-            Float wavelength = null;
-            if (buf.readBoolean()) {
-                wavelength = clampFloat(buf.readFloat(), 0.001f, 1000f);
-            }
-            span.setShakeType(shakeType);
-            span.setShakeAmplitude(amplitude);
-            if (speed != null) span.setShakeSpeed(speed);
-            if (wavelength != null) span.setShakeWavelength(wavelength);
-        }
-
-        if (buf.readBoolean()) {
-            ShakeType charShakeType = buf.readEnum(ShakeType.class);
-            float amplitude = clampFloat(buf.readFloat(), 0f, MAX_OFFSET);
-            Float speed = null;
-            if (buf.readBoolean()) {
-                speed = clampFloat(buf.readFloat(), -1000f, 1000f);
-            }
-            Float wavelength = null;
-            if (buf.readBoolean()) {
-                wavelength = clampFloat(buf.readFloat(), 0.001f, 1000f);
-            }
-            span.setCharShakeType(charShakeType);
-            span.setCharShakeAmplitude(amplitude);
-            if (speed != null) span.setCharShakeSpeed(speed);
-            if (wavelength != null) span.setCharShakeWavelength(wavelength);
         }
 
         if (buf.readBoolean()) {
