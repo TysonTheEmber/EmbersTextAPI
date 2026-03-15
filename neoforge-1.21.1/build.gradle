@@ -24,6 +24,9 @@ neoForge {
 
 dependencies {
     // Common module via source sets
+
+    // Emojiful for compat testing (runtime only — not compiled against)
+    runtimeOnly files('libs/Emojiful-Neoforge-1.21-5.2.2-all.jar')
 }
 
 java {

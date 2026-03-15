@@ -4,6 +4,10 @@ plugins {
     id 'org.spongepowered.mixin' version '0.7.+'
 }
 
+repositories {
+    flatDir { dirs 'libs' }
+}
+
 base {
     archivesName = 'emberstextapi-forge-1.20.1'
 }
@@ -95,6 +99,9 @@ dependencies {
     implementation fg.deobf("curse.maven:ftb-library-forge-404465:6807424")
     implementation fg.deobf("curse.maven:ftb-teams-forge-404468:6130786")
     implementation fg.deobf("curse.maven:ftb-quests-forge-289412:6829212")
+
+    // Emojiful for compat testing (runtime only — JAR in libs/, resolved via flatDir repo)
+    runtimeOnly fg.deobf('emojiful:Emojiful-Forge-1.20.1:4.2.0')
 }
 
 mixin {

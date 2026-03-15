@@ -1,8 +1,6 @@
 package net.tysontheember.emberstextapi.mixin.client;
 
-import com.google.common.collect.Lists;
 import com.mojang.blaze3d.font.GlyphInfo;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.font.FontSet;
 import net.minecraft.client.gui.font.glyphs.BakedGlyph;
@@ -10,12 +8,10 @@ import net.minecraft.client.gui.font.glyphs.EmptyGlyph;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-import net.tysontheember.emberstextapi.accessor.ETABakedGlyph;
 import net.tysontheember.emberstextapi.accessor.ETAStyle;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
-import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTrack;
-import net.tysontheember.emberstextapi.util.EffectUtil;
+import net.tysontheember.emberstextapi.util.EffectApplicator;
 import org.joml.Matrix4f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,8 +22,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import java.util.List;
 
 /**
  * Mixin for Font.StringRenderOutput to intercept character rendering.
@@ -146,7 +140,7 @@ public abstract class StringRenderOutputMixin {
             return;
         }
 
-        List<Effect> effects = etaStyle.emberstextapi$getEffects().asList();
+        java.util.List<Effect> effects = etaStyle.emberstextapi$getEffects().asList();
 
         // If no effects, let vanilla handle it
         if (effects.isEmpty()) {
@@ -182,78 +176,28 @@ public abstract class StringRenderOutputMixin {
 
         // Only render if glyph is not empty
         if (!(bakedGlyph instanceof EmptyGlyph)) {
-            // Create effect settings with initial state
-            EffectSettings settings = new EffectSettings(
-                    this.x + shadowOffset,  // x with shadow offset
-                    this.y + shadowOffset,  // y with shadow offset
-                    red,                    // r
-                    green,                  // g
-                    blue,                   // b
-                    alpha,                  // a
-                    index,                  // index
-                    codepoint,              // codepoint
-                    this.dropShadow         // isShadow
+            // Build settings and apply effects via shared utility
+            EffectSettings settings = EffectApplicator.buildSettings(
+                    etaStyle, style, index, codepoint,
+                    this.x, this.y, shadowOffset,
+                    red, green, blue, alpha, this.dropShadow
             );
-            settings.shadowOffset = shadowOffset;
-            // Use obfuscate key from style if present (set during markup parsing)
-            settings.obfuscateKey = etaStyle.emberstextapi$getObfuscateKey();
-            settings.obfuscateStableKey = etaStyle.emberstextapi$getObfuscateStableKey();
-            if (settings.obfuscateKey == null) {
-                settings.obfuscateKey = style;
-            }
-            if (settings.obfuscateStableKey == null) {
-                // Stable fallback: use the style object itself
-                settings.obfuscateStableKey = style;
-            }
-            settings.obfuscateSpanStart = etaStyle.emberstextapi$getObfuscateSpanStart();
-            settings.obfuscateSpanLength = etaStyle.emberstextapi$getObfuscateSpanLength();
 
-            // Get typewriter data from Style if present
-            TypewriterTrack track = etaStyle.emberstextapi$getTypewriterTrack();
-
-            if (track != null) {
-                // Get the typewriter index that was set during parsing
-                // This index is sequential (0, 1, 2...) and was assigned in LiteralContentsMixin
-                int typingIndex = etaStyle.emberstextapi$getTypewriterIndex();
-                settings.absoluteIndex = typingIndex >= 0 ? typingIndex : index;
-                settings.typewriterTrack = track;
-                settings.typewriterIndex = typingIndex;
-            } else {
-                settings.absoluteIndex = index; // Fallback for non-typewriter effects
-            }
-
-            // Apply all effects in order
-            // Effects can modify the main settings and optionally add sibling layers
-            // Note: siblings list is lazily initialized - not created unless an effect adds siblings
-            for (Effect effect : effects) {
-                try {
-                    // Apply effect to main settings first
-                    effect.apply(settings);
-
-                    // Apply effect to any siblings that have been added by previous effects
-                    // Use getSiblingsOrEmpty() to avoid creating list when not needed
-                    java.util.List<EffectSettings> currentSiblings = settings.getSiblingsOrEmpty();
-                    for (int i = 0; i < currentSiblings.size(); i++) {
-                        effect.apply(currentSiblings.get(i));
-                    }
-                } catch (Exception e) {
-                    // Log but don't crash - one broken effect shouldn't break all rendering
-                    emberstextapi$LOGGER.warn("Effect {} failed to apply: {}", effect.getName(), e.getMessage());
-                }
-            }
+            EffectApplicator.applyEffects(effects, settings);
 
             // Render main character
-            emberstextapi$renderChar(settings, codepoint, style, fontSet, glyphInfo, bakedGlyph);
+            EffectApplicator.renderChar(settings, codepoint, style, fontSet, glyphInfo, bakedGlyph,
+                    this.pose, this.bufferSource, this.mode, this.packedLightCoords, this$0.lineHeight);
 
-            // Render any sibling layers (only if effects added them)
+            // Render any sibling layers
             if (settings.hasSiblings()) {
                 for (EffectSettings sibling : settings.getSiblingsOrEmpty()) {
-                    emberstextapi$renderChar(sibling, codepoint, style, fontSet, glyphInfo, bakedGlyph);
+                    EffectApplicator.renderChar(sibling, codepoint, style, fontSet, glyphInfo, bakedGlyph,
+                            this.pose, this.bufferSource, this.mode, this.packedLightCoords, this$0.lineHeight);
                 }
             }
 
             // Update color values for decorations (strikethrough/underline)
-            // Use the final color from the main settings
             red = settings.r;
             green = settings.g;
             blue = settings.b;
@@ -298,94 +242,6 @@ public abstract class StringRenderOutputMixin {
 
         // Cancel vanilla rendering - we handled it
         cir.setReturnValue(true);
-    }
-
-    /**
-     * Render a single character with the given effect settings.
-     * <p>
-     * This method handles:
-     * <ul>
-     *   <li>Codepoint changes (some effects change the character)</li>
-     *   <li>Alpha culling (skip if fully transparent)</li>
-     *   <li>Rotation matrix transformation</li>
-     *   <li>Italic and bold rendering</li>
-     *   <li>Fallback rendering for non-BakedGlyph objects</li>
-     * </ul>
-     * </p>
-     *
-     * @param settings Effect settings for this character
-     * @param originalCodepoint Original codepoint (before effects)
-     * @param style Text style
-     * @param fontSet Font set for rendering
-     * @param glyphInfo Glyph metrics
-     * @param bakedGlyph Original baked glyph
-     */
-    @Unique
-    private void emberstextapi$renderChar(
-            EffectSettings settings,
-            int originalCodepoint,
-            Style style,
-            FontSet fontSet,
-            GlyphInfo glyphInfo,
-            BakedGlyph bakedGlyph) {
-
-        // Skip if fully transparent
-        if (settings.a == 0) {
-            return;
-        }
-
-        // Handle codepoint changes or random glyph request (e.g., obfuscate effect)
-        if (settings.useRandomGlyph) {
-            // Use Minecraft's native random glyph system (§k obfuscation)
-            bakedGlyph = fontSet.getRandomGlyph(glyphInfo);
-            if (bakedGlyph instanceof EmptyGlyph) {
-                return;
-            }
-        } else if (settings.codepoint != originalCodepoint) {
-            // Use specific codepoint replacement
-            bakedGlyph = fontSet.getGlyph(settings.codepoint);
-            if (bakedGlyph instanceof EmptyGlyph) {
-                return;
-            }
-        }
-
-        // Get vertex consumer for this glyph's render type
-        VertexConsumer vertexConsumer = this.bufferSource.getBuffer(bakedGlyph.renderType(this.mode));
-
-        // Handle rotation if present
-        Matrix4f renderPose = this.pose;
-        if (settings.rot != 0) {
-            // Calculate rotation origin (center of glyph)
-            float glyphWidth = glyphInfo.getAdvance(style.isBold());
-            float originX = glyphWidth / 2f;
-            float originY = this$0.lineHeight / 2f;
-
-            // Apply rotation around center point
-            renderPose = EffectUtil.rotate(this.pose, settings, settings.rot, originX, originY);
-        }
-
-        // Render the glyph using our custom render method
-        ETABakedGlyph etaGlyph = (ETABakedGlyph) bakedGlyph;
-        etaGlyph.emberstextapi$render(
-                settings,
-                style.isItalic(),
-                0f, // boldOffset = 0 for first pass
-                renderPose,
-                vertexConsumer,
-                packedLightCoords
-        );
-
-        // Render bold pass with offset
-        if (style.isBold()) {
-            etaGlyph.emberstextapi$render(
-                    settings,
-                    style.isItalic(),
-                    glyphInfo.getBoldOffset(),
-                    renderPose,
-                    vertexConsumer,
-                    packedLightCoords
-            );
-        }
     }
 
     /**

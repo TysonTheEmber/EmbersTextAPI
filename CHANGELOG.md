@@ -1,19 +1,10 @@
-### Removed
-- **`TextSpan.gradient()`** — 3 overloads removed. Use `span.effect("grad from=X to=Y")` or `<grad>` markup instead.
-- **`TextSpan.shake()`** — 3 overloads removed. Use `span.effect("shake a=X")` or `<shake>` markup instead.
-- **`TextSpan.charShake()`** — 3 overloads removed. Same replacement as above.
-- **`ImmersiveMessage.shake()`** and **`ImmersiveMessage.charShake()`** — Use `<shake>` markup instead.
-- **`ImmersiveMessage.gradient()`** — Use `<grad from=X to=Y>` markup instead.
-- **`TypewriterConfig`** — Global defaults (20ms/char, always enabled) are now fixed constants in `TypewriterEffect`.
-- **`ShakeType`** enum — No longer needed; effects system handles all shake types via `ShakeEffect`, `WaveEffect`, `CircleEffect`.
-- **`EffectUtil.lerp()`** — Use `ColorMath.lerp()` directly.
-- **`EffectUtil.hsvToRgb()`** — Use `ColorMath.hsvToRgbPacked()` directly.
-- **`TooltipPacket.register()`** (Forge 1.20.1) — Was a no-op stub.
+### Added
+- **Emojiful compatibility layer** — ETA effects now work alongside Emojiful's emoji rendering. Regular characters get full effects (rainbow, wave, shake, etc.) while emoji sprites render normally through Emojiful's pipeline. Supported on all loaders and versions (Forge 1.20.1 with Emojiful 4.x, NeoForge 1.21.1 with Emojiful 5.x, Fabric).
+- **`EffectApplicator` utility class** — Shared effect-application logic extracted from `StringRenderOutputMixin`, used by both the vanilla rendering path and the Emojiful compatibility mixin.
 
 ### Changed
-- `TypewriterTrack` and `TypewriterTracks` moved from `net.tysontheember.emberstextapi.typewriter` to `net.tysontheember.emberstextapi.immersivemessages.effects.animation`. These are internal classes; most mod developers will not be affected.
+- Emojiful is no longer declared as incompatible. The previous hard block has been replaced with automatic compatibility mode detection.
 
 ### Internal
-- Removed `ShakeCalculator` and `GradientCalculator` utility classes (only supported removed APIs).
-- Removed all `[DIAG]` diagnostic logging from mixins and `ImmersiveMessage`.
-- Cleaned up orphaned commented-out code in `MarkupParser` and `PlayerJoinEventHandler`.
+- Added `@Pseudo` mixin `EmojiCharacterRendererMixin` targeting both `EmojiFontHelper$EmojiCharacterRenderer` (NeoForge/Emojiful 5.x) and `EmojiFontRenderer$EmojiCharacterRenderer` (Forge/Emojiful 4.x) with `require = 0` for graceful absence.
+- Refactored `StringRenderOutputMixin` to delegate effect building, application, and character rendering to `EffectApplicator`.

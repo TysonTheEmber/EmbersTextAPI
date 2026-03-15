@@ -27,13 +27,5 @@ versionRange = "[1.21.1,1.22)"
 ordering = "NONE"
 side = "BOTH"
 
-[[dependencies.emberstextapi]]
-modId = "emojiful"
-type = "incompatible"
-versionRange = "*"
-ordering = "NONE"
-side = "CLIENT"
-reason = "Emojiful modifies the text renderer in ways that conflict with EmbersTextAPI's mixin-based rendering pipeline."
-
 [[mixins]]
 config = "emberstextapi.mixins.json"

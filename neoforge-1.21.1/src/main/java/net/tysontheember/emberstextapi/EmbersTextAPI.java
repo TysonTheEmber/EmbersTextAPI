@@ -42,13 +42,8 @@ public class EmbersTextAPI {
 
     private static void checkIncompatibleMods() {
         if (ModList.get().isLoaded("emojiful")) {
-            LOGGER.error("==========================================================");
-            LOGGER.error("EmbersTextAPI has detected Emojiful is installed!");
-            LOGGER.error("Emojiful modifies the text renderer in ways that conflict");
-            LOGGER.error("with EmbersTextAPI's mixin-based rendering pipeline.");
-            LOGGER.error("Text rendering may be broken or cause crashes.");
-            LOGGER.error("Please remove Emojiful.");
-            LOGGER.error("==========================================================");
+            LOGGER.info("Emojiful detected — EmbersTextAPI compatibility mode active. " +
+                    "ETA effects will be applied to non-emoji characters via EmojiCharacterRenderer mixin.");
         }
     }
 
