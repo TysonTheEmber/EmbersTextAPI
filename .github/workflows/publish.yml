@@ -18,7 +18,7 @@ jobs:
           - name: Forge 1.20.1
             subproject: forge-1.20.1
             gradle_task: ":forge-1.20.1:build"
-            jar_glob: "forge-1.20.1/build/libs/emberstextapi-forge-1.20.1-*.jar"
+            jar_glob: "forge-1.20.1/build/libs/emberstextapi-forge-1.20.1-*-all.jar"
             mc_version: "1.20.1"
             loader: forge
 
