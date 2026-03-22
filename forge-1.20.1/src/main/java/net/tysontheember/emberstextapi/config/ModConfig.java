@@ -36,6 +36,27 @@ public class ModConfig {
     public static final ForgeConfigSpec.IntValue MAX_MESSAGE_DURATION;
     public static final ForgeConfigSpec.IntValue MAX_ACTIVE_MESSAGES;
 
+    // Server-side message limits
+    public static final ForgeConfigSpec.IntValue MAX_SERVER_MESSAGE_DURATION;
+    public static final ForgeConfigSpec.IntValue MAX_SERVER_ACTIVE_MESSAGES;
+    public static final ForgeConfigSpec.IntValue MAX_QUEUE_SIZE;
+    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> ALLOWED_EFFECTS;
+
+    // Markup
+    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> DISALLOWED_MARKUP_TAGS;
+
+    // === CLIENT extras ===
+    // Accessibility
+    public static final ForgeConfigSpec.BooleanValue REDUCE_MOTION;
+    public static final ForgeConfigSpec.IntValue MAX_NEON_QUALITY;
+
+    // Performance
+    public static final ForgeConfigSpec.IntValue TEXT_LAYOUT_CACHE_SIZE;
+    public static final ForgeConfigSpec.BooleanValue SDF_ENABLED;
+
+    // === COMMON (anvil) ===
+    public static final ForgeConfigSpec.IntValue ANVIL_NAME_MAX_LENGTH;
+
     static {
         // --- COMMON ---
         COMMON_BUILDER.comment("EmbersTextAPI Server Configuration").push("general");
@@ -56,6 +77,38 @@ public class ModConfig {
             .comment("Player UUIDs for the whitelist/blacklist")
             .defineListAllowEmpty("markupPlayerList", ArrayList::new, e -> e instanceof String);
 
+        DISALLOWED_MARKUP_TAGS = COMMON_BUILDER
+            .comment("Tags stripped from player-authored chat markup (e.g. [\"glitch\", \"neon\"]). Does not affect API-sent messages.")
+            .defineListAllowEmpty("disallowedMarkupTags", ArrayList::new, e -> e instanceof String);
+
+        COMMON_BUILDER.pop();
+
+        COMMON_BUILDER.comment("Server-side Message Limits").push("messages");
+
+        MAX_SERVER_MESSAGE_DURATION = COMMON_BUILDER
+            .comment("Server-enforced max message duration in ticks. 0 = unlimited. 1200 = 60 seconds.")
+            .defineInRange("maxServerMessageDuration", 1200, 0, 72000);
+
+        MAX_SERVER_ACTIVE_MESSAGES = COMMON_BUILDER
+            .comment("Server-enforced max simultaneous messages per player. 0 = unlimited.")
+            .defineInRange("maxServerActiveMessages", 10, 0, 100);
+
+        MAX_QUEUE_SIZE = COMMON_BUILDER
+            .comment("Max pending steps per queue channel. 0 = unlimited. Prevents memory exhaustion.")
+            .defineInRange("maxQueueSize", 50, 0, 1000);
+
+        ALLOWED_EFFECTS = COMMON_BUILDER
+            .comment("If non-empty, only listed effects are allowed in server-sent messages. Empty = all allowed.")
+            .defineListAllowEmpty("allowedEffects", ArrayList::new, e -> e instanceof String);
+
+        COMMON_BUILDER.pop();
+
+        COMMON_BUILDER.comment("Anvil").push("anvil");
+
+        ANVIL_NAME_MAX_LENGTH = COMMON_BUILDER
+            .comment("Maximum number of characters allowed when renaming an item in an anvil. Vanilla default is 50.")
+            .defineInRange("anvilNameMaxLength", 50, 1, Integer.MAX_VALUE);
+
         COMMON_BUILDER.pop();
         COMMON_SPEC = COMMON_BUILDER.build();
 
@@ -74,6 +127,14 @@ public class ModConfig {
             .comment("List of effect names to disable globally (e.g. [\"glitch\", \"shake\"]). Disabled effects render as plain text.")
             .defineListAllowEmpty("disabledEffects", ArrayList::new, e -> e instanceof String);
 
+        REDUCE_MOTION = CLIENT_BUILDER
+            .comment("Disables all positional/motion effects (wave, bounce, swing, shake, etc.). Color effects still work. Accessibility feature.")
+            .define("reduceMotion", false);
+
+        MAX_NEON_QUALITY = CLIENT_BUILDER
+            .comment("Caps neon/glow quality. 1=fast(6 samples), 2=balanced(12), 3=quality(20). Lower for better performance.")
+            .defineInRange("maxNeonQuality", 3, 1, 3);
+
         CLIENT_BUILDER.pop();
 
         CLIENT_BUILDER.comment("Limits").push("limits");
@@ -87,6 +148,19 @@ public class ModConfig {
             .defineInRange("maxActiveMessages", 0, 0, Integer.MAX_VALUE);
 
         CLIENT_BUILDER.pop();
+
+        CLIENT_BUILDER.comment("Performance").push("performance");
+
+        TEXT_LAYOUT_CACHE_SIZE = CLIENT_BUILDER
+            .comment("Max entries in TextLayoutCache LRU. Higher = more memory, fewer recomputations.")
+            .defineInRange("textLayoutCacheSize", 256, 64, 2048);
+
+        SDF_ENABLED = CLIENT_BUILDER
+            .comment("Master toggle for SDF font rendering. When false, SDF fonts fall back to vanilla bitmap.")
+            .define("sdfEnabled", true);
+
+        CLIENT_BUILDER.pop();
+
         CLIENT_SPEC = CLIENT_BUILDER.build();
     }
 
@@ -151,6 +225,68 @@ public class ModConfig {
             return MAX_ACTIVE_MESSAGES.get();
         } catch (Exception e) {
             return 0;
+        }
+    }
+
+    public static int getAnvilNameMaxLength() {
+        return ANVIL_NAME_MAX_LENGTH.get();
+    }
+
+    // --- New COMMON accessors ---
+
+    public static int getMaxServerMessageDuration() {
+        return MAX_SERVER_MESSAGE_DURATION.get();
+    }
+
+    public static int getMaxServerActiveMessages() {
+        return MAX_SERVER_ACTIVE_MESSAGES.get();
+    }
+
+    public static int getMaxQueueSize() {
+        return MAX_QUEUE_SIZE.get();
+    }
+
+    @SuppressWarnings("unchecked")
+    public static List<String> getAllowedEffects() {
+        return (List<String>) (List<?>) ALLOWED_EFFECTS.get();
+    }
+
+    @SuppressWarnings("unchecked")
+    public static List<String> getDisallowedMarkupTags() {
+        return (List<String>) (List<?>) DISALLOWED_MARKUP_TAGS.get();
+    }
+
+    // --- New CLIENT accessors ---
+
+    public static boolean isReduceMotionEnabled() {
+        try {
+            return REDUCE_MOTION.get();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static int getMaxNeonQuality() {
+        try {
+            return MAX_NEON_QUALITY.get();
+        } catch (Exception e) {
+            return 3;
+        }
+    }
+
+    public static int getTextLayoutCacheSize() {
+        try {
+            return TEXT_LAYOUT_CACHE_SIZE.get();
+        } catch (Exception e) {
+            return 256;
+        }
+    }
+
+    public static boolean isSdfEnabled() {
+        try {
+            return SDF_ENABLED.get();
+        } catch (Exception e) {
+            return true;
         }
     }
 }

@@ -15,6 +15,7 @@ For full documentation, guides, and examples, visit **[tysontheember.dev](https:
 - **Visual Effects**: Rainbow, glitch, wave, shake, pulse, and more
 - **Animations**: Typewriter text, fade in/out, progressive reveal
 - **Markup Parser**: XML-style tags for easy text styling
+- **MSDF Font Rendering**: Crisp TrueType/OpenType fonts at any scale using Multi-Channel Signed Distance Fields with sharp corner reproduction
 - **Inline Rendering**: Items and entities within text
 - **Server-Side Control**: Send styled messages from server to clients
 - **Highly Customizable**: Per-character effects, gradients, backgrounds

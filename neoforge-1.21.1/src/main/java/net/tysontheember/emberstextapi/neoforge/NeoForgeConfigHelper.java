@@ -56,4 +56,54 @@ public class NeoForgeConfigHelper implements ConfigHelper {
     public int getMaxActiveMessages() {
         return net.tysontheember.emberstextapi.config.ModConfig.getMaxActiveMessages();
     }
+
+    @Override
+    public int getAnvilNameMaxLength() {
+        return net.tysontheember.emberstextapi.config.ModConfig.getAnvilNameMaxLength();
+    }
+
+    @Override
+    public int getMaxServerMessageDuration() {
+        return net.tysontheember.emberstextapi.config.ModConfig.getMaxServerMessageDuration();
+    }
+
+    @Override
+    public int getMaxServerActiveMessages() {
+        return net.tysontheember.emberstextapi.config.ModConfig.getMaxServerActiveMessages();
+    }
+
+    @Override
+    public int getMaxQueueSize() {
+        return net.tysontheember.emberstextapi.config.ModConfig.getMaxQueueSize();
+    }
+
+    @Override
+    public List<String> getAllowedEffects() {
+        return net.tysontheember.emberstextapi.config.ModConfig.getAllowedEffects();
+    }
+
+    @Override
+    public List<String> getDisallowedMarkupTags() {
+        return net.tysontheember.emberstextapi.config.ModConfig.getDisallowedMarkupTags();
+    }
+
+    @Override
+    public boolean isReduceMotionEnabled() {
+        return net.tysontheember.emberstextapi.config.ModConfig.isReduceMotionEnabled();
+    }
+
+    @Override
+    public int getMaxNeonQuality() {
+        return net.tysontheember.emberstextapi.config.ModConfig.getMaxNeonQuality();
+    }
+
+    @Override
+    public int getTextLayoutCacheSize() {
+        return net.tysontheember.emberstextapi.config.ModConfig.getTextLayoutCacheSize();
+    }
+
+    @Override
+    public boolean isSdfEnabled() {
+        return net.tysontheember.emberstextapi.config.ModConfig.isSdfEnabled();
+    }
 }

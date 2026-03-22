@@ -10,11 +10,17 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.client.event.RegisterShadersEvent;
 import org.slf4j.Logger;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
+import net.tysontheember.emberstextapi.immersivemessages.api.FontAliasRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
+import net.tysontheember.emberstextapi.sdf.SDFShaders;
 import net.tysontheember.emberstextapi.platform.NetworkHelper;
 import net.tysontheember.emberstextapi.platform.ConfigHelper;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.client.renderer.ShaderInstance;
+import java.io.IOException;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(EmbersTextAPI.MODID)
@@ -67,8 +73,25 @@ public class EmbersTextAPI
             // Initialize effect registry with all built-in effects
             event.enqueueWork(() -> {
                 EffectRegistry.initializeDefaultEffects();
+                FontAliasRegistry.initBuiltins();
                 LOGGER.info("EmbersTextAPI: Initialized visual effects system");
             });
+        }
+
+        @SubscribeEvent
+        public static void onRegisterShaders(RegisterShadersEvent event) throws IOException {
+            event.registerShader(
+                new ShaderInstance(event.getResourceProvider(),
+                    "rendertype_eta_sdf_text",
+                    DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP),
+                SDFShaders::setSdfTextShader
+            );
+            event.registerShader(
+                new ShaderInstance(event.getResourceProvider(),
+                    "rendertype_eta_sdf_text_see_through",
+                    DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP),
+                SDFShaders::setSdfTextSeeThroughShader
+            );
         }
     }
 }

@@ -2,6 +2,7 @@ package net.tysontheember.emberstextapi.forge;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
+import net.tysontheember.emberstextapi.network.ServerMessageLimiter;
 import net.tysontheember.emberstextapi.network.forge.ForgeNetworkHandler;
 import net.tysontheember.emberstextapi.platform.NetworkHelper;
 
@@ -20,11 +21,13 @@ public class ForgeNetworkHelper implements NetworkHelper {
 
     @Override
     public void sendMessage(ServerPlayer player, ImmersiveMessage message) {
+        ServerMessageLimiter.sanitize(message);
         handler.sendMessage(player, message);
     }
 
     @Override
     public void sendOpenMessage(ServerPlayer player, ImmersiveMessage message) {
+        ServerMessageLimiter.sanitize(message);
         handler.sendOpenMessage(player, message);
     }
 
@@ -45,6 +48,7 @@ public class ForgeNetworkHelper implements NetworkHelper {
 
     @Override
     public void sendQueue(ServerPlayer player, String channel, List<List<ImmersiveMessage>> steps) {
+        steps = ServerMessageLimiter.sanitizeQueue(steps);
         handler.sendQueue(player, channel, steps);
     }
 

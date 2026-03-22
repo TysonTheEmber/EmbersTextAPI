@@ -9,10 +9,16 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.tysontheember.emberstextapi.client.ClientMessageManager;
+import net.tysontheember.emberstextapi.immersivemessages.api.FontAliasRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
+import net.tysontheember.emberstextapi.sdf.SDFShaders;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.client.renderer.ShaderInstance;
+import java.io.IOException;
 
 @EventBusSubscriber(modid = "emberstextapi", bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
 public class NeoForgeClientEvents {
@@ -52,6 +58,23 @@ class NeoForgeClientModEvents {
     public static void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
             EffectRegistry.initializeDefaultEffects();
+            FontAliasRegistry.initBuiltins();
         });
+    }
+
+    @SubscribeEvent
+    public static void onRegisterShaders(RegisterShadersEvent event) throws IOException {
+        event.registerShader(
+            new ShaderInstance(event.getResourceProvider(),
+                "rendertype_eta_sdf_text",
+                DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP),
+            SDFShaders::setSdfTextShader
+        );
+        event.registerShader(
+            new ShaderInstance(event.getResourceProvider(),
+                "rendertype_eta_sdf_text_see_through",
+                DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP),
+            SDFShaders::setSdfTextSeeThroughShader
+        );
     }
 }
