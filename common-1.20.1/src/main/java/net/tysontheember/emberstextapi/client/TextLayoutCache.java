@@ -3,6 +3,8 @@ package net.tysontheember.emberstextapi.client;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 
+import net.tysontheember.emberstextapi.platform.ConfigHelper;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,13 +25,21 @@ import java.util.function.Supplier;
  */
 public final class TextLayoutCache {
     /** Maximum number of cached layout entries before LRU eviction begins. */
-    private static final int MAX_ENTRIES = 256;
+    private static final int MAX_ENTRIES = loadMaxEntries();
     private static final Map<Key, Layout> CACHE = Collections.synchronizedMap(new LinkedHashMap<>(64, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<Key, Layout> eldest) {
             return size() > MAX_ENTRIES;
         }
     });
+
+    private static int loadMaxEntries() {
+        try {
+            return ConfigHelper.getInstance().getTextLayoutCacheSize();
+        } catch (Exception e) {
+            return 256;
+        }
+    }
 
     private TextLayoutCache() {
     }

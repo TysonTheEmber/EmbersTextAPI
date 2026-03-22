@@ -89,6 +89,11 @@ public class FabricConfigHelper implements ConfigHelper {
         return config != null ? config.maxActiveMessages : 0;
     }
 
+    @Override
+    public int getAnvilNameMaxLength() {
+        return config != null ? config.anvilNameMaxLength : 50;
+    }
+
     private void save() {
         Path configPath = PlatformHelper.getInstance().getConfigDir().resolve(CONFIG_FILE);
         try {
@@ -98,6 +103,55 @@ public class FabricConfigHelper implements ConfigHelper {
         } catch (IOException e) {
             EmbersTextAPIFabric.LOGGER.error("Failed to save config", e);
         }
+    }
+
+    // --- New COMMON accessors ---
+
+    @Override
+    public int getMaxServerMessageDuration() {
+        return config != null ? config.maxServerMessageDuration : 1200;
+    }
+
+    @Override
+    public int getMaxServerActiveMessages() {
+        return config != null ? config.maxServerActiveMessages : 10;
+    }
+
+    @Override
+    public int getMaxQueueSize() {
+        return config != null ? config.maxQueueSize : 50;
+    }
+
+    @Override
+    public List<String> getAllowedEffects() {
+        return config != null && config.allowedEffects != null ? config.allowedEffects : new ArrayList<>();
+    }
+
+    @Override
+    public List<String> getDisallowedMarkupTags() {
+        return config != null && config.disallowedMarkupTags != null ? config.disallowedMarkupTags : new ArrayList<>();
+    }
+
+    // --- New CLIENT accessors ---
+
+    @Override
+    public boolean isReduceMotionEnabled() {
+        return config != null && config.reduceMotion;
+    }
+
+    @Override
+    public int getMaxNeonQuality() {
+        return config != null ? config.maxNeonQuality : 3;
+    }
+
+    @Override
+    public int getTextLayoutCacheSize() {
+        return config != null ? config.textLayoutCacheSize : 256;
+    }
+
+    @Override
+    public boolean isSdfEnabled() {
+        return config == null || config.sdfEnabled;
     }
 
     /**
@@ -111,5 +165,19 @@ public class FabricConfigHelper implements ConfigHelper {
         public List<String> markupPlayerList = new ArrayList<>();
         public int maxMessageDuration = 0;
         public int maxActiveMessages = 0;
+        public int anvilNameMaxLength = 50;
+        // Server-side message limits
+        public int maxServerMessageDuration = 1200;
+        public int maxServerActiveMessages = 10;
+        public int maxQueueSize = 50;
+        public List<String> allowedEffects = new ArrayList<>();
+        // Markup
+        public List<String> disallowedMarkupTags = new ArrayList<>();
+        // Accessibility
+        public boolean reduceMotion = false;
+        public int maxNeonQuality = 3;
+        // Performance
+        public int textLayoutCacheSize = 256;
+        public boolean sdfEnabled = true;
     }
 }

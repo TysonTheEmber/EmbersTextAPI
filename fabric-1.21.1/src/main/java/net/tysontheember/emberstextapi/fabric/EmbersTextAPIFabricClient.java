@@ -1,11 +1,16 @@
 package net.tysontheember.emberstextapi.fabric;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.CoreShaderRegistrationCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.minecraft.resources.ResourceLocation;
 import net.tysontheember.emberstextapi.client.ClientMessageManager;
+import net.tysontheember.emberstextapi.immersivemessages.api.FontAliasRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
+import net.tysontheember.emberstextapi.sdf.SDFShaders;
 import net.tysontheember.emberstextapi.network.fabric.packets.FabricClientPacketHandlers;
 
 /**
@@ -17,9 +22,24 @@ public class EmbersTextAPIFabricClient implements ClientModInitializer {
     public void onInitializeClient() {
         EmbersTextAPIFabric.LOGGER.info("Initializing EmbersTextAPI client for Fabric");
 
-        // Initialize effect registry
+        // Initialize effect registry and font alias registry
         EffectRegistry.initializeDefaultEffects();
+        FontAliasRegistry.initBuiltins();
         EmbersTextAPIFabric.LOGGER.info("Initialized visual effects system");
+
+        // Register SDF text shaders
+        CoreShaderRegistrationCallback.EVENT.register(context -> {
+            context.register(
+                ResourceLocation.fromNamespaceAndPath("minecraft", "rendertype_eta_sdf_text"),
+                DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP,
+                SDFShaders::setSdfTextShader
+            );
+            context.register(
+                ResourceLocation.fromNamespaceAndPath("minecraft", "rendertype_eta_sdf_text_see_through"),
+                DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP,
+                SDFShaders::setSdfTextSeeThroughShader
+            );
+        });
 
         // Register network packet handlers
         FabricClientPacketHandlers.register();

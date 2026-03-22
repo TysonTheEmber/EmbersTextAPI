@@ -52,7 +52,7 @@ public class ImmersiveMessage {
     private static final Logger LOGGER = LogUtils.getLogger();
 
     private final Component text;
-    private final float duration;
+    private float duration;
     private float age;
     private float previousAge;
     /** Number of ticks spent fading in before reaching full opacity. */
@@ -1015,6 +1015,14 @@ public class ImmersiveMessage {
         return Mth.ceil(duration);
     }
 
+    public float getDuration() {
+        return duration;
+    }
+
+    public void setDuration(float duration) {
+        this.duration = duration;
+    }
+
     /**
      * @return configured fade-in length in ticks.
      */
@@ -1716,7 +1724,7 @@ public class ImmersiveMessage {
                     }
                     Component comp = Component.literal(ch).withStyle(style);
                     FormattedCharSequence charSeq = comp.getVisualOrderText();
-                    float cw = font.width(charSeq);
+                    float cw = font.getSplitter().stringWidth(charSeq);
                     graphics.pose().pushPose();
                     graphics.pose().translate(xAdvance[0] + sx, lineBaseY + sy, 0);
                     graphics.drawString(font, charSeq, 0, 0, colour, shadow);
@@ -1772,7 +1780,7 @@ public class ImmersiveMessage {
                 }
                 Component comp = Component.literal(ch).withStyle(style);
                 FormattedCharSequence charSeq = comp.getVisualOrderText();
-                float cw = font.width(charSeq);
+                float cw = font.getSplitter().stringWidth(charSeq);
                 graphics.pose().pushPose();
                 graphics.pose().translate(xAdvance[0] + sx, baseY + sy, 0);
                 graphics.drawString(font, charSeq, 0, 0, colour, shadow);
@@ -1918,14 +1926,6 @@ public class ImmersiveMessage {
                                    int codePoint, net.minecraft.network.chat.Style style,
                                    float x, float y, float rotation, int color,
                                    float[] xAdvanceOut) {
-        // Skip alpha values that vanilla Font can force to opaque (0..3).
-        if (((color >>> 24) & 0xFF) <= 3) {
-            if (xAdvanceOut != null) {
-                xAdvanceOut[0] += font.width(new String(Character.toChars(codePoint)));
-            }
-            return;
-        }
-
         String ch = new String(Character.toChars(codePoint));
         // Strip the style's color so our explicit color parameter (with effect-computed ARGB)
         // is used by drawString. Minecraft's renderer ignores the color param when the style
@@ -1933,8 +1933,17 @@ public class ImmersiveMessage {
         Component comp = Component.literal(ch).withStyle(style.withColor((TextColor) null));
         FormattedCharSequence charSeq = comp.getVisualOrderText();
 
-        // Calculate character width
-        float cw = font.width(charSeq);
+        // Calculate character width using float precision — font.width() returns int
+        // (ceiling-rounded), which causes cumulative spacing drift in per-character rendering.
+        float cw = font.getSplitter().stringWidth(charSeq);
+
+        // Skip alpha values that vanilla Font can force to opaque (0..3).
+        if (((color >>> 24) & 0xFF) <= 3) {
+            if (xAdvanceOut != null) {
+                xAdvanceOut[0] += cw;
+            }
+            return;
+        }
 
         graphics.pose().pushPose();
 
