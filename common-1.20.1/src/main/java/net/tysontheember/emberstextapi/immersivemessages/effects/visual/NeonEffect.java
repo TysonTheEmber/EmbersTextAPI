@@ -4,6 +4,7 @@ import net.minecraft.Util;
 import net.tysontheember.emberstextapi.immersivemessages.effects.BaseEffect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
 import net.tysontheember.emberstextapi.immersivemessages.effects.params.Params;
+import net.tysontheember.emberstextapi.platform.ConfigHelper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -105,7 +106,13 @@ public class NeonEffect extends BaseEffect {
         // Parse and clamp parameters
         this.radius = clamp(params.getDouble("r").map(Number::floatValue).orElse(2.0f), 0.5f, 8.0f);
         this.intensity = clamp(params.getDouble("i").map(Number::floatValue).orElse(1.0f), 0.1f, 3.0f);
-        this.quality = (int) clamp(params.getDouble("q").orElse(2.0), 1, 3);
+        int requestedQuality = (int) clamp(params.getDouble("q").orElse(2.0), 1, 3);
+        try {
+            int maxQuality = ConfigHelper.getInstance().getMaxNeonQuality();
+            requestedQuality = Math.min(requestedQuality, maxQuality);
+        } catch (Exception ignored) {
+        }
+        this.quality = requestedQuality;
         this.pulseSpeed = Math.max(0f, params.getDouble("p").map(Number::floatValue).orElse(0.0f));
         this.falloffPower = clamp(params.getDouble("f").map(Number::floatValue).orElse(2.0f), 0.5f, 4.0f);
 

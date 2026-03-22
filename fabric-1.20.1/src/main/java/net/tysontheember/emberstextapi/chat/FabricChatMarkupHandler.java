@@ -8,6 +8,8 @@ import net.tysontheember.emberstextapi.util.MarkupStripper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 /**
  * Strips markup tags from chat messages for players who are not allowed to use markup.
  * Uses Fabric's ServerMessageEvents to intercept chat messages.
@@ -33,6 +35,18 @@ public class FabricChatMarkupHandler {
                 Component strippedComponent = Component.literal("<" + sender.getName().getString() + "> " + stripped);
                 sender.server.getPlayerList().broadcastSystemMessage(strippedComponent, false);
                 return false; // Cancel original message
+            }
+
+            // Strip disallowed tags (even for players who can use markup)
+            List<String> disallowed = ConfigHelper.getInstance().getDisallowedMarkupTags();
+            if (!disallowed.isEmpty()) {
+                String filtered = MarkupStripper.stripTags(content, disallowed);
+                if (!filtered.equals(content)) {
+                    LOGGER.debug("Stripped disallowed tags from chat message by {}", sender.getName().getString());
+                    Component filteredComponent = Component.literal("<" + sender.getName().getString() + "> " + filtered);
+                    sender.server.getPlayerList().broadcastSystemMessage(filteredComponent, false);
+                    return false;
+                }
             }
 
             return true;

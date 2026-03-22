@@ -11,6 +11,8 @@ import net.tysontheember.emberstextapi.util.MarkupStripper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+
 /**
  * Strips markup tags from chat messages for players who are not allowed to use markup.
  */
@@ -32,6 +34,17 @@ public class ChatMarkupHandler {
             String stripped = MarkupStripper.stripMarkup(message);
             LOGGER.debug("Stripped markup from chat message by {} (UUID: {})", player.getName().getString(), player.getUUID());
             event.setMessage(Component.literal(stripped));
+            return;
+        }
+
+        // Strip disallowed tags (even for players who can use markup)
+        List<String> disallowed = ConfigHelper.getInstance().getDisallowedMarkupTags();
+        if (!disallowed.isEmpty()) {
+            String filtered = MarkupStripper.stripTags(message, disallowed);
+            if (!filtered.equals(message)) {
+                LOGGER.debug("Stripped disallowed tags from chat message by {}", player.getName().getString());
+                event.setMessage(Component.literal(filtered));
+            }
         }
     }
 }

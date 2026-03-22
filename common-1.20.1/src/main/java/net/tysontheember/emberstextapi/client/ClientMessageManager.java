@@ -52,6 +52,18 @@ public final class ClientMessageManager {
         } catch (Exception ignored) {
         }
 
+        // Enforce maxMessageDuration cap
+        try {
+            int maxDuration = ConfigHelper.getInstance().getMaxMessageDuration();
+            if (maxDuration > 0) {
+                int msgDuration = message.durationTicks();
+                if (msgDuration <= 0 || msgDuration > maxDuration) {
+                    message.setDuration(maxDuration);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
         ACTIVE.remove(id);
         ACTIVE.put(id, new ActiveMessage(id, message));
     }
@@ -90,6 +102,23 @@ public final class ClientMessageManager {
     public static void enqueueSteps(String channel, List<QueueStep> steps) {
         if (channel == null || steps == null || steps.isEmpty()) {
             return;
+        }
+
+        // Enforce maxQueueSize
+        try {
+            int maxQueueSize = ConfigHelper.getInstance().getMaxQueueSize();
+            if (maxQueueSize > 0) {
+                Deque<QueueStep> existing = CHANNEL_QUEUES.get(channel);
+                int currentSize = existing != null ? existing.size() : 0;
+                int available = maxQueueSize - currentSize;
+                if (available <= 0) {
+                    return;
+                }
+                if (steps.size() > available) {
+                    steps = steps.subList(0, available);
+                }
+            }
+        } catch (Exception ignored) {
         }
 
         Set<UUID> activeIds = CHANNEL_ACTIVE_IDS.get(channel);

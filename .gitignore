@@ -29,4 +29,11 @@ forge*changelog.txt
 temp_reference/
 .gradle-local/
 
+# Decompiled MC stubs (dev reference only)
+/net/
+/org/
+
+# SDF debug output
+debug-sdf/
+
 *.md
