@@ -31,7 +31,7 @@ class EdgeColoringTest {
                 new Line(0, 100, 0, 0)         // left: downward
         );
 
-        GlyphOutline outline = ,new GlyphOutline(
+        GlyphOutline outline = new GlyphOutline(
                 List.of(new Contour(segments)),
                 0, 0, 100, 100, false, false
         );
@@ -70,7 +70,7 @@ class EdgeColoringTest {
                 new Line(0, 100, 0, 0)
         );
 
-        GlyphOutline outline = ,new GlyphOutline(
+        GlyphOutline outline = new GlyphOutline(
                 List.of(new Contour(segments)),
                 0, 0, 100, 100, false, false
         );
@@ -109,7 +109,7 @@ class EdgeColoringTest {
                 new CubicBezier(0, (float) -r, (float) (r * k), (float) -r, (float) r, (float) (-r * k), (float) r, 0)
         );
 
-        GlyphOutline outline = ,new GlyphOutline(
+        GlyphOutline outline = new GlyphOutline(
                 List.of(new Contour(segments)),
                 (float) -r, (float) -r, (float) r, (float) r, false, false
         );
@@ -140,7 +140,7 @@ class EdgeColoringTest {
                 new Line(50, 86.6f, 0, 0)
         );
 
-        GlyphOutline outline = ,new GlyphOutline(
+        GlyphOutline outline = new GlyphOutline(
                 List.of(new Contour(segments)),
                 0, 0, 100, 86.6f, false, false
         );
@@ -173,7 +173,7 @@ class EdgeColoringTest {
                 new Line(2.45f, 34.55f, 50, 0)
         );
 
-        GlyphOutline outline = ,new GlyphOutline(
+        GlyphOutline outline = new GlyphOutline(
                 List.of(new Contour(segments)),
                 2.45f, 0, 97.55f, 90.45f, false, false
         );
@@ -308,7 +308,7 @@ class EdgeColoringTest {
                 new Line(50, 150, 50, 50)
         ));
 
-        GlyphOutline outline = ,new GlyphOutline(
+        GlyphOutline outline = new GlyphOutline(
                 List.of(outer, inner),
                 0, 0, 200, 200, false, false
         );
