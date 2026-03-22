@@ -31,9 +31,9 @@ class EdgeColoringTest {
                 new Line(0, 100, 0, 0)         // left: downward
         );
 
-        GlyphOutline outline = new GlyphOutline(
+        GlyphOutline outline = ,new GlyphOutline(
                 List.of(new Contour(segments)),
-                0, 0, 100, 100, false
+                0, 0, 100, 100, false, false
         );
 
         EdgeColoring.ColoredContour[] result = EdgeColoring.colorEdges(outline, DEFAULT_THRESHOLD);
@@ -70,9 +70,9 @@ class EdgeColoringTest {
                 new Line(0, 100, 0, 0)
         );
 
-        GlyphOutline outline = new GlyphOutline(
+        GlyphOutline outline = ,new GlyphOutline(
                 List.of(new Contour(segments)),
-                0, 0, 100, 100, false
+                0, 0, 100, 100, false, false
         );
 
         // Use π/4 (45°) threshold — should detect all 90° corners
@@ -109,9 +109,9 @@ class EdgeColoringTest {
                 new CubicBezier(0, (float) -r, (float) (r * k), (float) -r, (float) r, (float) (-r * k), (float) r, 0)
         );
 
-        GlyphOutline outline = new GlyphOutline(
+        GlyphOutline outline = ,new GlyphOutline(
                 List.of(new Contour(segments)),
-                (float) -r, (float) -r, (float) r, (float) r, false
+                (float) -r, (float) -r, (float) r, (float) r, false, false
         );
 
         // With default threshold (3.0 rad ≈ 171.9°), the smooth joins between
@@ -140,9 +140,9 @@ class EdgeColoringTest {
                 new Line(50, 86.6f, 0, 0)
         );
 
-        GlyphOutline outline = new GlyphOutline(
+        GlyphOutline outline = ,new GlyphOutline(
                 List.of(new Contour(segments)),
-                0, 0, 100, 86.6f, false
+                0, 0, 100, 86.6f, false, false
         );
 
         // Low threshold to detect the 60° corners
@@ -173,9 +173,9 @@ class EdgeColoringTest {
                 new Line(2.45f, 34.55f, 50, 0)
         );
 
-        GlyphOutline outline = new GlyphOutline(
+        GlyphOutline outline = ,new GlyphOutline(
                 List.of(new Contour(segments)),
-                2.45f, 0, 97.55f, 90.45f, false
+                2.45f, 0, 97.55f, 90.45f, false, false
         );
 
         EdgeColoring.ColoredContour[] result = EdgeColoring.colorEdges(outline, 0.5);
@@ -308,9 +308,9 @@ class EdgeColoringTest {
                 new Line(50, 150, 50, 50)
         ));
 
-        GlyphOutline outline = new GlyphOutline(
+        GlyphOutline outline = ,new GlyphOutline(
                 List.of(outer, inner),
-                0, 0, 200, 200, false
+                0, 0, 200, 200, false, false
         );
 
         EdgeColoring.ColoredContour[] result = EdgeColoring.colorEdges(outline, 0.5);
