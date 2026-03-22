@@ -79,7 +79,7 @@ class MSDFGenerationTest {
                 new Line(100, 0, 50, 86.6f),
                 new Line(50, 86.6f, 0, 0)
         );
-        GlyphOutline outline = ,new GlyphOutline(
+        GlyphOutline outline = new GlyphOutline(
                 List.of(new Contour(segments)),
                 0, 0, 100, 86.6f, false, false
         );
@@ -152,7 +152,7 @@ class MSDFGenerationTest {
                 new CubicBezier((float) -r, 0, (float) -r, (float) (-r * k), (float) (-r * k), (float) -r, 0, (float) -r),
                 new CubicBezier(0, (float) -r, (float) (r * k), (float) -r, (float) r, (float) (-r * k), (float) r, 0)
         );
-        GlyphOutline outline = ,new GlyphOutline(
+        GlyphOutline outline = new GlyphOutline(
                 List.of(new Contour(segments)),
                 (float) -r, (float) -r, (float) r, (float) r, false, false
         );
@@ -227,7 +227,7 @@ class MSDFGenerationTest {
                 new Line(x1, y1, x0, y1),
                 new Line(x0, y1, x0, y0)
         );
-        return ,new GlyphOutline(
+        return new GlyphOutline(
                 List.of(new Contour(segments)),
                 x0, y0, x1, y1, false, false
         );
