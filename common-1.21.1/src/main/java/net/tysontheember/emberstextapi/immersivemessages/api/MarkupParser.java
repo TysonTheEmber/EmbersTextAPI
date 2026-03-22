@@ -198,12 +198,24 @@ public class MarkupParser {
     
     private static TextSpan createSpanWithCurrentStyles(String content, Stack<TextSpan> styleStack) {
         TextSpan span = new TextSpan(content);
-        
+
         // Apply all styles from the stack (inheritance)
         for (TextSpan style : styleStack) {
             inheritStyles(span, style);
         }
-        
+
+        // Auto-resolve bold font variant: if bold and a custom font are both set,
+        // try switching to the _bold variant (e.g. emberstextapi:norse -> emberstextapi:norse_bold)
+        if (Boolean.TRUE.equals(span.getBold()) && span.getFont() != null) {
+            String fontPath = span.getFont().getPath();
+            if (!fontPath.endsWith("_bold") && FontAliasRegistry.hasBoldVariant(span.getFont())) {
+                ResourceLocation boldFont = ResourceLocation.tryParse(span.getFont().getNamespace() + ":" + fontPath + "_bold");
+                if (boldFont != null) {
+                    span.font(boldFont);
+                }
+            }
+        }
+
         return span;
     }
     
@@ -342,8 +354,14 @@ public class MarkupParser {
                 if (fontValue == null) fontValue = attrs.get("font");
                 if (fontValue == null) fontValue = attrs.get("name");
                 if (fontValue != null) {
-                    ResourceLocation font = ResourceLocation.tryParse(fontValue);
-                    if (font != null) span.font(font);
+                    // Resolve via alias registry first (e.g. "norse", "cinzel"),
+                    // then fall back to direct ResourceLocation parse for full IDs.
+                    ResourceLocation font = FontAliasRegistry.resolve(fontValue);
+                    if (font != null) {
+                        span.font(font);
+                    } else {
+                        LOGGER.debug("Unknown font name or invalid ResourceLocation: '{}'", fontValue);
+                    }
                 }
             }
             
@@ -739,8 +757,12 @@ public class MarkupParser {
             if (styles.obfuscated() != null) span.obfuscated(styles.obfuscated());
             if (styles.color() != null) span.color(styles.color());
             if (styles.font() != null) {
-                ResourceLocation font = ResourceLocation.tryParse(styles.font());
-                if (font != null) span.font(font);
+                ResourceLocation font = FontAliasRegistry.resolve(styles.font());
+                if (font != null) {
+                    span.font(font);
+                } else {
+                    LOGGER.debug("Unknown font name or invalid ResourceLocation in preset styles.font: '{}'", styles.font());
+                }
             }
         }
 

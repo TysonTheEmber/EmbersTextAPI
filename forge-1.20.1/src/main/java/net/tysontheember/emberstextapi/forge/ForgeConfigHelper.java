@@ -48,4 +48,54 @@ public class ForgeConfigHelper implements ConfigHelper {
     public int getMaxActiveMessages() {
         return ModConfig.getMaxActiveMessages();
     }
+
+    @Override
+    public int getAnvilNameMaxLength() {
+        return ModConfig.getAnvilNameMaxLength();
+    }
+
+    @Override
+    public int getMaxServerMessageDuration() {
+        return ModConfig.getMaxServerMessageDuration();
+    }
+
+    @Override
+    public int getMaxServerActiveMessages() {
+        return ModConfig.getMaxServerActiveMessages();
+    }
+
+    @Override
+    public int getMaxQueueSize() {
+        return ModConfig.getMaxQueueSize();
+    }
+
+    @Override
+    public List<String> getAllowedEffects() {
+        return ModConfig.getAllowedEffects();
+    }
+
+    @Override
+    public List<String> getDisallowedMarkupTags() {
+        return ModConfig.getDisallowedMarkupTags();
+    }
+
+    @Override
+    public boolean isReduceMotionEnabled() {
+        return ModConfig.isReduceMotionEnabled();
+    }
+
+    @Override
+    public int getMaxNeonQuality() {
+        return ModConfig.getMaxNeonQuality();
+    }
+
+    @Override
+    public int getTextLayoutCacheSize() {
+        return ModConfig.getTextLayoutCacheSize();
+    }
+
+    @Override
+    public boolean isSdfEnabled() {
+        return ModConfig.isSdfEnabled();
+    }
 }

@@ -5,7 +5,9 @@
   "compatibilityLevel": "JAVA_21",
   "refmap": "emberstextapi.mixins.refmap.json",
   "mixins": [
-    "StyleMixin"
+    "StyleMixin",
+    "AnvilRenameMixin",
+    "AnvilMenuMixin"
   ],
   "client": [
     "client.LiteralContentsMixin",
@@ -14,7 +16,13 @@
     "client.FontAccess",
     "client.StringRenderOutputMixin",
     "client.StringSplitterMixin",
-    "client.emojiful.EmojiCharacterRendererMixin"
+    "client.BakedGlyphAccessor",
+    "client.FontTextureMixin",
+    "client.FontManagerMixin",
+    "client.GlyphRenderTypesMixin",
+    "client.FontSetMixin",
+    "client.emojiful.EmojiCharacterRendererMixin",
+"client.AnvilScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
