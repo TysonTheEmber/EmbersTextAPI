@@ -23,7 +23,7 @@ import java.util.UUID;
  */
 public final class ForgeNetworkHandler implements NetworkHandler {
     private static final String PROTOCOL = "5";
-    private static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "tooltip");
+    private static final ResourceLocation ID = new ResourceLocation(EmbersTextAPI.MODID, "tooltip");
 
     /**
      * The Forge SimpleChannel used for network communication.

@@ -258,7 +258,7 @@ public class MessageCommands {
                             .scale(1.5f));
             case 10 -> {
                 Component norse = Component.literal("\u16A0\u16A2\u16A6\u16A8\u16AB\u16B2")
-                        .withStyle(s -> s.withFont(ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "norse")));
+                        .withStyle(s -> s.withFont(new ResourceLocation(EmbersTextAPI.MODID, "norse")));
                 EmbersTextAPI.sendMessage(player, new ImmersiveMessage(norse, 100f).scale(4f).anchor(TextAnchor.MIDDLE));
             }
             case 11 -> EmbersTextAPI.sendMessage(player,
@@ -271,7 +271,7 @@ public class MessageCommands {
                             .anchor(TextAnchor.MIDDLE));
             case 13 -> {
                 List<TextSpan> spans = new ArrayList<>();
-                spans.add(new TextSpan("\u16A0\u16A2\u16A6 ").font(ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "norse")));
+                spans.add(new TextSpan("\u16A0\u16A2\u16A6 ").font(new ResourceLocation(EmbersTextAPI.MODID, "norse")));
                 spans.add(new TextSpan("and default italic"));
                 EmbersTextAPI.sendMessage(player, new ImmersiveMessage(spans, 100f).background(true).scale(1.5f).anchor(TextAnchor.MIDDLE));
             }
