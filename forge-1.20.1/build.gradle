@@ -64,6 +64,31 @@ minecraft {
 
 jarJar.enable()
 
+// Resolvable configuration for lwjgl-freetype — used to embed classes directly
+// instead of via JarJar, which would create a named JPMS module and trigger
+// "Module org.lwjgl not found" on dedicated servers (GH #32)
+configurations {
+    lwjglFreeType {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
+// Embed lwjgl-freetype classes directly into the distributable -all.jar (without
+// module-info.class) to prevent JPMS "Module org.lwjgl not found" crash on
+// dedicated servers (GH #32). JarJar would add the dependency as a named JPMS
+// module, triggering resolution of "requires org.lwjgl" — absent on servers.
+tasks.named('jarJar').configure {
+    from({
+        project.configurations.lwjglFreeType.collect { zipTree(it) }
+    }) {
+        // Root module-info + Multi-Release JAR variant (LWJGL uses MRJAR)
+        exclude 'module-info.class'
+        exclude 'META-INF/versions/*/module-info.class'
+        exclude 'META-INF/MANIFEST.MF'
+    }
+}
+
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 // Add common source sets directly
@@ -100,8 +125,8 @@ dependencies {
     minecraftLibrary("org.lwjgl:lwjgl-freetype:3.3.3:natives-linux") { transitive = false }
     minecraftLibrary("org.lwjgl:lwjgl-freetype:3.3.3:natives-windows") { transitive = false }
     minecraftLibrary("org.lwjgl:lwjgl-freetype:3.3.3:natives-macos-arm64") { transitive = false }
-    // JarJar embeds these in the production mod JAR
-    jarJar(group: 'org.lwjgl', name: 'lwjgl-freetype', version: '[3.3.3,3.3.4)') { transitive = false }
+    // Resolved separately for direct class embedding (see jar task) — avoids JPMS crash on servers
+    lwjglFreeType("org.lwjgl:lwjgl-freetype:3.3.3") { transitive = false }
 
     // Test dependencies
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
