@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "effects": [
+    { "type": "rainbow", "params": { "f": 3.0, "w": 0.4 } },
+    { "type": "glitch", "params": { "f": 2.0 } },
+    { "type": "bounce", "params": { "a": 1.5, "f": 2.0 } }
+  ],
+  "styles": {
+    "bold": true
+  }
+}
