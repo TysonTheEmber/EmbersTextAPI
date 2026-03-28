@@ -1,1 +1,1 @@
-Fixed Server Crash
+https://github.com/TysonTheEmber/EmbersTextAPI/issues/32 Fixed
