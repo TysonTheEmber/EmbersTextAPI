@@ -24,6 +24,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
+import net.tysontheember.emberstextapi.immersivemessages.effects.preset.PresetDefinition;
+import net.tysontheember.emberstextapi.immersivemessages.effects.preset.PresetLoader;
+import net.tysontheember.emberstextapi.immersivemessages.effects.preset.PresetRegistry;
+
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.*;
@@ -68,6 +73,16 @@ public abstract class FontManagerMixin {
             CallbackInfoReturnable<CompletableFuture<Void>> cir) {
 
         SDFProviderRegistry.clear();
+
+        // Ensure effects are registered before loading presets (reload may fire before client setup)
+        EffectRegistry.initializeDefaultEffects();
+
+        // Load effect presets from resource packs
+        PresetRegistry.clear();
+        List<PresetDefinition> presets = PresetLoader.loadAll(resourceManager);
+        for (PresetDefinition preset : presets) {
+            PresetRegistry.register(preset);
+        }
 
         try {
             if (!ConfigHelper.getInstance().isSdfEnabled()) {

@@ -1,0 +1,12 @@
+{
+  "format_version": 1,
+  "effects": [
+    { "type": "gradient", "params": { "from": "88CCFF", "to": "FFFFFF" } },
+    { "type": "pendulum", "params": { "a": 0.4, "f": 0.5 } },
+    { "type": "neon", "params": { "c": "44AAFF" } }
+  ],
+  "styles": {
+    "italic": true,
+    "font": "emberstextapi:cardo"
+  }
+}

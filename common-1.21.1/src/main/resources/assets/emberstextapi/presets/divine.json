@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "effects": [
+    { "type": "neon", "params": { "c": "FFFFAA" } },
+    { "type": "wave", "params": { "a": 0.5, "f": 0.6 } },
+    { "type": "pulse", "params": { "f": 0.8, "a": 0.3 } }
+  ],
+  "styles": {
+    "bold": true,
+    "color": "FFD700",
+    "font": "emberstextapi:almendra"
+  }
+}
