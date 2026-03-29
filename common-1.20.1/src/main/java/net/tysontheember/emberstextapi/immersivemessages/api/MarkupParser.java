@@ -25,7 +25,7 @@ public class MarkupParser {
 
     // Updated pattern to handle self-closing tags: captures trailing / before >
     // Attribute values must not include / to avoid capturing it as part of the value
-    private static final Pattern TAG_PATTERN = Pattern.compile("<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:\\s+[a-zA-Z][a-zA-Z0-9]*(?:[=:](?:[\"'][^\"']*[\"']|[^\\s>/]+))?)*)(/?)>");
+    private static final Pattern TAG_PATTERN = Pattern.compile("<(/?)([a-zA-Z0-9_][a-zA-Z0-9_]*)((?:\\s+[a-zA-Z][a-zA-Z0-9]*(?:[=:](?:[\"'][^\"']*[\"']|[^\\s>/]+))?)*)(/?)>");
     private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile("([a-zA-Z][a-zA-Z0-9]*)(?:[=:](?:([\"'])([^\"']*)\\2|([^\\s>/]+)))?");
     
     /**
