@@ -23,7 +23,7 @@ body:
     id: mod-version
     attributes:
       label: Mod Version
-      description: The version of Ember's Text API you're using
+      description: The version of Loot Log you're using
       placeholder: e.g. 2.9.4
     validations:
       required: true
