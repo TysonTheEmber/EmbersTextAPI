@@ -48,19 +48,19 @@ body:
     validations:
       required: true
 
-  - type: textarea
+  - type: input
     id: log
     attributes:
       label: Crash Log / Error Output
-      description: Paste any relevant logs or crash reports. This will be auto-formatted as code.
-      render: text
+      description: Upload your latest.log to https://mclo.gs and paste the link here
+      placeholder: https://mclo.gs/
     validations:
-      required: false
+      required: true
 
   - type: textarea
     id: other-mods
     attributes:
       label: Other Mods Installed
-      description: List any other mods you have installed that may be relevant
+      description: List any other mods you have installed that may be relevant, and the modpack if you are using one
     validations:
       required: false
