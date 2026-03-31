@@ -1,0 +1,38 @@
+name: Question / Support
+description: Ask a question about using Ember's Text API
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Need help with Ember's Text API? Ask your question below.
+        Check the [documentation](https://docs.tysontheember.dev) first - your answer might already be there!
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What do you need help with?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Any relevant details - what you've tried, your setup, code snippets, etc.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: loader
+    attributes:
+      label: Mod Loader (if applicable)
+      options:
+        - Forge 1.20.1
+        - Fabric 1.20.1
+        - NeoForge 1.21.1
+        - Fabric 1.21.1
+        - N/A
+    validations:
+      required: false
