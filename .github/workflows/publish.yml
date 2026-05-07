@@ -242,6 +242,15 @@ jobs:
             -PmavenRepoPath="${{ github.workspace }}/maven-pages" \
             --no-daemon
 
+      - name: Publish forge-1.20.1 to Maven repo
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          cd forge-1.20.1
+          ./gradlew publishMavenJavaPublicationToLocalMavenRepository \
+            -Pmod_version=${{ steps.version.outputs.version }} \
+            -PmavenRepoPath="${{ github.workspace }}/maven-pages" \
+            --no-daemon
+
       - name: Write CNAME
         run: echo "maven.tysontheember.dev" > maven-pages/CNAME
 
