@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.0.0-alpha.1 — [unreleased]
+## v3.0.0-alpha.1 — 2026-05-07
 
 First public alpha of v3. Multi-loader release across Fabric, NeoForge, and Forge
 on MC 1.20.1, 1.21.1, and 26.1.

@@ -112,14 +112,6 @@ jobs:
             *)        echo "type=release" >> "$GITHUB_OUTPUT" ;;
           esac
 
-      - name: Detect dry-run tag
-        id: dryrun
-        run: |
-          if [[ "${{ github.ref_name }}" == "v3.0.0-alpha.0" ]]; then
-            echo "skip_publish=true" >> "$GITHUB_OUTPUT"
-            echo "Dry-run tag detected; mc-publish will be skipped"
-          fi
-
       - name: Build ${{ matrix.name }}
         run: |
           if [[ "${{ matrix.standalone }}" == "true" ]]; then
@@ -164,7 +156,6 @@ jobs:
           echo "Resolved jar: $JAR"
 
       - name: Publish ${{ matrix.name }}
-        if: steps.dryrun.outputs.skip_publish != 'true'
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
