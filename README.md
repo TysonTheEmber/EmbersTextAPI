@@ -1,9 +1,9 @@
 # EmbersTextAPI
 
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1%20%7C%201.21.1-brightgreen)](https://minecraft.net)
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.20.1%20%7C%201.21.1%20%7C%2026.1-brightgreen)](https://minecraft.net)
 [![Forge](https://img.shields.io/badge/Forge-1.20.1-orange)](https://files.minecraftforge.net/)
-[![NeoForge](https://img.shields.io/badge/NeoForge-1.21.1-blue)](https://neoforged.net/)
-[![Fabric](https://img.shields.io/badge/Fabric-1.20.1%20%7C%201.21.1-green)](https://fabricmc.net/)
+[![NeoForge](https://img.shields.io/badge/NeoForge-1.21.1%20%7C%2026.1-blue)](https://neoforged.net/)
+[![Fabric](https://img.shields.io/badge/Fabric-1.20.1%20%7C%201.21.1%20%7C%2026.1-green)](https://fabricmc.net/)
 
 Advanced text rendering API for Minecraft mods with visual effects, animations, and markup parsing.
 
@@ -22,12 +22,14 @@ For full documentation, guides, and examples, visit **[tysontheember.dev](https:
 
 ## Supported Versions
 
-| Minecraft Version | Loader   | Status              |
-|-------------------|----------|---------------------|
-| 1.20.1            | Forge    | Fully Supported     |
-| 1.20.1            | Fabric   | Fully Supported     |
-| 1.21.1            | NeoForge | Fully Supported     |
-| 1.21.1            | Fabric   | Fully Supported     |
+| Minecraft Version | Loader   | Status                                |
+|-------------------|----------|---------------------------------------|
+| 1.20.1            | Forge    | Fully Supported                       |
+| 1.20.1            | Fabric   | Fully Supported                       |
+| 1.21.1            | NeoForge | Fully Supported                       |
+| 1.21.1            | Fabric   | Fully Supported                       |
+| 26.1.x            | NeoForge | Alpha (NeoForge 26.1 itself is beta)  |
+| 26.1.x            | Fabric   | Alpha (NeoForge 26.1 itself is beta)  |
 
 ## Installation
 
@@ -37,18 +39,23 @@ For full documentation, guides, and examples, visit **[tysontheember.dev](https:
 
 ## Building from Source
 
-Requires Java 21 (for MC 1.21.1) or Java 17 (for MC 1.20.1), and Gradle 8.8.
+Requires Java 17 (1.20.1) and Java 21 (1.21.1) toolchains; everything else (Gradle, Forge, Loom, MDG) is fetched by the wrappers.
+
+The root Gradle build runs Fabric 1.20.1/1.21.1/26.1, NeoForge 1.21.1/26.1 and the `common-*` shared modules. Forge 1.20.1 is a separate Gradle 8.8 build inside `forge-1.20.1/` (ForgeGradle 6 doesn't support Gradle 9), exposed through `forge1201*` lifecycle tasks on the root.
 
 ```bash
-# Build all modules
-./gradlew :forge-1.20.1:build :neoforge-1.21.1:build :fabric-1.20.1:build :fabric-1.21.1:build
+# Build everything
+./gradlew assemble forge1201Build
 
-# Run in development
-./gradlew :forge-1.20.1:runClient
-./gradlew :neoforge-1.21.1:runClient
+# Per-loader run-in-dev
+./gradlew forge1201RunClient        # Forge 1.20.1 (delegates to forge-1.20.1/gradlew)
 ./gradlew :fabric-1.20.1:runClient
 ./gradlew :fabric-1.21.1:runClient
+./gradlew :neoforge-1.21.1:runClient
+./gradlew :neoforge-26.1:runClient
 ```
+
+If you want to work on `forge-1.20.1` directly, `cd forge-1.20.1 && ./gradlew runClient` works too — same effect, slightly less typing.
 
 ## Contributing
 

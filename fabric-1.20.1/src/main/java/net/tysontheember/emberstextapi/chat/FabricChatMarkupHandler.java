@@ -10,10 +10,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-/**
- * Strips markup tags from chat messages for players who are not allowed to use markup.
- * Uses Fabric's ServerMessageEvents to intercept chat messages.
- */
 public class FabricChatMarkupHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/Chat");
@@ -27,17 +23,15 @@ public class FabricChatMarkupHandler {
             }
 
             if (!ConfigHelper.getInstance().isPlayerAllowedMarkup(sender.getUUID())) {
-                // Cancel the signed message and send a plain system message instead
+
                 String stripped = MarkupStripper.stripMarkup(content);
                 LOGGER.debug("Stripped markup from chat message by {} (UUID: {})", sender.getName().getString(), sender.getUUID());
 
-                // Broadcast the stripped message as a system message to all players
                 Component strippedComponent = Component.literal("<" + sender.getName().getString() + "> " + stripped);
                 sender.server.getPlayerList().broadcastSystemMessage(strippedComponent, false);
-                return false; // Cancel original message
+                return false;
             }
 
-            // Strip disallowed tags (even for players who can use markup)
             List<String> disallowed = ConfigHelper.getInstance().getDisallowedMarkupTags();
             if (!disallowed.isEmpty()) {
                 String filtered = MarkupStripper.stripTags(content, disallowed);

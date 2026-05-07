@@ -8,11 +8,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Tracks which ResourceLocation was used to create each GlyphRenderTypes instance.
- * This allows FontTextureMixin to look up the atlas texture location when creating
- * SDF render types for SDF-backed glyphs.
- */
 @Mixin(GlyphRenderTypes.class)
 public class GlyphRenderTypesMixin {
 

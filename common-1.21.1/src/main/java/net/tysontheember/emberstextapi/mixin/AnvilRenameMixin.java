@@ -11,11 +11,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Extends the server-side anvil rename character limit to match the configured value.
- * Vanilla's handleRenameItem rejects names longer than 50 chars before passing them
- * to AnvilMenu. We intercept names in the range (50, configMax] and apply them directly.
- */
 @Mixin(ServerGamePacketListenerImpl.class)
 public abstract class AnvilRenameMixin {
 
@@ -25,8 +20,14 @@ public abstract class AnvilRenameMixin {
     private void emberstextapi$handleRenameItem(ServerboundRenameItemPacket packet, CallbackInfo ci) {
         String name = packet.getName();
         int maxLength = ConfigHelper.getInstance().getAnvilNameMaxLength();
-        if (name.length() > 50 && name.length() <= maxLength) {
-            if (this.player.containerMenu instanceof AnvilMenu anvilMenu) {
+
+        if (name.length() > maxLength) {
+            ci.cancel();
+            return;
+        }
+
+        if (name.length() > 50) {
+            if (this.player.containerMenu instanceof AnvilMenu anvilMenu && anvilMenu.stillValid(this.player)) {
                 anvilMenu.setItemName(name);
             }
             ci.cancel();

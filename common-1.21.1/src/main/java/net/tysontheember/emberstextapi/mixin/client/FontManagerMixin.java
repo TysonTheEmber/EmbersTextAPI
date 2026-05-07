@@ -1,5 +1,6 @@
 package net.tysontheember.emberstextapi.mixin.client;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -17,9 +18,12 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.MessageEffectRegistry;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.attr.MessageAttributeRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.effects.preset.PresetDefinition;
 import net.tysontheember.emberstextapi.immersivemessages.effects.preset.PresetLoader;
 import net.tysontheember.emberstextapi.immersivemessages.effects.preset.PresetRegistry;
@@ -32,24 +36,35 @@ import java.util.concurrent.Executor;
 
 import net.minecraft.server.packs.resources.PreparableReloadListener;
 
-/**
- * Mixin on FontManager to intercept font reload and load our custom
- * "emberstextapi:sdf" provider type from font JSON files.
- * <p>
- * Hooks into reload() to scan font JSONs and populate SDFProviderRegistry
- * before vanilla creates FontSets. FontSetMixin then injects these providers.
- */
 @Mixin(FontManager.class)
 public abstract class FontManagerMixin {
 
     @Unique
     private static final Logger emberstextapi$LOGGER = LoggerFactory.getLogger("EmbersTextAPI/FontManagerMixin");
 
-    /**
-     * Hook into reload() to load SDF providers before vanilla font loading proceeds.
-     * The ResourceManager is available here and SDF providers will be registered
-     * in SDFProviderRegistry for FontSetMixin to pick up.
-     */
+    @Redirect(method = "loadResourceStack",
+            at = @At(value = "INVOKE",
+                    target = "Lcom/google/gson/Gson;fromJson(Ljava/io/Reader;Ljava/lang/Class;)Ljava/lang/Object;"))
+    private static Object emberstextapi$stripSdfProviders(Gson gson, Reader reader, Class<?> type) {
+        Object raw = gson.fromJson(reader, type);
+        if (!(raw instanceof JsonElement el) || !el.isJsonObject()) return raw;
+        JsonObject root = el.getAsJsonObject();
+        if (!root.has("providers") || !root.get("providers").isJsonArray()) return raw;
+
+        JsonArray src = root.getAsJsonArray("providers");
+        JsonArray dst = new JsonArray(src.size());
+        boolean changed = false;
+        for (JsonElement e : src) {
+            if (e.isJsonObject() && SDFGlyphProviderDefinition.isSdfProvider(e.getAsJsonObject())) {
+                changed = true;
+                continue;
+            }
+            dst.add(e);
+        }
+        if (changed) root.add("providers", dst);
+        return raw;
+    }
+
     @Inject(method = "reload", at = @At("HEAD"))
     private void emberstextapi$onReload(
             PreparableReloadListener.PreparationBarrier barrier,
@@ -62,10 +77,10 @@ public abstract class FontManagerMixin {
 
         SDFProviderRegistry.clear();
 
-        // Ensure effects are registered before loading presets (reload may fire before client setup)
         EffectRegistry.initializeDefaultEffects();
+        MessageEffectRegistry.initializeDefaultEffects();
+        MessageAttributeRegistry.initializeDefaultAttributes();
 
-        // Load effect presets from resource packs
         PresetRegistry.clear();
         List<PresetDefinition> presets = PresetLoader.loadAll(resourceManager);
         for (PresetDefinition preset : presets) {

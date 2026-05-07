@@ -14,6 +14,8 @@ import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.tysontheember.emberstextapi.client.ClientMessageManager;
 import net.tysontheember.emberstextapi.immersivemessages.api.FontAliasRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.MessageEffectRegistry;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.attr.MessageAttributeRegistry;
 import net.tysontheember.emberstextapi.sdf.SDFShaders;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -37,14 +39,13 @@ class NeoForgeClientModEvents {
             VanillaGuiLayers.CHAT,
             ResourceLocation.fromNamespaceAndPath(EmbersTextAPI.MODID, "immersive_messages"),
             (guiGraphics, partialTick) -> {
-                // Chat is a dedicated vanilla GUI layer in NeoForge 1.21.1, so register above it explicitly.
+
                 RenderSystem.enableBlend();
                 RenderSystem.defaultBlendFunc();
                 RenderSystem.disableDepthTest();
                 RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
                 guiGraphics.setColor(1f, 1f, 1f, 1f);
 
-                // Positive GUI Z keeps our quads/glyphs in front within this layer while preserving animations/alpha.
                 guiGraphics.pose().pushPose();
                 guiGraphics.pose().translate(0f, 0f, 200f);
                 ClientMessageManager.render(guiGraphics, partialTick.getGameTimeDeltaPartialTick(false));
@@ -58,6 +59,8 @@ class NeoForgeClientModEvents {
     public static void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
             EffectRegistry.initializeDefaultEffects();
+            MessageEffectRegistry.initializeDefaultEffects();
+            MessageAttributeRegistry.initializeDefaultAttributes();
             FontAliasRegistry.initBuiltins();
         });
     }

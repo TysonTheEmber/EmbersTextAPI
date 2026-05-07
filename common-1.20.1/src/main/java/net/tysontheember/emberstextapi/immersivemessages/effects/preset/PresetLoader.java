@@ -13,14 +13,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-/**
- * Loads effect preset definitions from {@code assets/<namespace>/presets/*.json}
- * via the Minecraft resource manager.
- * <p>
- * Each JSON file defines a single preset. The filename (minus {@code .json})
- * becomes the tag name. Resource packs can override individual presets.
- * </p>
- */
 public final class PresetLoader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PresetLoader.class);
@@ -30,12 +22,6 @@ public final class PresetLoader {
 
     private PresetLoader() {}
 
-    /**
-     * Load all preset JSON files from the resource manager.
-     *
-     * @param resourceManager the client resource manager
-     * @return list of successfully parsed preset definitions
-     */
     public static List<PresetDefinition> loadAll(ResourceManager resourceManager) {
         Map<ResourceLocation, Resource> resources = resourceManager.listResources(
                 PRESETS_PATH, loc -> loc.getPath().endsWith(".json"));
@@ -60,12 +46,8 @@ public final class PresetLoader {
         return presets;
     }
 
-    /**
-     * Parse a single preset JSON file into a {@link PresetDefinition}.
-     * Returns {@code null} if validation fails (errors are logged).
-     */
     private static PresetDefinition loadSingle(ResourceLocation location, Resource resource) {
-        // Derive tag name from filename: "presets/legendary.json" -> "legendary"
+
         String path = location.getPath();
         String filename = path.substring(path.lastIndexOf('/') + 1);
         String presetName = filename.replace(".json", "").toLowerCase();
@@ -87,17 +69,6 @@ public final class PresetLoader {
         return parseJson(presetName, jsonContent);
     }
 
-    /**
-     * Parse a JSON string into a {@link PresetDefinition}.
-     * <p>
-     * Validates format version, effect types, and reserved name conflicts.
-     * Returns {@code null} if validation fails (errors are logged).
-     * </p>
-     *
-     * @param presetName the tag name for this preset
-     * @param jsonContent raw JSON string
-     * @return parsed preset, or {@code null} on validation failure
-     */
     public static PresetDefinition parseJson(String presetName, String jsonContent) {
         presetName = presetName.toLowerCase();
 
@@ -119,7 +90,6 @@ public final class PresetLoader {
             return null;
         }
 
-        // Validate format_version
         if (!root.has("format_version")) {
             LOGGER.error("Preset '{}' is missing required field 'format_version'", presetName);
             return null;
@@ -131,7 +101,6 @@ public final class PresetLoader {
             return null;
         }
 
-        // Parse effects array
         if (!root.has("effects") || !root.get("effects").isJsonArray()) {
             LOGGER.error("Preset '{}' is missing required 'effects' array", presetName);
             return null;
@@ -168,7 +137,6 @@ public final class PresetLoader {
             effects.add(new PresetDefinition.EffectEntry(type, params));
         }
 
-        // Parse optional styles
         PresetDefinition.StyleOverrides styles = null;
         if (root.has("styles") && root.get("styles").isJsonObject()) {
             JsonObject stylesObj = root.getAsJsonObject("styles");

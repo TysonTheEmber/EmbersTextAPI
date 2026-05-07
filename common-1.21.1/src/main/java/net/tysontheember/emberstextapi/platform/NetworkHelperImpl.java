@@ -2,9 +2,6 @@ package net.tysontheember.emberstextapi.platform;
 
 import java.util.ServiceLoader;
 
-/**
- * Internal helper to load NetworkHelper implementation via ServiceLoader.
- */
 final class NetworkHelperImpl {
     static final NetworkHelper INSTANCE;
 

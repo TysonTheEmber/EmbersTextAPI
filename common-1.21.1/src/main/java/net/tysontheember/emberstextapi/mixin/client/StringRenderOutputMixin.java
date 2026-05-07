@@ -23,31 +23,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Mixin for Font.StringRenderOutput to intercept character rendering.
- * <p>
- * This mixin is the core of the global text styling system. It intercepts
- * the {@code accept()} method which is called for each character during
- * text rendering, applies effects from the Style's effect list, and renders
- * the character with the modified parameters.
- * </p>
- *
- * <h3>Priority 1200:</h3>
- * <p>
- * Set to run after most mods to ensure we capture the final style state.
- * </p>
- *
- * @see ETAStyle
- * @see EffectSettings
- * @see Effect
- */
 @Mixin(targets = "net.minecraft.client.gui.Font$StringRenderOutput", priority = 1200)
 public abstract class StringRenderOutputMixin {
 
     @Unique
     private static final Logger emberstextapi$LOGGER = LoggerFactory.getLogger("EmbersTextAPI/StringRenderOutput");
-
-    // ===== Shadow Fields from StringRenderOutput =====
 
     @Shadow
     @Final
@@ -102,52 +82,30 @@ public abstract class StringRenderOutputMixin {
     @Shadow
     protected abstract void addEffect(BakedGlyph.Effect effect);
 
-    // ===== Mixin Injection =====
-
-    /**
-     * Intercept character rendering to apply effects.
-     * <p>
-     * This method is called for each character during text rendering.
-     * If the style has effects attached, we take over the rendering
-     * process completely to apply those effects.
-     * </p>
-     *
-     * @param index Character index in the string
-     * @param style Style for this character
-     * @param codepoint Unicode codepoint of the character
-     * @param cir Callback info returnable
-     */
     @Inject(method = "accept", at = @At("HEAD"), cancellable = true)
     private void emberstextapi$accept(int index, Style style, int codepoint, CallbackInfoReturnable<Boolean> cir) {
-        // Cast to our duck interface to access effects and item data
         ETAStyle etaStyle = (ETAStyle) style;
 
-        // Check if this style has an item to render
         String itemId = etaStyle.emberstextapi$getItemId();
         if (itemId != null) {
             emberstextapi$renderItem(etaStyle, itemId);
-            // Cancel vanilla rendering - we rendered an item instead
             cir.setReturnValue(true);
             return;
         }
 
-        // Check if this style has an entity to render
         String entityId = etaStyle.emberstextapi$getEntityId();
         if (entityId != null) {
             emberstextapi$renderEntity(etaStyle, entityId);
-            // Cancel vanilla rendering - we rendered an entity instead
             cir.setReturnValue(true);
             return;
         }
 
         java.util.List<Effect> effects = etaStyle.emberstextapi$getEffects().asList();
 
-        // If no effects, let vanilla handle it
         if (effects.isEmpty()) {
             return;
         }
 
-        // Get font rendering components
         FontAccess fontAccess = (FontAccess) this$0;
         FontSet fontSet = fontAccess.callGetFontSet(style.getFont());
         GlyphInfo glyphInfo = fontSet.getGlyphInfo(codepoint, fontAccess.getFilterFishyGlyphs());
@@ -155,59 +113,65 @@ public abstract class StringRenderOutputMixin {
                 ? fontSet.getRandomGlyph(glyphInfo)
                 : fontSet.getGlyph(codepoint);
 
-        // Extract color from style
         float red, green, blue;
         float alpha = this.a;
 
         TextColor textColor = style.getColor();
         if (textColor != null) {
             int colorValue = textColor.getValue();
-            red = ((colorValue >> 16) & 0xFF) / 255.0f * this.dimFactor;
-            green = ((colorValue >> 8) & 0xFF) / 255.0f * this.dimFactor;
-            blue = (colorValue & 0xFF) / 255.0f * this.dimFactor;
+            red = ((colorValue >> 16) & 0xFF) / 255.0f;
+            green = ((colorValue >> 8) & 0xFF) / 255.0f;
+            blue = (colorValue & 0xFF) / 255.0f;
         } else {
-            red = this.r;
-            green = this.g;
-            blue = this.b;
+            float dim = this.dimFactor == 0f ? 1.0f : this.dimFactor;
+            red = this.r / dim;
+            green = this.g / dim;
+            blue = this.b / dim;
         }
 
-        // Calculate shadow offset
         float shadowOffset = this.dropShadow ? glyphInfo.getShadowOffset() : 0.0f;
 
-        // Only render if glyph is not empty
+        EffectSettings settings = EffectApplicator.buildSettings(
+                etaStyle, style, index, codepoint,
+                this.x, this.y, shadowOffset,
+                red, green, blue, alpha, this.dropShadow
+        );
+
+        settings.charAdvance = glyphInfo.getAdvance(style.isBold());
+        EffectApplicator.applyEffects(effects, settings);
+
+        if (this.dropShadow) {
+            settings.r *= this.dimFactor;
+            settings.g *= this.dimFactor;
+            settings.b *= this.dimFactor;
+            if (settings.hasSiblings()) {
+                for (EffectSettings sibling : settings.getSiblingsOrEmpty()) {
+                    sibling.r *= this.dimFactor;
+                    sibling.g *= this.dimFactor;
+                    sibling.b *= this.dimFactor;
+                }
+            }
+        }
+
         if (!(bakedGlyph instanceof EmptyGlyph)) {
-            // Build settings and apply effects via shared utility
-            EffectSettings settings = EffectApplicator.buildSettings(
-                    etaStyle, style, index, codepoint,
-                    this.x, this.y, shadowOffset,
-                    red, green, blue, alpha, this.dropShadow
-            );
-
-            EffectApplicator.applyEffects(effects, settings);
-
-            // Render main character
             EffectApplicator.renderChar(settings, codepoint, style, fontSet, glyphInfo, bakedGlyph,
                     this.pose, this.bufferSource, this.mode, this.packedLightCoords, this$0.lineHeight);
 
-            // Render any sibling layers
             if (settings.hasSiblings()) {
                 for (EffectSettings sibling : settings.getSiblingsOrEmpty()) {
                     EffectApplicator.renderChar(sibling, codepoint, style, fontSet, glyphInfo, bakedGlyph,
                             this.pose, this.bufferSource, this.mode, this.packedLightCoords, this$0.lineHeight);
                 }
             }
-
-            // Update color values for decorations (strikethrough/underline)
-            red = settings.r;
-            green = settings.g;
-            blue = settings.b;
-            alpha = settings.a;
         }
 
-        // Get glyph width for positioning and decorations
+        red = settings.r;
+        green = settings.g;
+        blue = settings.b;
+        alpha = settings.a;
+
         float glyphWidth = glyphInfo.getAdvance(style.isBold());
 
-        // Render strikethrough decoration
         if (alpha != 0 && style.isStrikethrough()) {
             this.addEffect(new BakedGlyph.Effect(
                     this.x + shadowOffset - 1.0f,
@@ -222,7 +186,6 @@ public abstract class StringRenderOutputMixin {
             ));
         }
 
-        // Render underline decoration
         if (alpha != 0 && style.isUnderlined()) {
             this.addEffect(new BakedGlyph.Effect(
                     this.x + shadowOffset - 1.0f,
@@ -237,116 +200,66 @@ public abstract class StringRenderOutputMixin {
             ));
         }
 
-        // Advance x position for next character
         this.x += glyphWidth;
-
-        // Cancel vanilla rendering - we handled it
         cir.setReturnValue(true);
     }
 
-    /**
-     * Render an item icon inline with text.
-     * <p>
-     * This method handles rendering Minecraft items as inline icons
-     * when a Style has item data attached via ETAStyle.
-     * </p>
-     *
-     * @param etaStyle The style containing item data
-     * @param itemId Item resource location (e.g., "minecraft:diamond")
-     */
     @Unique
     private void emberstextapi$renderItem(ETAStyle etaStyle, String itemId) {
         try {
-            // Parse item ID
             net.minecraft.resources.ResourceLocation itemLocation = net.minecraft.resources.ResourceLocation.tryParse(itemId);
             if (itemLocation == null) {
                 return;
             }
 
-            // Get the item from registry
             net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(itemLocation);
             if (item == null) {
                 return;
             }
 
-            // Create item stack
             int count = etaStyle.emberstextapi$getItemCount() != null ? etaStyle.emberstextapi$getItemCount() : 1;
             net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item, count);
 
-            // Apply NBT data if specified
             String itemNbt = etaStyle.emberstextapi$getItemNbt();
             if (itemNbt != null && !itemNbt.isEmpty()) {
                 try {
                     net.minecraft.nbt.CompoundTag nbtTag = net.minecraft.nbt.TagParser.parseTag(itemNbt);
                     stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(nbtTag));
                 } catch (Exception e) {
-                    // If NBT parsing fails, continue with default item
                 }
             }
 
-            // Get offsets - default -4, -4 for best visual alignment
             float offsetX = etaStyle.emberstextapi$getItemOffsetX() != null ? etaStyle.emberstextapi$getItemOffsetX() : -4.0f;
             float offsetY = etaStyle.emberstextapi$getItemOffsetY() != null ? etaStyle.emberstextapi$getItemOffsetY() : -4.0f;
-
-            // Item size (standard Minecraft item icon is 16x16)
             int itemSize = 16;
 
-            // Translate to item position
             Matrix4f itemPose = new Matrix4f(this.pose);
             itemPose.translate(this.x + offsetX, this.y + offsetY, 0);
 
-            // Render the item using GuiGraphics-like rendering
-            // Since we're in the middle of text rendering, we need to be careful
-            // We'll use the MultiBufferSource to ensure proper rendering order
             var mc = net.minecraft.client.Minecraft.getInstance();
 
-            // End current batch to ensure items render on top of text (if possible)
             if (this.bufferSource instanceof net.minecraft.client.renderer.MultiBufferSource.BufferSource bs) {
                 bs.endBatch();
             }
 
-            // Create a temporary GuiGraphics for item rendering
-            // This is needed because ItemRenderer expects to work with GuiGraphics
-            // We need to get or create a BufferSource
             net.minecraft.client.renderer.MultiBufferSource.BufferSource bufferSource;
             if (this.bufferSource instanceof net.minecraft.client.renderer.MultiBufferSource.BufferSource bs) {
                 bufferSource = bs;
             } else {
-                // Fallback: use render buffers from Minecraft instance
                 bufferSource = mc.renderBuffers().bufferSource();
             }
 
             var guiGraphics = new net.minecraft.client.gui.GuiGraphics(mc, bufferSource);
-            // MC 1.21.1: mulPoseMatrix() renamed to mulPose()
             guiGraphics.pose().mulPose(itemPose);
-
-            // Render the item
             guiGraphics.renderItem(stack, 0, 0);
-
-            // End batch to flush the item rendering
             bufferSource.endBatch();
 
-            // Advance x position for next character
-            // Item is offset by offsetX and has width itemSize
-            // Advance past the right edge (offsetX + itemSize) plus minimal padding
-            this.x += offsetX + itemSize; // Accounts for offset + width + 0px padding
+            this.x += offsetX + itemSize;
 
         } catch (Exception e) {
-            // If item rendering fails, just skip it and continue
-            // This prevents crashes from invalid item IDs
         }
     }
 
-    /**
-     * Render an entity inline with text.
-     * <p>
-     * This method handles rendering Minecraft entities as inline icons
-     * when a Style has entity data attached via ETAStyle.
-     * </p>
-     *
-     * @param etaStyle The style containing entity data
-     * @param entityId Entity resource location (e.g., "minecraft:creeper")
-     */
     @Unique
     private void emberstextapi$renderEntity(ETAStyle etaStyle, String entityId) {
         try {
@@ -355,7 +268,6 @@ public abstract class StringRenderOutputMixin {
                 return;
             }
 
-            // Get entity parameters from style
             float scale = etaStyle.emberstextapi$getEntityScale() != null ? etaStyle.emberstextapi$getEntityScale() : 1.0f;
             float offsetX = etaStyle.emberstextapi$getEntityOffsetX() != null ? etaStyle.emberstextapi$getEntityOffsetX() : 0f;
             float offsetY = etaStyle.emberstextapi$getEntityOffsetY() != null ? etaStyle.emberstextapi$getEntityOffsetY() : 0f;
@@ -363,17 +275,13 @@ public abstract class StringRenderOutputMixin {
             float pitch = etaStyle.emberstextapi$getEntityPitch() != null ? etaStyle.emberstextapi$getEntityPitch() : 0f;
             float roll = etaStyle.emberstextapi$getEntityRoll() != null ? etaStyle.emberstextapi$getEntityRoll() : 0f;
             int lighting = etaStyle.emberstextapi$getEntityLighting() != null ? etaStyle.emberstextapi$getEntityLighting() : 15;
-            Float spin = etaStyle.emberstextapi$getEntitySpin(); // null if not set
-
-            // Calculate entity size based on scale
+            Float spin = etaStyle.emberstextapi$getEntitySpin();
             int entitySize = (int)(16 * scale);
 
-            // End current batch to ensure proper render ordering
             if (this.bufferSource instanceof net.minecraft.client.renderer.MultiBufferSource.BufferSource bs) {
                 bs.endBatch();
             }
 
-            // Get buffer source
             net.minecraft.client.renderer.MultiBufferSource.BufferSource bufferSource;
             if (this.bufferSource instanceof net.minecraft.client.renderer.MultiBufferSource.BufferSource bs) {
                 bufferSource = bs;
@@ -381,12 +289,9 @@ public abstract class StringRenderOutputMixin {
                 bufferSource = mc.renderBuffers().bufferSource();
             }
 
-            // Create GuiGraphics for entity rendering
             var guiGraphics = new net.minecraft.client.gui.GuiGraphics(mc, bufferSource);
-            // MC 1.21.1: mulPoseMatrix() renamed to mulPose()
             guiGraphics.pose().mulPose(this.pose);
 
-            // Render the entity using our EntityRenderer utility
             int renderedWidth = net.tysontheember.emberstextapi.immersivemessages.util.EntityRenderer.render(
                     guiGraphics,
                     entityId,
@@ -403,19 +308,15 @@ public abstract class StringRenderOutputMixin {
                     etaStyle.emberstextapi$getEntityNbt()
             );
 
-            // Flush entity rendering
             bufferSource.endBatch();
 
-            // Advance x position for next character
             if (renderedWidth > 0) {
                 this.x += renderedWidth;
             } else {
-                // Fallback advance if render failed
                 this.x += entitySize;
             }
 
         } catch (Exception e) {
-            // If entity rendering fails, just skip it and continue
             emberstextapi$LOGGER.debug("Entity rendering failed for {}: {}", entityId, e.getMessage());
         }
     }

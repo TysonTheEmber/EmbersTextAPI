@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "effects": [
-    { "type": "gradient", "params": { "from": "FF4400", "to": "FFD700" } },
+    { "type": "gradient", "params": { "colors": "FF4400,FFD700" } },
     { "type": "shake", "params": { "a": 0.8, "f": 4.0 } },
     { "type": "neon", "params": { "c": "FF2200" } }
   ],

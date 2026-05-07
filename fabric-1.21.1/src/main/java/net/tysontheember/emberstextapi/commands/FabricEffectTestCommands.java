@@ -19,15 +19,11 @@ import net.tysontheember.emberstextapi.platform.NetworkHelper;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Effect test commands for Fabric 1.21.1.
- * Ported from NeoForge EffectTestCommands with Fabric platform abstractions.
- */
 public class FabricEffectTestCommands {
 
     private static final List<String> EFFECT_NAMES = List.of(
             "rainbow", "glitch", "wave", "bounce", "shake", "pulse",
-            "swing", "turb", "circle", "wiggle", "pend", "scroll",
+            "swing", "turb", "circle", "wiggle", "pend",
             "grad", "shadow", "neon", "type", "font", "obfuscate",
             "all"
     );
@@ -46,7 +42,6 @@ public class FabricEffectTestCommands {
             new EffectDef("circle", "<circle>Circle - Orbital motion</circle>", Items.ENDER_EYE),
             new EffectDef("wiggle", "<wiggle>Wiggle - Quick rotation</wiggle>", Items.FEATHER),
             new EffectDef("pend", "<pend>Pendulum - Swaying motion</pend>", Items.CHAIN),
-            new EffectDef("scroll", "<scroll>Scroll - Directional wave</scroll>", Items.MAP),
             new EffectDef("grad", "<grad from=FF0000 to=00FF00>Gradient - Color blend</grad>", Items.LEATHER),
             new EffectDef("shadow", "<shadow c=FF0000 x=2 y=2>Shadow - Drop shadow</shadow>", Items.INK_SAC),
             new EffectDef("neon", "<neon c=00FFFF>Neon - Glow effect</neon>", Items.GLOWSTONE),
@@ -151,7 +146,7 @@ public class FabricEffectTestCommands {
                     player.sendSystemMessage(Component.literal("Gave you 4 obfuscate items!"));
                 }
                 default -> {
-                    // Immersive - show all 4 sequentially via queue
+
                     String[] obfModes = {
                         "<obfuscate>Constant obfuscation</obfuscate>",
                         "<obfuscate mode=reveal speed=80 direction=left>Revealing left to right</obfuscate>",
@@ -218,8 +213,6 @@ public class FabricEffectTestCommands {
         return Command.SINGLE_SUCCESS;
     }
 
-    // ==================== ALL CHAT ====================
-
     private static void runAllChat(ServerPlayer player) {
         player.sendSystemMessage(Component.literal("=== Individual Effects ==="));
         for (EffectDef effect : INDIVIDUAL_EFFECTS) {
@@ -232,8 +225,6 @@ public class FabricEffectTestCommands {
             player.sendSystemMessage(Component.literal(effect.markup));
         }
     }
-
-    // ==================== ALL ITEMS ====================
 
     private static void runAllItems(ServerPlayer player) {
         int count = 0;
@@ -253,14 +244,12 @@ public class FabricEffectTestCommands {
 
     private static void giveEffectItem(ServerPlayer player, EffectDef effect) {
         ItemStack stack = new ItemStack(effect.item);
-        // MC 1.21.1: Use DataComponents API
+
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(effect.markup));
         if (!player.getInventory().add(stack)) {
             player.drop(stack, false);
         }
     }
-
-    // ==================== ALL IMMERSIVE ====================
 
     private static void runAllImmersive(ServerPlayer player) {
         java.util.List<EffectDef> allEffects = new java.util.ArrayList<>();
@@ -284,8 +273,6 @@ public class FabricEffectTestCommands {
         NetworkHelper.getInstance().sendQueue(player, "effect_test", steps);
     }
 
-    // ==================== SINGLE EFFECT HELPERS ====================
-
     private static String buildMarkup(String effect) {
         return switch (effect) {
             case "rainbow" -> "<rainbow>Rainbow cycling colors</rainbow>";
@@ -299,13 +286,12 @@ public class FabricEffectTestCommands {
             case "circle" -> "<circle>Circular orbit motion</circle>";
             case "wiggle" -> "<wiggle>Quick wiggle rotation</wiggle>";
             case "pend", "pendulum" -> "<pend>Pendulum swing effect</pend>";
-            case "scroll" -> "<scroll>Scrolling wave motion</scroll>";
             case "grad", "gradient" -> "<grad from=FF0000 to=00FF00>Gradient color blend</grad>";
             case "shadow" -> "<shadow c=FF0000 x=2 y=2>Text with shadow</shadow>";
             case "neon", "glow" -> "<neon c=00FFFF>Glowing neon effect</neon>";
             case "type", "typewriter" -> "<type speed=50>Typewriter reveal...</type>";
             case "font" -> "<font id=emberstextapi:metamorphous><rainbow>Metamorphous with Rainbow!</rainbow></font>";
-            case "obfuscate", "obf" -> null; // handled specially
+            case "obfuscate", "obf" -> null;
             default -> null;
         };
     }
@@ -323,7 +309,6 @@ public class FabricEffectTestCommands {
             case "circle" -> "circle";
             case "wiggle" -> "wiggle";
             case "pend", "pendulum" -> "pend";
-            case "scroll" -> "scroll";
             case "grad", "gradient" -> "grad from=FF0000 to=0000FF";
             case "shadow" -> "shadow";
             case "neon", "glow" -> "neon c=00FFFF";
@@ -364,7 +349,7 @@ public class FabricEffectTestCommands {
         };
 
         ItemStack stack = new ItemStack(item);
-        // MC 1.21.1: Use DataComponents API
+
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(markup));
 
         if (!player.getInventory().add(stack)) {

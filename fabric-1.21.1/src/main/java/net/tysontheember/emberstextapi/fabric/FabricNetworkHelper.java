@@ -8,9 +8,6 @@ import net.tysontheember.emberstextapi.platform.NetworkHelper;
 
 import java.util.List;
 
-/**
- * Fabric implementation of NetworkHelper.
- */
 public class FabricNetworkHelper implements NetworkHelper {
     private final FabricNetworkHandler handler = FabricNetworkHandler.getInstance();
 

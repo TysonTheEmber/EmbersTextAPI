@@ -6,11 +6,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-/**
- * Accessor mixin for BakedGlyph to allow swapping the GlyphRenderTypes
- * after construction. Used by FontTextureMixin to replace standard render types
- * with SDF render types for SDF-backed glyphs.
- */
 @Mixin(BakedGlyph.class)
 public interface BakedGlyphAccessor {
 

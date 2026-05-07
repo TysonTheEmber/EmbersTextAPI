@@ -3,21 +3,6 @@ package net.tysontheember.emberstextapi.sdf;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Parsed glyph outline containing contours and their Bézier/line segments.
- * <p>
- * Extracted from FreeType glyph data via {@code FT_Outline_Decompose} in
- * {@link FreeTypeManager#extractOutline}. Coordinates are in font units
- * (unscaled, no hinting) with Y-axis increasing upward.
- * <p>
- * The outline is the foundation of the MSDF pipeline: it provides the vector
- * data from which {@link EdgeColoring} assigns channel colors and
- * {@link MSDFGenerator} computes analytical signed distances.
- *
- * @see FreeTypeManager#extractOutline
- * @see MSDFGenerator
- * @see EdgeColoring
- */
 public final class GlyphOutline {
 
     private final List<Contour> contours;
@@ -46,9 +31,6 @@ public final class GlyphOutline {
     public boolean evenOddFill() { return evenOddFill; }
     public boolean reverseFill() { return reverseFill; }
 
-    /**
-     * Get all segments across all contours.
-     */
     public List<Segment> allSegments() {
         List<Segment> all = new ArrayList<>();
         for (Contour c : contours) {
@@ -57,71 +39,19 @@ public final class GlyphOutline {
         return all;
     }
 
-    /**
-     * A single closed contour of the glyph outline.
-     * Outer contours typically wind counter-clockwise; inner contours (holes) wind clockwise.
-     *
-     * @param segments the ordered list of segments forming this closed contour
-     */
     public record Contour(List<Segment> segments) {}
 
-    /**
-     * Base type for outline segments. All coordinates are in font units.
-     * <p>
-     * Each segment type supports analytical distance computation in
-     * {@link MSDFGenerator} and tangent extraction for corner detection
-     * in {@link EdgeColoring}.
-     */
     public sealed interface Segment permits Line, QuadBezier, CubicBezier {}
 
-    /**
-     * A straight line segment from (x0, y0) to (x1, y1).
-     *
-     * @param x0 start X coordinate in font units
-     * @param y0 start Y coordinate in font units
-     * @param x1 end X coordinate in font units
-     * @param y1 end Y coordinate in font units
-     */
     public record Line(float x0, float y0, float x1, float y1) implements Segment {}
 
-    /**
-     * A quadratic Bézier curve: B(t) = (1−t)²·P0 + 2(1−t)t·C + t²·P1.
-     * <p>
-     * Produced by TrueType fonts (which use quadratic outlines).
-     *
-     * @param x0 start X coordinate (P0)
-     * @param y0 start Y coordinate (P0)
-     * @param cx control point X (C)
-     * @param cy control point Y (C)
-     * @param x1 end X coordinate (P1)
-     * @param y1 end Y coordinate (P1)
-     */
     public record QuadBezier(float x0, float y0, float cx, float cy, float x1, float y1) implements Segment {}
 
-    /**
-     * A cubic Bézier curve: B(t) = (1−t)³·P0 + 3(1−t)²t·C1 + 3(1−t)t²·C2 + t³·P1.
-     * <p>
-     * Produced by OpenType/CFF fonts (which use cubic outlines).
-     *
-     * @param x0  start X coordinate (P0)
-     * @param y0  start Y coordinate (P0)
-     * @param cx1 first control point X (C1)
-     * @param cy1 first control point Y (C1)
-     * @param cx2 second control point X (C2)
-     * @param cy2 second control point Y (C2)
-     * @param x1  end X coordinate (P1)
-     * @param y1  end Y coordinate (P1)
-     */
     public record CubicBezier(float x0, float y0, float cx1, float cy1,
                                float cx2, float cy2, float x1, float y1) implements Segment {}
 
-    /**
-     * Builder for constructing outlines from FT_Outline_Decompose callbacks.
-     */
     public static final class Builder {
-        // Segments shorter than this (squared) are considered degenerate and filtered out.
-        // Bold fonts can produce very short segments at stroke junctions that cause
-        // distance computation instabilities in the MSDF generator.
+
         private static final float DEGENERATE_LEN_SQ = 1.0f;
 
         private final List<Contour> contours = new ArrayList<>();
@@ -185,14 +115,13 @@ public final class GlyphOutline {
 
         private void closeContourIfNeeded() {
             if (!currentSegments.isEmpty()) {
-                // Close the contour if not already closed (epsilon-based check)
+
                 float dx = curX - contourStartX;
                 float dy = curY - contourStartY;
                 if (dx * dx + dy * dy > DEGENERATE_LEN_SQ) {
                     currentSegments.add(new Line(curX, curY, contourStartX, contourStartY));
                 }
-                // Filter out degenerate (near-zero-length) segments that can cause
-                // distance computation errors with bold/complex font outlines
+
                 List<Segment> filtered = new ArrayList<>(currentSegments.size());
                 for (Segment seg : currentSegments) {
                     if (!isDegenerate(seg)) {

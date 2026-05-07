@@ -6,9 +6,6 @@ import net.tysontheember.emberstextapi.platform.PlatformHelper;
 
 import java.nio.file.Path;
 
-/**
- * Fabric implementation of PlatformHelper.
- */
 public class FabricPlatformHelper implements PlatformHelper {
     @Override
     public boolean isClient() {

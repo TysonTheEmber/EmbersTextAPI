@@ -28,18 +28,6 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 
-/**
- * Compatibility mixin for Emojiful's EmojiCharacterRenderer.
- * <p>
- * Targets both class names used across Emojiful versions:
- * <ul>
- *   <li>Forge 1.20.1 (v4.x): {@code EmojiFontRenderer$EmojiCharacterRenderer}</li>
- *   <li>NeoForge 1.21.1 (v5.x): {@code EmojiFontHelper$EmojiCharacterRenderer}</li>
- * </ul>
- * <p>
- * Uses {@code @Pseudo} + {@code require = 0} so the mixin is optional and gracefully
- * absent when Emojiful is not installed.
- */
 @Pseudo
 @Mixin(targets = {
     "com.hrznstudio.emojiful.render.EmojiFontHelper$EmojiCharacterRenderer",
@@ -50,7 +38,6 @@ public abstract class EmojiCharacterRendererMixin {
     @Unique
     private static final Logger emberstextapi$LOGGER = LoggerFactory.getLogger("EmbersTextAPI/EmojifulCompat");
 
-    // Cached reflection fields — initialized once, null if reflection fails
     @Unique private static boolean emberstextapi$reflectionInitialized = false;
     @Unique private static Field emberstextapi$fieldX;
     @Unique private static Field emberstextapi$fieldY;
@@ -66,7 +53,7 @@ public abstract class EmojiCharacterRendererMixin {
     @Unique private static Field emberstextapi$fieldEmojis;
     @Unique private static Field emberstextapi$fieldSeeThrough;
     @Unique private static Field emberstextapi$fieldFont;
-    // true if this$0 IS a Font (Forge: EmojiFontRenderer extends Font)
+
     @Unique private static boolean emberstextapi$this0IsFont = false;
 
     @Unique
@@ -91,13 +78,11 @@ public abstract class EmojiCharacterRendererMixin {
             emberstextapi$fieldEmojis = emberstextapi$findField(clazz, "emojis");
             emberstextapi$fieldSeeThrough = emberstextapi$findField(clazz, "seeThrough");
 
-            // Try this$0 first — in Forge, EmojiFontRenderer extends Font so this$0 IS a Font
             emberstextapi$fieldFont = emberstextapi$findField(clazz, "this$0");
             if (emberstextapi$fieldFont != null && Font.class.isAssignableFrom(emberstextapi$fieldFont.getType())) {
                 emberstextapi$this0IsFont = true;
             } else {
-                // NeoForge: EmojiFontHelper doesn't extend Font, no this$0 or it's not a Font
-                // We'll use Minecraft.getInstance().font as fallback
+
                 emberstextapi$fieldFont = null;
                 emberstextapi$this0IsFont = false;
             }
@@ -133,13 +118,12 @@ public abstract class EmojiCharacterRendererMixin {
 
         emberstextapi$initReflection(this);
 
-        // Skip emoji placeholder chars — let Emojiful render the sprite
         if (codepoint == 0x2603) {
             return;
         }
 
         try {
-            // Skip emoji positions tracked in the emojis map
+
             if (emberstextapi$fieldEmojis != null) {
                 @SuppressWarnings("unchecked")
                 HashMap<Integer, ?> emojis = (HashMap<Integer, ?>) emberstextapi$fieldEmojis.get(this);
@@ -165,7 +149,6 @@ public abstract class EmojiCharacterRendererMixin {
             float baseA = emberstextapi$fieldA != null ? emberstextapi$fieldA.getFloat(this) : 1.0f;
             int packedLight = emberstextapi$fieldPackedLight != null ? emberstextapi$fieldPackedLight.getInt(this) : 15728880;
 
-            // Get Font — from this$0 (Forge: EmojiFontRenderer IS a Font) or Minecraft.getInstance().font
             Font font;
             if (emberstextapi$this0IsFont && emberstextapi$fieldFont != null) {
                 font = (Font) emberstextapi$fieldFont.get(this);
@@ -173,7 +156,6 @@ public abstract class EmojiCharacterRendererMixin {
                 font = Minecraft.getInstance().font;
             }
 
-            // Derive DisplayMode from seeThrough boolean
             boolean seeThrough = emberstextapi$fieldSeeThrough != null && emberstextapi$fieldSeeThrough.getBoolean(this);
             Font.DisplayMode displayMode = seeThrough ? Font.DisplayMode.SEE_THROUGH : Font.DisplayMode.NORMAL;
 
@@ -212,6 +194,7 @@ public abstract class EmojiCharacterRendererMixin {
                         red, green, blue, alpha, dropShadow
                 );
 
+                settings.charAdvance = glyphInfo.getAdvance(style.isBold());
                 EffectApplicator.applyEffects(effects, settings);
 
                 EffectApplicator.renderChar(settings, codepoint, style, fontSet, glyphInfo, bakedGlyph,

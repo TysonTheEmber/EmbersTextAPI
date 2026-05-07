@@ -24,10 +24,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-/**
- * Message commands for Fabric 1.21.1.
- * Ported from NeoForge MessageCommands with Fabric platform abstractions.
- */
 public class FabricMessageCommands {
     private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/Commands");
 
@@ -60,9 +56,8 @@ public class FabricMessageCommands {
         float duration = FloatArgumentType.getFloat(ctx, "duration");
         String text = StringArgumentType.getString(ctx, "text");
 
-        // Support markup in basic send command
         ImmersiveMessage msg;
-        if (text.contains("<") && text.contains(">")) {
+        if ((text.contains("<") && text.contains(">")) || (text.contains("[") && text.contains("]"))) {
             msg = ImmersiveMessage.fromMarkup(duration, text);
         } else {
             msg = ImmersiveMessage.builder(duration, text);
@@ -85,25 +80,23 @@ public class FabricMessageCommands {
                             String channel = StringArgumentType.getString(ctx, "channel");
                             String queueDef = StringArgumentType.getString(ctx, "queue_definition");
 
-                            // Split on " | " to get steps
                             String[] rawSteps = queueDef.split(" \\| ");
                             List<List<ImmersiveMessage>> steps = new ArrayList<>();
 
                             for (String rawStep : rawSteps) {
-                                // Split on " & " to get simultaneous messages in a step
+
                                 String[] rawMessages = rawStep.split(" & ");
                                 List<ImmersiveMessage> stepMsgs = new ArrayList<>();
 
                                 for (String rawMsg : rawMessages) {
                                     String text = rawMsg.trim();
-                                    // Strip surrounding quotes
+
                                     if (text.length() >= 2
                                             && ((text.startsWith("\"") && text.endsWith("\""))
                                             || (text.startsWith("'") && text.endsWith("'")))) {
                                         text = text.substring(1, text.length() - 1);
                                     }
 
-                                    // Extract <dur:N> tag
                                     Object[] extracted = MarkupParser.extractDuration(text);
                                     float duration = (float) extracted[0];
                                     String markup = (String) extracted[1];
@@ -177,7 +170,7 @@ public class FabricMessageCommands {
                 .executes(ctx -> {
                     Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "player");
                     for (ServerPlayer target : targets) {
-                        NetworkHelper.getInstance().sendStopAllQueues(target);
+                        NetworkHelper.getInstance().sendCloseAllMessages(target);
                     }
                     return Command.SINGLE_SUCCESS;
                 }));
@@ -186,7 +179,6 @@ public class FabricMessageCommands {
     private static void runTest(ServerPlayer player, int id) {
         NetworkHelper net = NetworkHelper.getInstance();
         switch (id) {
-            // --- Group 1: Layout & Display (1-7) ---
             case 1 -> net.sendMessage(player,
                     ImmersiveMessage.builder(100f, "Plain text message")
                             .anchor(TextAnchor.MIDDLE)
@@ -223,7 +215,6 @@ public class FabricMessageCommands {
                             .offset(0f, -40f)
                             .scale(2f));
 
-            // --- Group 2: Text Formatting (8-13) ---
             case 8 -> net.sendMessage(player,
                     ImmersiveMessage.fromMarkup(100f, "<bold>Bold</bold>  <italic>Italic</italic>  <c value=#FF5555>Red</c>")
                             .anchor(TextAnchor.MIDDLE)
@@ -252,7 +243,6 @@ public class FabricMessageCommands {
                 net.sendMessage(player, new ImmersiveMessage(spans, 100f).background(true).scale(1.5f).anchor(TextAnchor.MIDDLE));
             }
 
-            // --- Group 3: Text Animation (14-19) ---
             case 14 -> net.sendMessage(player,
                     ImmersiveMessage.fromMarkup(140f, "<type speed=50>Typewriter reveal effect!</type>")
                             .scale(1.5f)
@@ -281,7 +271,6 @@ public class FabricMessageCommands {
                             .scale(2f)
                             .anchor(TextAnchor.MIDDLE));
 
-            // --- Group 4: Motion Effects (20-25) ---
             case 20 -> net.sendMessage(player,
                     ImmersiveMessage.fromMarkup(100f, "<wave>Wave vertical motion</wave>")
                             .scale(2f)
@@ -307,7 +296,6 @@ public class FabricMessageCommands {
                             .scale(2f)
                             .anchor(TextAnchor.MIDDLE));
 
-            // --- Group 5: Items & Entities (26-29) ---
             case 26 -> net.sendMessage(player,
                     ImmersiveMessage.fromMarkup(120f,
                             "Found <item value=\"minecraft:diamond\" size=1></item> x3 and <item value=\"minecraft:gold_ingot\" size=1></item> x5!")
@@ -331,7 +319,6 @@ public class FabricMessageCommands {
                 net.sendMessage(player, new ImmersiveMessage(spans, 100f).scale(3f).anchor(TextAnchor.MIDDLE));
             }
 
-            // --- Group 6: Combinations & Queue (30-33) ---
             case 30 -> net.sendMessage(player,
                     ImmersiveMessage.fromMarkup(120f, "<grad from=FF0000 to=0000FF><wave><neon>Gradient + Wave + Neon</neon></wave></grad>")
                             .scale(2f)

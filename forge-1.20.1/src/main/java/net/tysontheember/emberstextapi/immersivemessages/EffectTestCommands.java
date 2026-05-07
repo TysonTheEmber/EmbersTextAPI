@@ -17,31 +17,17 @@ import net.minecraft.world.item.Items;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Effect test commands.
- *
- * Usage:
- *   /eta test effect <name>              - Show effect as immersive message
- *   /eta test effect <name> chat         - Show effect in chat
- *   /eta test effect <name> item         - Get item with effect name
- *   /eta test effect all                 - Run full showcase (chat + immersive + items)
- *   /eta test effect all chat            - Show all effects in chat
- *   /eta test effect all immersive       - Play all effects as immersive sequence
- *   /eta test effect all item            - Give all effect items
- *   /eta test combo <effects...>         - Combine multiple effects
- */
 public class EffectTestCommands {
 
     private static final List<String> EFFECT_NAMES = List.of(
             "rainbow", "glitch", "wave", "bounce", "shake", "pulse",
-            "swing", "turb", "circle", "wiggle", "pend", "scroll",
+            "swing", "turb", "circle", "wiggle", "pend",
             "grad", "shadow", "neon", "type", "font", "obfuscate",
             "all"
     );
 
     private static final List<String> MODES = List.of("immersive", "chat", "item");
 
-    // Individual effects for showcase
     private static final List<EffectDef> INDIVIDUAL_EFFECTS = List.of(
             new EffectDef("rainbow", "<rainbow>Rainbow - Color cycling</rainbow>", Items.DIAMOND),
             new EffectDef("glitch", "<glitch>Glitch - Digital distortion</glitch>", Items.ENDER_PEARL),
@@ -54,7 +40,6 @@ public class EffectTestCommands {
             new EffectDef("circle", "<circle>Circle - Orbital motion</circle>", Items.ENDER_EYE),
             new EffectDef("wiggle", "<wiggle>Wiggle - Quick rotation</wiggle>", Items.FEATHER),
             new EffectDef("pend", "<pend>Pendulum - Swaying motion</pend>", Items.CHAIN),
-            new EffectDef("scroll", "<scroll>Scroll - Directional wave</scroll>", Items.MAP),
             new EffectDef("grad", "<grad from=FF0000 to=00FF00>Gradient - Color blend</grad>", Items.LEATHER),
             new EffectDef("shadow", "<shadow c=FF0000 x=2 y=2>Shadow - Drop shadow</shadow>", Items.INK_SAC),
             new EffectDef("neon", "<neon c=00FFFF>Neon - Glow effect</neon>", Items.GLOWSTONE),
@@ -63,7 +48,6 @@ public class EffectTestCommands {
             new EffectDef("obfuscate", "<obfuscate mode=reveal speed=80>Revealing obfuscation</obfuscate>", Items.ENDER_EYE)
     );
 
-    // Combo effects for showcase
     private static final List<EffectDef> COMBO_EFFECTS = List.of(
             new EffectDef("rainbow+wave", "<rainbow><wave>Rainbow + Wave</wave></rainbow>", Items.PRISMARINE_SHARD),
             new EffectDef("rainbow+bounce", "<rainbow><bounce>Rainbow + Bounce</bounce></rainbow>", Items.RABBIT_FOOT),
@@ -80,14 +64,13 @@ public class EffectTestCommands {
 
     private record EffectDef(String name, String markup, Item item) {}
 
-    // Duration per effect in ticks (8 seconds = 160 ticks)
     private static final int EFFECT_DURATION_TICKS = 160;
 
     public static ArgumentBuilder<CommandSourceStack, ?> buildEffectTestCommand() {
         return Commands.literal("effect")
                 .then(Commands.argument("name", StringArgumentType.word())
                         .suggests(EffectTestCommands::suggestEffects)
-                        .executes(ctx -> runEffect(ctx, null)) // null = default behavior
+                        .executes(ctx -> runEffect(ctx, null))
                         .then(Commands.argument("mode", StringArgumentType.word())
                                 .suggests(EffectTestCommands::suggestModes)
                                 .executes(ctx -> runEffect(ctx, StringArgumentType.getString(ctx, "mode")))));
@@ -124,10 +107,9 @@ public class EffectTestCommands {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         String effectName = StringArgumentType.getString(ctx, "name").toLowerCase();
 
-        // Handle "all" specially
         if (effectName.equals("all")) {
             if (mode == null) {
-                // No mode specified: do everything
+
                 runAllChat(player);
                 runAllItems(player);
                 runAllImmersive(player);
@@ -146,7 +128,6 @@ public class EffectTestCommands {
             return Command.SINGLE_SUCCESS;
         }
 
-        // Handle obfuscate specially to show all 4 modes
         if (effectName.equals("obfuscate") || effectName.equals("obf")) {
             String actualMode = (mode == null) ? "immersive" : mode.toLowerCase();
             switch (actualMode) {
@@ -164,7 +145,7 @@ public class EffectTestCommands {
                     player.sendSystemMessage(Component.literal("Gave you 4 obfuscate items!"));
                 }
                 default -> {
-                    // Immersive - show all 4 sequentially via queue
+
                     String[] obfModes = {
                         "<obfuscate>Constant obfuscation</obfuscate>",
                         "<obfuscate mode=reveal speed=80 direction=left>Revealing left to right</obfuscate>",
@@ -193,7 +174,6 @@ public class EffectTestCommands {
             return Command.SINGLE_SUCCESS;
         }
 
-        // Single effect
         String markup = buildMarkup(effectName);
         if (markup == null) {
             player.sendSystemMessage(Component.literal("Unknown effect: " + effectName));
@@ -233,8 +213,6 @@ public class EffectTestCommands {
         return Command.SINGLE_SUCCESS;
     }
 
-    // ==================== ALL CHAT ====================
-
     private static void runAllChat(ServerPlayer player) {
         player.sendSystemMessage(Component.literal("=== Individual Effects ==="));
         for (EffectDef effect : INDIVIDUAL_EFFECTS) {
@@ -247,8 +225,6 @@ public class EffectTestCommands {
             player.sendSystemMessage(Component.literal(effect.markup));
         }
     }
-
-    // ==================== ALL ITEMS ====================
 
     private static void runAllItems(ServerPlayer player) {
         int count = 0;
@@ -274,10 +250,8 @@ public class EffectTestCommands {
         }
     }
 
-    // ==================== ALL IMMERSIVE ====================
-
     private static void runAllImmersive(ServerPlayer player) {
-        // Combine all effects into one list
+
         java.util.List<EffectDef> allEffects = new java.util.ArrayList<>();
         allEffects.addAll(INDIVIDUAL_EFFECTS);
         allEffects.addAll(COMBO_EFFECTS);
@@ -300,8 +274,6 @@ public class EffectTestCommands {
                 .sendQueue(player, "effect_test", steps);
     }
 
-    // ==================== SINGLE EFFECT HELPERS ====================
-
     private static String buildMarkup(String effect) {
         return switch (effect) {
             case "rainbow" -> "<rainbow>Rainbow cycling colors</rainbow>";
@@ -315,15 +287,14 @@ public class EffectTestCommands {
             case "circle" -> "<circle>Circular orbit motion</circle>";
             case "wiggle" -> "<wiggle>Quick wiggle rotation</wiggle>";
             case "pend", "pendulum" -> "<pend>Pendulum swing effect</pend>";
-            case "scroll" -> "<scroll>Scrolling wave motion</scroll>";
             case "grad", "gradient" -> "<grad from=FF0000 to=00FF00>Gradient color blend</grad>";
             case "shadow" -> "<shadow c=FF0000 x=2 y=2>Text with shadow</shadow>";
             case "neon", "glow" -> "<neon c=00FFFF>Glowing neon effect</neon>";
             case "type", "typewriter" -> "<type speed=50>Typewriter reveal...</type>";
             case "font" -> "<font id=emberstextapi:metamorphous><rainbow>Metamorphous with Rainbow!</rainbow></font>";
             case "obfuscate", "obf" -> {
-                // Show all 4 modes
-                yield null; // Handle specially below
+
+                yield null;
             }
             default -> null;
         };
@@ -342,7 +313,6 @@ public class EffectTestCommands {
             case "circle" -> "circle";
             case "wiggle" -> "wiggle";
             case "pend", "pendulum" -> "pend";
-            case "scroll" -> "scroll";
             case "grad", "gradient" -> "grad from=FF0000 to=0000FF";
             case "shadow" -> "shadow";
             case "neon", "glow" -> "neon c=00FFFF";

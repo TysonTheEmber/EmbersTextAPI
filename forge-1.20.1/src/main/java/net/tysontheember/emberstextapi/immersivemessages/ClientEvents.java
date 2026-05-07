@@ -10,9 +10,6 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
 
-/**
- * Hooks client events to draw messages every frame.
- */
 @Mod.EventBusSubscriber(modid = EmbersTextAPI.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class ClientEvents {
     @SubscribeEvent
@@ -30,7 +27,7 @@ public class ClientEvents {
         @SubscribeEvent
         public static void register(RegisterGuiOverlaysEvent event) {
             event.registerAbove(VanillaGuiOverlay.CHAT_PANEL.id(), "legacy_immersive_messages", (gui, guiGraphics, partialTick, screenWidth, screenHeight) -> {
-                // This legacy queue renderer must also be ordered above chat to avoid chat overdraw.
+
                 RenderSystem.enableBlend();
                 RenderSystem.defaultBlendFunc();
                 RenderSystem.disableDepthTest();

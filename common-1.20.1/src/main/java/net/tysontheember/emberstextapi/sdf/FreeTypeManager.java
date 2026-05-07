@@ -13,18 +13,9 @@ import org.slf4j.LoggerFactory;
 import org.lwjgl.PointerBuffer;
 
 import java.nio.ByteBuffer;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
-/**
- * Manages the FreeType library lifecycle for MSDF glyph rendering.
- * All FreeType calls are synchronized on this instance (FreeType is not thread-safe).
- * <p>
- * Provides outline extraction via {@code FT_Outline_Decompose} for the MSDF pipeline.
- * The bitmap rendering path (EDT-based SDF) has been removed in favor of direct
- * outline-based MSDF generation via {@link MSDFGenerator}.
- * <p>
- * Uses {@link NativeFreeType} compatibility layer instead of LWJGL's FreeType wrapper
- * to avoid the {@code Configuration.FREETYPE_LIBRARY_NAME} field mismatch on MC 1.20.1.
- */
 public final class FreeTypeManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/FreeType");
@@ -33,6 +24,7 @@ public final class FreeTypeManager {
     private long library;
     private boolean available;
     private boolean initialized;
+    private final Set<FT_Face> openFaces = new LinkedHashSet<>();
 
     private FreeTypeManager() {}
 
@@ -71,10 +63,6 @@ public final class FreeTypeManager {
         }
     }
 
-    /**
-     * Load a font face from a direct ByteBuffer.
-     * The buffer must remain valid for the lifetime of the face.
-     */
     public synchronized FT_Face loadFace(ByteBuffer fontData) {
         if (!available) {
             throw new IllegalStateException("FreeType is not available");
@@ -89,23 +77,16 @@ public final class FreeTypeManager {
             if (error != 0) {
                 throw new RuntimeException("FT_New_Memory_Face failed with error: " + error);
             }
-            return FT_Face.create(pFace.get(0));
+            FT_Face face = FT_Face.create(pFace.get(0));
+            openFaces.add(face);
+            return face;
         }
     }
 
-    /**
-     * Get the glyph index for a Unicode codepoint.
-     */
     public synchronized int getCharIndex(FT_Face face, int codepoint) {
         return NativeFreeType.FT_Get_Char_Index(face, codepoint);
     }
 
-    /**
-     * Extract the outline for a glyph. Returns null for empty/space glyphs.
-     * <p>
-     * Loads the glyph with {@code FT_LOAD_NO_BITMAP | FT_LOAD_NO_SCALE} to get
-     * the raw outline in font units without hinting or scaling.
-     */
     public synchronized GlyphOutline extractOutline(FT_Face face, int glyphIndex) {
         int error = NativeFreeType.FT_Load_Glyph(face, glyphIndex,
                 NativeFreeType.FT_LOAD_NO_BITMAP | NativeFreeType.FT_LOAD_NO_SCALE);
@@ -125,11 +106,9 @@ public final class FreeTypeManager {
         }
 
         int flags = outline.flags();
-        // FT_OUTLINE_EVEN_ODD_FILL = 0x2: CFF/OTF fonts use even-odd fill rule,
-        // TrueType fonts use non-zero winding. FreeType sets this flag accordingly.
+
         boolean evenOddFill = (flags & 0x2) != 0;
-        // FT_OUTLINE_REVERSE_FILL = 0x4: set when outer contours are CCW (PostScript/CFF).
-        // When NOT set, outer contours are CW (TrueType convention).
+
         boolean reverseFill = (flags & 0x4) != 0;
 
         GlyphOutline.Builder builder = new GlyphOutline.Builder();
@@ -166,19 +145,23 @@ public final class FreeTypeManager {
             funcs.shift(0);
             funcs.delta(0);
 
-            error = NativeFreeType.FT_Outline_Decompose(outline, funcs, MemoryUtil.NULL);
-            if (error != 0) {
-                LOGGER.warn("FT_Outline_Decompose failed for index {}: error {}", glyphIndex, error);
-                return null;
+            try {
+                error = NativeFreeType.FT_Outline_Decompose(outline, funcs, MemoryUtil.NULL);
+                if (error != 0) {
+                    LOGGER.warn("FT_Outline_Decompose failed for index {}: error {}", glyphIndex, error);
+                    return null;
+                }
+            } finally {
+                funcs.move_to().free();
+                funcs.line_to().free();
+                funcs.conic_to().free();
+                funcs.cubic_to().free();
             }
         }
 
         return builder.build();
     }
 
-    /**
-     * Get glyph advance width in font units.
-     */
     public synchronized long getGlyphAdvance(FT_Face face, int glyphIndex) {
         int error = NativeFreeType.FT_Load_Glyph(face, glyphIndex,
                 NativeFreeType.FT_LOAD_NO_BITMAP | NativeFreeType.FT_LOAD_NO_SCALE);
@@ -189,18 +172,17 @@ public final class FreeTypeManager {
         return slot != null ? slot.advance().x() : 0;
     }
 
-    /**
-     * Close a font face.
-     */
     public synchronized void closeFace(FT_Face face) {
+        openFaces.remove(face);
         NativeFreeType.FT_Done_Face(face);
     }
 
-    /**
-     * Shut down FreeType. Called on mod unload.
-     */
     public synchronized void shutdown() {
         if (available) {
+            for (FT_Face face : openFaces) {
+                NativeFreeType.FT_Done_Face(face);
+            }
+            openFaces.clear();
             NativeFreeType.FT_Done_FreeType(library);
             library = 0;
             available = false;

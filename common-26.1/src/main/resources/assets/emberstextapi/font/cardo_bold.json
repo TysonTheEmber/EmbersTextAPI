@@ -1,0 +1,16 @@
+{
+  "providers": [
+    {
+      "type": "emberstextapi:sdf",
+      "file": "emberstextapi:cardo_bold.ttf",
+      "size": 16.0,
+      "sdf_resolution": 48,
+      "padding": 4,
+      "px_range": 8.0,
+      "angle_threshold": 3.0,
+      "oversample": 2.0,
+      "shift": [0.0, 0.0],
+      "skip": ""
+    }
+  ]
+}

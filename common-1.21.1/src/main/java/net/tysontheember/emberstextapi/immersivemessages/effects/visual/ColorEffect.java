@@ -3,56 +3,29 @@ package net.tysontheember.emberstextapi.immersivemessages.effects.visual;
 import net.tysontheember.emberstextapi.immersivemessages.effects.BaseEffect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
 import net.tysontheember.emberstextapi.immersivemessages.effects.params.Params;
+import net.tysontheember.emberstextapi.immersivemessages.util.ColorParser;
 import org.jetbrains.annotations.NotNull;
 
-/**
- * Solid color effect that applies a single color to text.
- * <p>
- * Like {@link GradientEffect} but with a single color instead of a gradient.
- * Useful for applying a color via the effect system so it can be stacked with
- * other effects.
- * </p>
- *
- * <h3>Parameters:</h3>
- * <ul>
- *   <li>{@code col} or {@code value} (hex color, default: "FFFFFF") - The color to apply</li>
- * </ul>
- *
- * <h3>Example Usage:</h3>
- * <pre>{@code
- * <color col=FF0000>Red text</color>
- * <color value=#00FF00>Green text</color>
- * <color col=5BCEFA>Blue text</color>
- * }</pre>
- */
 public class ColorEffect extends BaseEffect {
 
-    private static final float[] DEFAULT_COLOR = new float[]{1.0f, 1.0f, 1.0f}; // white
+    private static final float[] DEFAULT_COLOR = {1.0f, 1.0f, 1.0f, 1.0f};
 
-    private final float[] rgb;
+    private final float[] rgba;
 
-    /**
-     * Creates a new color effect with the given parameters.
-     *
-     * @param params Effect parameters
-     */
     public ColorEffect(@NotNull Params params) {
         super(params);
-        this.rgb = params.getString("col").isPresent()
-                ? parseColor(params, "col", DEFAULT_COLOR)
-                : parseColor(params, "value", DEFAULT_COLOR);
+        String raw = params.getString("col").orElse(params.getString("value").orElse(null));
+        this.rgba = raw == null
+                ? DEFAULT_COLOR
+                : ColorParser.parseToRgbaFloats(raw).orElse(DEFAULT_COLOR);
     }
 
     @Override
     public void apply(@NotNull EffectSettings settings) {
-        // Skip shadow layer - shadows keep original color
-        if (settings.isShadow) {
-            return;
-        }
-
-        settings.r = rgb[0];
-        settings.g = rgb[1];
-        settings.b = rgb[2];
+        settings.r = rgba[0];
+        settings.g = rgba[1];
+        settings.b = rgba[2];
+        settings.a *= rgba[3];
     }
 
     @NotNull

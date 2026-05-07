@@ -11,10 +11,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Applies server-side config limits to messages before they are sent to clients.
- * Enforces maxServerMessageDuration, maxServerActiveMessages, maxQueueSize, and allowedEffects.
- */
 public final class ServerMessageLimiter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/ServerLimiter");
@@ -22,17 +18,12 @@ public final class ServerMessageLimiter {
     private ServerMessageLimiter() {
     }
 
-    /**
-     * Apply server-side limits to a message before sending.
-     * Caps duration and filters disallowed effects.
-     */
     public static void sanitize(ImmersiveMessage message) {
         if (message == null) return;
 
         try {
             ConfigHelper config = ConfigHelper.getInstance();
 
-            // Cap duration
             int maxDuration = config.getMaxServerMessageDuration();
             if (maxDuration > 0) {
                 int msgDuration = message.durationTicks();
@@ -42,7 +33,6 @@ public final class ServerMessageLimiter {
                 }
             }
 
-            // Filter effects via allowlist
             List<String> allowed = config.getAllowedEffects();
             if (!allowed.isEmpty()) {
                 filterEffects(message, allowed);
@@ -52,26 +42,18 @@ public final class ServerMessageLimiter {
         }
     }
 
-    /**
-     * Apply server-side limits to all messages in a queue.
-     * Also enforces maxQueueSize by truncating the steps list.
-     *
-     * @return the (potentially truncated) steps list
-     */
     public static List<List<ImmersiveMessage>> sanitizeQueue(List<List<ImmersiveMessage>> steps) {
         if (steps == null || steps.isEmpty()) return steps;
 
         try {
             ConfigHelper config = ConfigHelper.getInstance();
 
-            // Enforce maxQueueSize
             int maxQueueSize = config.getMaxQueueSize();
             if (maxQueueSize > 0 && steps.size() > maxQueueSize) {
                 steps = new ArrayList<>(steps.subList(0, maxQueueSize));
                 LOGGER.debug("Truncated queue to {} steps (server limit)", maxQueueSize);
             }
 
-            // Sanitize each message in each step
             for (List<ImmersiveMessage> step : steps) {
                 for (ImmersiveMessage msg : step) {
                     sanitize(msg);

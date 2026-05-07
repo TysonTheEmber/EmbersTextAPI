@@ -1,6 +1,5 @@
 package net.tysontheember.emberstextapi.immersivemessages.util;
 
-/** Simple ARGB colour container with a few helpers. */
 public class ImmersiveColor {
     private int argb;
 

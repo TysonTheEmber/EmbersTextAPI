@@ -5,12 +5,18 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.MessageEffect;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.MessageEffectContext;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.MessageEffectRegistry;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.attr.MessageAttribute;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.attr.MessageAttributeRegistry;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.world.item.component.CustomData;
@@ -33,6 +39,7 @@ import net.tysontheember.emberstextapi.immersivemessages.effects.rendering.Backg
 import net.tysontheember.emberstextapi.immersivemessages.effects.util.ColorUtil;
 import net.tysontheember.emberstextapi.immersivemessages.util.ColorParser;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
+import net.tysontheember.emberstextapi.serialization.SerializationUtil;
 import net.tysontheember.emberstextapi.immersivemessages.util.RenderUtil;
 
 import java.util.ArrayList;
@@ -40,14 +47,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-/**
- * More feature rich port of the original Immersive Messages class.
- * It supports anchor/align positioning, backgrounds, typewriter
- * animations and progressive de-obfuscation. Audio cues have been
- * intentionally omitted so the API focuses purely on text rendering.
- *
- * Version 2.0.0: Added span-based text rendering with markup parser support.
- */
 public class ImmersiveMessage {
     private static final Logger LOGGER = LogUtils.getLogger();
 
@@ -55,9 +54,9 @@ public class ImmersiveMessage {
     private float duration;
     private float age;
     private float previousAge;
-    /** Number of ticks spent fading in before reaching full opacity. */
+
     private int fadeInTicks = 0;
-    /** Number of ticks spent fading out after the visible duration completes. */
+
     private int fadeOutTicks = 0;
     private float xOffset;
     private float yOffset = 55f;
@@ -85,53 +84,43 @@ public class ImmersiveMessage {
     private float textureOverrideHeight = -1f;
     private TextureSizingMode textureSizingMode = TextureSizingMode.STRETCH;
 
-    // Background gradient (multi-stop ARGB ImmersiveColor)
     private ImmersiveColor[] backgroundGradientStops;
 
-    // Typewriter
     private boolean typewriter = false;
-    private float typewriterSpeed = 0.5f; // characters per tick
+    private float typewriterSpeed = 0.5f;
     private boolean typewriterCenter = false;
     private int typewriterIndex = 0;
 
-    // Current rendered text (may be typewritten or obfuscated)
     private MutableComponent current = Component.literal("");
 
-    // Obfuscation
     private ObfuscateMode obfuscateMode = ObfuscateMode.NONE;
-    private float obfuscateSpeed = 0.00005f; // characters per tick
+    private float obfuscateSpeed = 0.00005f;
     private float obfuscateProgress = 0f;
 
-    // Per-character reveal tracking (mask-based, not §k injection)
     private String baseText;
-    private boolean[] revealMask;          // true = revealed (de-obfuscated)
-    private List<Integer> revealOrder;     // order to flip bits in revealMask
+    private boolean[] revealMask;
+    private List<Integer> revealOrder;
     private int revealIndex = 0;
 
-    // Layout
     private int wrapMaxWidth = -1;
     private float delay = 0f;
 
-    // Span-scoped char shake (per-span effects in markup-driven messages)
     private boolean spanCharShake = false;
     private float spanCharShakeMaxStrength = 0f;
     private List<CharShakeSegment> spanCharShakeSegments = Collections.emptyList();
 
-    // NEW: Span-based rendering (v2.0.0)
     private List<TextSpan> spans;
     private boolean spanMode = false;
-    private int[] spanTypewriterIndices; // Per-span typewriter progress
+    private int[] spanTypewriterIndices;
 
-    // Original markup source string for NBT round-trip (v2.0.0)
-    // When present, the client will use this to re-parse markup effects via LiteralContentsMixin
     private String markupSource;
-    private Component markupComponent; // Cached Component.literal(markupSource) for layout cache hits
+    private Component markupComponent;
 
-    // NEW: Visual effects system (v2.0.0)
     private List<Effect> globalEffects;
+    private List<MessageEffect> messageEffects;
+    private List<MessageAttribute> messageAttributes;
     private List<EffectSegment> spanEffectSegments = Collections.emptyList();
 
-    // Unique context ID for this message (prevents tooltip hovers from resetting chat typewriter)
     private final String messageContextId;
 
     private OnRenderMessage onRender;
@@ -140,128 +129,65 @@ public class ImmersiveMessage {
     public ImmersiveMessage(Component text, float duration) {
         this.text = text;
         this.duration = duration;
-        // Create a unique context ID for this message instance
-        // Using creation timestamp + object hash ensures uniqueness
         this.messageContextId = "message:" + System.currentTimeMillis() + ":" + System.identityHashCode(this);
 
-        // Mark this message context as started NOW (when message is created)
-        // This ensures typewriter effects start immediately when sent, not when first rendered
-        // And prevents tooltip hovers from resetting the animation
         net.tysontheember.emberstextapi.client.ViewStateTracker.markViewStarted(this.messageContextId);
 
-        // Initialize age to ensure proper fade-in from start
         this.age = 0f;
         this.previousAge = 0f;
     }
 
-    // NEW: Span-based constructor
     public ImmersiveMessage(List<TextSpan> spans, float duration) {
         this.spans = new ArrayList<>(spans);
-        this.text = Component.literal(MarkupParser.toPlainText(spans)); // For compatibility
+        this.text = Component.literal(MarkupParser.toPlainText(spans));
         this.duration = duration;
         this.spanMode = true;
         this.spanTypewriterIndices = new int[spans.size()];
 
-        // Create unique context ID and mark as started (same as other constructor)
         this.messageContextId = "message:" + System.currentTimeMillis() + ":" + System.identityHashCode(this);
         net.tysontheember.emberstextapi.client.ViewStateTracker.markViewStarted(this.messageContextId);
 
-        // Initialize age to ensure proper fade-in from start
         this.age = 0f;
         this.previousAge = 0f;
 
-        // Check if any spans have typewriter effects and enable global typewriter if so
         if (spans.stream().anyMatch(span -> span.getTypewriterSpeed() != null)) {
             this.typewriter = true;
         }
 
         evaluateSpanCharShake();
         buildEffectSegments();
-
-        // Extract global message attributes from any span that has them (typically the first one)
-        for (TextSpan span : spans) {
-            if (span.hasGlobalAttributes()) {
-                if (span.getGlobalBackground() != null) {
-                    this.background = span.getGlobalBackground();
-                }
-                if (span.getGlobalBackgroundColor() != null) {
-                    this.backgroundColor = span.getGlobalBackgroundColor();
-                }
-                if (span.getGlobalBackgroundGradient() != null) {
-                    this.backgroundGradientStops = span.getGlobalBackgroundGradient();
-                }
-                if (span.getGlobalBorderStart() != null) {
-                    this.borderStart = span.getGlobalBorderStart();
-                }
-                if (span.getGlobalBorderEnd() != null) {
-                    this.borderEnd = span.getGlobalBorderEnd();
-                }
-                if (span.getGlobalXOffset() != null) {
-                    this.xOffset = span.getGlobalXOffset();
-                }
-                if (span.getGlobalYOffset() != null) {
-                    this.yOffset = span.getGlobalYOffset();
-                }
-                if (span.getGlobalAnchor() != null) {
-                    this.anchor = span.getGlobalAnchor();
-                }
-                if (span.getGlobalAlign() != null) {
-                    this.align = span.getGlobalAlign();
-                }
-                if (span.getGlobalScale() != null) {
-                    this.textScale = span.getGlobalScale();
-                }
-                if (span.getGlobalShadow() != null) {
-                    this.shadow = span.getGlobalShadow();
-                }
-                if (span.getGlobalFadeInTicks() != null) {
-                    this.fadeInTicks = span.getGlobalFadeInTicks();
-                }
-                if (span.getGlobalFadeOutTicks() != null) {
-                    this.fadeOutTicks = span.getGlobalFadeOutTicks();
-                }
-                if (span.getGlobalTypewriterSpeed() != null) {
-                    this.typewriter = true;
-                    this.typewriterSpeed = span.getGlobalTypewriterSpeed();
-                    this.typewriterCenter = span.getGlobalTypewriterCenter() != null ? span.getGlobalTypewriterCenter() : false;
-                }
-                break; // Use first span with global attributes
-            }
-        }
     }
 
-    /** Builder entry point. */
     public static ImmersiveMessage builder(float duration, String text) {
         return new ImmersiveMessage(Component.literal(text), duration);
     }
 
-    /** NEW: Create from markup text with span-based rendering. */
     public static ImmersiveMessage fromMarkup(float duration, String markup) {
-        List<TextSpan> parsed = MarkupParser.parse(markup);
-        ImmersiveMessage msg = new ImmersiveMessage(parsed, duration);
-        msg.markupSource = markup;
-        msg.markupComponent = Component.literal(markup);
+        ParseResult parsed = MarkupParser.parseFull(markup);
+        ImmersiveMessage msg = new ImmersiveMessage(parsed.spans(), duration);
+        if (!parsed.messageAttributes().isEmpty()) {
+            msg.messageAttributes = new ArrayList<>(parsed.messageAttributes());
+            for (MessageAttribute attr : parsed.messageAttributes()) {
+                attr.apply(msg);
+            }
+        }
+        if (!parsed.messageEffects().isEmpty()) {
+            msg.messageEffects = new ArrayList<>(parsed.messageEffects());
+        }
+        msg.markupSource = parsed.strippedMarkup();
+        msg.markupComponent = Component.literal(parsed.strippedMarkup());
         return msg;
     }
 
-    /** NEW: Create from TextSpan list. */
     public static ImmersiveMessage fromSpans(float duration, List<TextSpan> spans) {
         return new ImmersiveMessage(spans, duration);
     }
 
-    // ----- Builder style setters -----
     public ImmersiveMessage shadow(boolean shadow) { this.shadow = shadow; return this; }
     public ImmersiveMessage anchor(TextAnchor anchor) { this.anchor = anchor; return this; }
     public ImmersiveMessage align(TextAlign align) { this.align = align; return this; }
     public ImmersiveMessage offset(float x, float y) { this.xOffset = x; this.yOffset = y; return this; }
 
-    /**
-     * Sets the number of ticks to fade the message in before it reaches full opacity.
-     *
-     * @param ticks fade-in length in ticks, must be non-negative.
-     * @return this builder instance for chaining.
-     * @throws IllegalArgumentException if {@code ticks} is negative.
-     */
     public ImmersiveMessage fadeInTicks(int ticks) {
         if (ticks < 0) {
             throw new IllegalArgumentException("fadeInTicks must be non-negative");
@@ -270,13 +196,6 @@ public class ImmersiveMessage {
         return this;
     }
 
-    /**
-     * Sets the number of ticks to fade the message out after the visible duration completes.
-     *
-     * @param ticks fade-out length in ticks, must be non-negative.
-     * @return this builder instance for chaining.
-     * @throws IllegalArgumentException if {@code ticks} is negative.
-     */
     public ImmersiveMessage fadeOutTicks(int ticks) {
         if (ticks < 0) {
             throw new IllegalArgumentException("fadeOutTicks must be non-negative");
@@ -310,14 +229,6 @@ public class ImmersiveMessage {
         return this;
     }
 
-    // ----- Background color/border customization -----
-    /**
-     * Parse a color string to ImmersiveColor.
-     * Delegates to centralized {@link ColorParser} utility.
-     *
-     * @param value Color string to parse
-     * @return ImmersiveColor or null if parsing fails
-     */
     private ImmersiveColor parseColour(String value) {
         return ColorParser.parseImmersiveColor(value);
     }
@@ -352,6 +263,7 @@ public class ImmersiveMessage {
         return this;
     }
     public ImmersiveMessage bgColor(int argb) { this.backgroundColor = new ImmersiveColor(argb); this.background = true; return this; }
+    public ImmersiveMessage bgColor(ImmersiveColor color) { this.backgroundColor = color; this.background = true; return this; }
     public ImmersiveMessage borderGradient(ImmersiveColor start, ImmersiveColor end) { this.borderStart = start; this.borderEnd = end; this.background = true; return this; }
     public ImmersiveMessage borderGradient(ChatFormatting start, ChatFormatting end) {
         if (start != null && end != null && start.getColor() != null && end.getColor() != null) {
@@ -465,7 +377,6 @@ public class ImmersiveMessage {
         return this;
     }
 
-    // ----- Background gradient convenience overloads (ARGB) -----
     public ImmersiveMessage backgroundGradient(int startArgb, int endArgb) {
         return backgroundGradient(new ImmersiveColor(startArgb), new ImmersiveColor(endArgb));
     }
@@ -533,14 +444,6 @@ public class ImmersiveMessage {
         return this;
     }
 
-    // NEW: Visual effects system (v2.0.0)
-    /**
-     * Add a global visual effect to this message.
-     * Effects are applied to all characters in the message.
-     *
-     * @param effect The effect to add
-     * @return This message for chaining
-     */
     public ImmersiveMessage addEffect(Effect effect) {
         if (this.globalEffects == null) {
             this.globalEffects = new ArrayList<>();
@@ -549,30 +452,18 @@ public class ImmersiveMessage {
         return this;
     }
 
-    /**
-     * Add a global effect by parsing a tag content string.
-     * Example: effect("rainbow f=2.0 w=0.5")
-     *
-     * @param tagContent Effect name and parameters
-     * @return This message for chaining
-     */
     public ImmersiveMessage effect(String tagContent) {
         if (tagContent != null && !tagContent.isEmpty()) {
             try {
                 Effect effect = EffectRegistry.parseTag(tagContent);
                 addEffect(effect);
             } catch (IllegalArgumentException e) {
-                // Silently ignore unknown effects
+
             }
         }
         return this;
     }
 
-    /**
-     * Clear all global effects.
-     *
-     * @return This message for chaining
-     */
     public ImmersiveMessage clearEffects() {
         if (this.globalEffects != null) {
             this.globalEffects.clear();
@@ -580,13 +471,27 @@ public class ImmersiveMessage {
         return this;
     }
 
-    /**
-     * Get the list of global effects (may be null).
-     *
-     * @return List of effects or null
-     */
     public List<Effect> getGlobalEffects() {
         return globalEffects;
+    }
+
+    public ImmersiveMessage messageEffect(MessageEffect effect) {
+        if (this.messageEffects == null) {
+            this.messageEffects = new ArrayList<>();
+        }
+        this.messageEffects.add(effect);
+        return this;
+    }
+
+    public ImmersiveMessage clearMessageEffects() {
+        if (this.messageEffects != null) {
+            this.messageEffects.clear();
+        }
+        return this;
+    }
+
+    public List<MessageEffect> getMessageEffects() {
+        return messageEffects;
     }
 
     private static ImmersiveColor parseImmersiveColor(String value) {
@@ -594,7 +499,9 @@ public class ImmersiveMessage {
         ChatFormatting fmt = ChatFormatting.getByName(value);
         if (fmt != null) {
             TextColor c = TextColor.fromLegacyFormat(fmt);
-            return new ImmersiveColor(0xFF000000 | c.getValue());
+            if (c != null) {
+                return new ImmersiveColor(0xFF000000 | c.getValue());
+            }
         }
         TextColor c = TextColor.parseColor(value).result().orElse(null);
         return c != null ? new ImmersiveColor(0xFF000000 | c.getValue()) : null;
@@ -621,7 +528,6 @@ public class ImmersiveMessage {
         current = result;
     }
 
-    // ----- Network codec -----
     public CompoundTag toNbt() {
         return toNbt(null);
     }
@@ -629,12 +535,10 @@ public class ImmersiveMessage {
     public CompoundTag toNbt(HolderLookup.Provider provider) {
         CompoundTag tag = new CompoundTag();
 
-        // Serialize original markup source so client can re-parse effects via LiteralContentsMixin
         if (markupSource != null) {
             tag.putString("Markup", markupSource);
         }
 
-        // 1.21.1: Use Component.Serializer with provider when available, fallback to plain text
         if (provider != null) {
             try {
                 tag.putString("TextJson", Component.Serializer.toJson(text, provider));
@@ -700,6 +604,20 @@ public class ImmersiveMessage {
         }
         tag.putInt("WrapWidth", wrapMaxWidth);
         tag.putFloat("Delay", delay);
+        if (messageEffects != null && !messageEffects.isEmpty()) {
+            ListTag list = new ListTag();
+            for (MessageEffect me : messageEffects) {
+                list.add(StringTag.valueOf(me.serialize()));
+            }
+            tag.put("MessageEffects", list);
+        }
+        if (messageAttributes != null && !messageAttributes.isEmpty()) {
+            ListTag list = new ListTag();
+            for (MessageAttribute a : messageAttributes) {
+                list.add(StringTag.valueOf(a.serialize()));
+            }
+            tag.put("MessageAttributes", list);
+        }
         return tag;
     }
 
@@ -710,7 +628,6 @@ public class ImmersiveMessage {
     public static ImmersiveMessage fromNbt(CompoundTag tag, HolderLookup.Provider provider) {
         Component text = Component.literal("");
 
-        // 1.21.1: Use Component.Serializer with provider when available
         if (tag.contains("TextJson", Tag.TAG_STRING)) {
             String json = tag.getString("TextJson");
             if (provider != null) {
@@ -722,7 +639,7 @@ public class ImmersiveMessage {
                         text = Component.literal(json);
                     }
                 } catch (Exception e) {
-                    // JSON parse failed - treat as plain literal text
+
                     text = Component.literal(json);
                 }
             } else {
@@ -809,12 +726,38 @@ public class ImmersiveMessage {
         if (tag.contains("WrapWidth")) msg.wrapMaxWidth = tag.getInt("WrapWidth");
         if (tag.contains("Delay")) msg.delay = tag.getFloat("Delay");
 
-        // Restore markup source so client can re-parse effects via LiteralContentsMixin
         if (tag.contains("Markup", Tag.TAG_STRING)) {
             msg.markupSource = tag.getString("Markup");
             msg.markupComponent = Component.literal(msg.markupSource);
-            // Disable legacy typewriter since the markup-based TypewriterEffect will handle it
+
             msg.typewriter = false;
+        }
+
+        if (tag.contains("MessageEffects", Tag.TAG_LIST)) {
+            ListTag list = tag.getList("MessageEffects", Tag.TAG_STRING);
+            for (int i = 0; i < list.size(); i++) {
+                String serialized = list.getString(i);
+                try {
+                    msg.messageEffect(MessageEffectRegistry.parseTag(serialized));
+                } catch (IllegalArgumentException e) {
+                    LOGGER.warn("Failed to decode message effect: {}", serialized, e);
+                }
+            }
+        }
+
+        if (tag.contains("MessageAttributes", Tag.TAG_LIST)) {
+            ListTag list = tag.getList("MessageAttributes", Tag.TAG_STRING);
+            for (int i = 0; i < list.size(); i++) {
+                String serialized = list.getString(i);
+                try {
+                    MessageAttribute attr = MessageAttributeRegistry.parseTag(serialized);
+                    if (msg.messageAttributes == null) msg.messageAttributes = new ArrayList<>();
+                    msg.messageAttributes.add(attr);
+                    attr.apply(msg);
+                } catch (IllegalArgumentException e) {
+                    LOGGER.warn("Failed to decode message attribute: {}", serialized, e);
+                }
+            }
         }
 
         if (msg.obfuscateMode != ObfuscateMode.NONE) msg.initObfuscation();
@@ -822,11 +765,10 @@ public class ImmersiveMessage {
     }
 
     public void encode(FriendlyByteBuf buf) {
-        // NEW: Write span mode flag first
         buf.writeBoolean(spanMode);
 
         if (spanMode) {
-            // Serialize spans data
+
             buf.writeVarInt(spans != null ? spans.size() : 0);
             if (spans != null) {
                 for (TextSpan span : spans) {
@@ -835,8 +777,11 @@ public class ImmersiveMessage {
             }
         }
 
-        // 1.21.1: Use string serialization (TODO: use RegistryFriendlyByteBuf if available)
-        buf.writeUtf(text.getString());
+        buf.writeUtf(net.minecraft.network.chat.ComponentSerialization.CODEC
+                .encodeStart(com.mojang.serialization.JsonOps.INSTANCE, text)
+                .result()
+                .map(Object::toString)
+                .orElse("\"" + text.getString().replace("\"", "\\\"") + "\""));
         buf.writeFloat(duration);
         buf.writeFloat(xOffset);
         buf.writeFloat(yOffset);
@@ -878,7 +823,6 @@ public class ImmersiveMessage {
             buf.writeEnum(textureSizingMode);
         }
 
-        // Background gradient stops
         buf.writeBoolean(backgroundGradientStops != null);
         if (backgroundGradientStops != null) {
             buf.writeVarInt(backgroundGradientStops.length);
@@ -890,33 +834,41 @@ public class ImmersiveMessage {
         buf.writeVarInt(fadeInTicks);
         buf.writeVarInt(fadeOutTicks);
 
-        // NEW: Encode global effects (v2.0.0)
         buf.writeVarInt(globalEffects == null ? 0 : globalEffects.size());
         if (globalEffects != null && !globalEffects.isEmpty()) {
             for (Effect effect : globalEffects) {
                 buf.writeUtf(effect.serialize());
             }
         }
+
+        buf.writeVarInt(messageAttributes == null ? 0 : messageAttributes.size());
+        if (messageAttributes != null && !messageAttributes.isEmpty()) {
+            for (MessageAttribute a : messageAttributes) {
+                buf.writeUtf(a.serialize());
+            }
+        }
     }
 
     public static ImmersiveMessage decode(FriendlyByteBuf buf) {
-        // NEW: Read span mode flag first
         boolean spanMode = buf.readBoolean();
 
         ImmersiveMessage msg;
         if (spanMode) {
-            // Deserialize spans data
+
             int spanCount = buf.readVarInt();
             java.util.List<TextSpan> spans = new java.util.ArrayList<>();
             for (int i = 0; i < spanCount; i++) {
                 spans.add(TextSpan.decode(buf));
             }
 
-            // Read component and duration
-            Component text = Component.literal(buf.readUtf());
+            String textJson = buf.readUtf();
+            Component text = net.minecraft.network.chat.ComponentSerialization.CODEC
+                    .parse(com.mojang.serialization.JsonOps.INSTANCE, com.google.gson.JsonParser.parseString(textJson))
+                    .result()
+                    .map(c -> (Component) c)
+                    .orElse(Component.literal(textJson));
             float duration = buf.readFloat();
 
-            // Create span-based message
             msg = new ImmersiveMessage(text, duration);
             msg.spanMode = true;
             msg.spans = spans;
@@ -924,16 +876,21 @@ public class ImmersiveMessage {
             msg.evaluateSpanCharShake();
             msg.buildEffectSegments();
         } else {
-            // Legacy deserialization
-            Component text = Component.literal(buf.readUtf());
+
+            String textJson = buf.readUtf();
+            Component text = net.minecraft.network.chat.ComponentSerialization.CODEC
+                    .parse(com.mojang.serialization.JsonOps.INSTANCE, com.google.gson.JsonParser.parseString(textJson))
+                    .result()
+                    .map(c -> (Component) c)
+                    .orElse(Component.literal(textJson));
             float duration = buf.readFloat();
             msg = new ImmersiveMessage(text, duration);
         }
         msg.xOffset = buf.readFloat();
         msg.yOffset = buf.readFloat();
         msg.shadow = buf.readBoolean();
-        msg.anchor = buf.readEnum(TextAnchor.class);
-        msg.align = buf.readEnum(TextAlign.class);
+        msg.anchor = SerializationUtil.readEnumSafe(buf, TextAnchor.class);
+        msg.align = SerializationUtil.readEnumSafe(buf, TextAlign.class);
         msg.background = buf.readBoolean();
         msg.backgroundColor = new ImmersiveColor(buf.readInt());
         msg.borderStart = new ImmersiveColor(buf.readInt());
@@ -942,7 +899,7 @@ public class ImmersiveMessage {
         msg.typewriter = buf.readBoolean();
         msg.typewriterSpeed = buf.readFloat();
         msg.typewriterCenter = buf.readBoolean();
-        msg.obfuscateMode = buf.readEnum(ObfuscateMode.class);
+        msg.obfuscateMode = SerializationUtil.readEnumSafe(buf, ObfuscateMode.class);
         msg.obfuscateSpeed = buf.readFloat();
 
         if (buf.readBoolean()) {
@@ -959,12 +916,11 @@ public class ImmersiveMessage {
             msg.textureScaleY = buf.readFloat();
             msg.textureOverrideWidth = buf.readBoolean() ? buf.readFloat() : -1f;
             msg.textureOverrideHeight = buf.readBoolean() ? buf.readFloat() : -1f;
-            msg.textureSizingMode = buf.readEnum(TextureSizingMode.class);
+            msg.textureSizingMode = SerializationUtil.readEnumSafe(buf, TextureSizingMode.class);
             msg.useTextureBackground = true;
             msg.background = true;
         }
 
-        // Background gradient stops
         if (buf.readBoolean()) {
             int count = buf.readVarInt();
             ImmersiveColor[] cols = new ImmersiveColor[count];
@@ -981,7 +937,6 @@ public class ImmersiveMessage {
             msg.fadeOutTicks = Math.max(0, buf.readVarInt());
         }
 
-        // NEW: Decode global effects (v2.0.0)
         if (buf.isReadable()) {
             int effectCount = buf.readVarInt();
             if (effectCount > 0) {
@@ -991,10 +946,23 @@ public class ImmersiveMessage {
                         Effect effect = EffectRegistry.parseTag(effectTag);
                         msg.addEffect(effect);
                     } catch (IllegalArgumentException e) {
-                        // Skip unknown effects (forward compatibility)
+
                         LOGGER.warn("Failed to decode global effect: {}", effectTag, e);
                     }
                 }
+            }
+        }
+
+        int attrCount = buf.readVarInt();
+        for (int i = 0; i < attrCount; i++) {
+            String serialized = buf.readUtf();
+            try {
+                MessageAttribute attr = MessageAttributeRegistry.parseTag(serialized);
+                if (msg.messageAttributes == null) msg.messageAttributes = new ArrayList<>();
+                msg.messageAttributes.add(attr);
+                attr.apply(msg);
+            } catch (IllegalArgumentException e) {
+                LOGGER.warn("Failed to decode message attribute: {}", serialized, e);
             }
         }
 
@@ -1002,7 +970,6 @@ public class ImmersiveMessage {
         return msg;
     }
 
-    // ----- Runtime behaviour -----
     public void tickEffects() {
         tick(1f);
     }
@@ -1023,23 +990,14 @@ public class ImmersiveMessage {
         this.duration = duration;
     }
 
-    /**
-     * @return configured fade-in length in ticks.
-     */
     public int getFadeInTicks() {
         return fadeInTicks;
     }
 
-    /**
-     * @return configured fade-out length in ticks.
-     */
     public int getFadeOutTicks() {
         return fadeOutTicks;
     }
 
-    /**
-     * Total lifetime in ticks including fade in/out wrappers.
-     */
     public float totalLifetime() {
         return fadeInTicks + duration + fadeOutTicks;
     }
@@ -1058,12 +1016,6 @@ public class ImmersiveMessage {
         return (alpha << 24) | (base & 0x00FFFFFF);
     }
 
-    /**
-     * Computes the ARGB colour for rendering with interpolation between the previous and current age values.
-     *
-     * @param partialTick render partial tick, typically between {@code 0} and {@code 1}.
-     * @return colour with fade alpha applied for the provided partial tick.
-     */
     public int renderColour(float partialTick) {
         int base = text.getStyle().getColor() != null ? text.getStyle().getColor().getValue() : 0xFFFFFF;
         int alpha = normalizeFontAlpha(Mth.clamp(Math.round(computeAlpha(sampleAge(partialTick)) * 255f), 0, 255));
@@ -1079,33 +1031,26 @@ public class ImmersiveMessage {
     }
 
     public String fontKey() {
-        // 1.20.1: Style#getFont() returns a ResourceLocation (not Optional)
+
         ResourceLocation font = text.getStyle().getFont();
         return font != null ? font.toString() : "minecraft:default";
     }
 
     private Component getDrawComponent() {
-        // NEW: Handle span-based rendering
         if (spanMode && spans != null) {
             return buildComponentFromSpans();
         }
 
-        // Markup source: return the original markup string as a literal component
-        // so LiteralContentsMixin can re-parse tags (<typewriter>, <rainbow>, etc.)
         if (markupComponent != null) {
             return markupComponent;
         }
 
-        // Legacy rendering
         if (typewriter) {
             return current;
         }
         return current.getString().isEmpty() ? text : current;
     }
 
-    /**
-     * Builds a styled Component from the current spans.
-     */
     private Component buildComponentFromSpans() {
         if (spans == null || spans.isEmpty()) {
             return Component.literal("");
@@ -1118,38 +1063,35 @@ public class ImmersiveMessage {
         for (int i = 0; i < spans.size(); i++) {
             TextSpan span = spans.get(i);
             String content = span.getContent();
-            // Skip only if empty AND not an item span
+
             if (content.isEmpty() && span.getItemId() == null) continue;
 
             MutableComponent spanComponent;
 
-            // Handle typewriter effect
             if (typewriter && spanTypewriterIndices != null && i < spanTypewriterIndices.length) {
-                // Use the pre-calculated typewriter index (works for both container and per-span typewriter)
+
                 int spanTypewriterIndex = spanTypewriterIndices[i];
                 if (spanTypewriterIndex < content.length()) {
                     content = content.substring(0, Math.max(0, spanTypewriterIndex));
                 }
             } else if (!typewriter && span.getTypewriterSpeed() != null && spanTypewriterIndices != null) {
-                // Handle case where global typewriter is off but span has its own typewriter
+
                 int spanTypewriterIndex = spanTypewriterIndices[i];
                 if (spanTypewriterIndex < content.length()) {
                     content = content.substring(0, Math.max(0, spanTypewriterIndex));
                 }
             }
 
-            // Handle item spans specially
             if (span.getItemId() != null) {
-                // Add a placeholder space for items - they'll be rendered custom in renderSpansWithItems
+
                 spanComponent = Component.literal(" ");
                 result.append(spanComponent);
                 currentCharIndex += span.getContent().length();
                 continue;
             }
 
-            // Handle entity spans specially
             if (span.getEntityId() != null) {
-                // Add a placeholder space for entities - they'll be rendered custom in renderSpansWithItems
+
                 spanComponent = Component.literal("  ");
                 result.append(spanComponent);
                 currentCharIndex += span.getContent().length();
@@ -1161,7 +1103,6 @@ public class ImmersiveMessage {
                 continue;
             }
 
-            // Simple span with single styling
             spanComponent = Component.literal(content);
             applySpanStyling(spanComponent, span);
 
@@ -1172,24 +1113,15 @@ public class ImmersiveMessage {
         return result;
     }
 
-    /**
-     * Checks if any spans have their own typewriter effects.
-     */
     private boolean hasAnyTypewriterSpans() {
         if (spans == null) return false;
         return spans.stream().anyMatch(span -> span.getTypewriterSpeed() != null);
     }
 
-    /**
-     * Applies span styling to a component.
-     */
     private void applySpanStyling(MutableComponent component, TextSpan span) {
         applySpanStyling(component, span, 1.0f);
     }
 
-    /**
-     * Applies span styling to a component with alpha modulation.
-     */
     private void applySpanStyling(MutableComponent component, TextSpan span, float alpha) {
         component.withStyle(style -> {
             if (span.getBold() != null && span.getBold()) style = style.withBold(true);
@@ -1199,16 +1131,15 @@ public class ImmersiveMessage {
             if (span.getObfuscated() != null && span.getObfuscated()) style = style.withObfuscated(true);
             if (span.getFont() != null) style = style.withFont(span.getFont());
 
-            // Apply color with alpha modulation
             if (span.getColor() != null) {
                 int originalColor = span.getColor().getValue();
                 int alphaComponent = (int)(alpha * 255) << 24;
                 int colorWithAlpha = alphaComponent | (originalColor & 0x00FFFFFF);
                 style = style.withColor(TextColor.fromRgb(colorWithAlpha));
             } else if (alpha < 1.0f) {
-                // Apply alpha to default color
+
                 int alphaComponent = (int)(alpha * 255) << 24;
-                int colorWithAlpha = alphaComponent | 0x00FFFFFF; // White with alpha
+                int colorWithAlpha = alphaComponent | 0x00FFFFFF;
                 style = style.withColor(TextColor.fromRgb(colorWithAlpha));
             }
 
@@ -1220,9 +1151,6 @@ public class ImmersiveMessage {
         return FadeCalculator.computeFadeAlpha(sampleAge, fadeInTicks, duration, fadeOutTicks);
     }
 
-    /**
-     * Computes alpha for a specific span with per-span fade effects.
-     */
     private float computeSpanAlpha(TextSpan span, float sampleAge) {
         return FadeCalculator.computeSpanFadeAlpha(sampleAge,
                 span.getFadeInTicks(), span.getFadeOutTicks(),
@@ -1234,10 +1162,6 @@ public class ImmersiveMessage {
         return Mth.lerp(clamped, previousAge, age);
     }
 
-    /**
-     * Vanilla Font#drawInBatch forces colors with alpha 0..3 to full opacity.
-     * Collapse that range to 0 so fade edges do not flash for one frame.
-     */
     private static int normalizeFontAlpha(int alpha) {
         return alpha <= 3 ? 0 : alpha;
     }
@@ -1294,7 +1218,6 @@ public class ImmersiveMessage {
         float x = screenW * anchor.xFactor - baseWidth * textScale * align.xFactor + xOffset;
         float y = screenH * anchor.yFactor - baseHeight * textScale * anchor.yFactor + yOffset;
 
-        // Clamp so text stays on screen with a small margin
         float margin = 4f;
         float scaledW = baseWidth * textScale;
         float scaledH = baseHeight * textScale;
@@ -1303,7 +1226,6 @@ public class ImmersiveMessage {
 
         float renderAge = sampleAge(partialTick);
 
-        // Skip rendering entirely if we have fade-in and haven't started yet
         if (fadeInTicks > 0 && renderAge <= 0f) {
             graphics.pose().pushPose();
             graphics.pose().popPose();
@@ -1341,11 +1263,9 @@ public class ImmersiveMessage {
         }
         boolean hasInlineItems = spanMode && spans != null && hasItemSpans();
 
-        // NEW: Check for effects (v2.0.0)
         boolean hasGlobalEffects = globalEffects != null && !globalEffects.isEmpty();
         boolean hasSpanEffects = spanMode && spans != null && spans.stream().anyMatch(s -> s.getEffects() != null && !s.getEffects().isEmpty());
 
-        // Debug: Log effect detection
         if (LOGGER.isDebugEnabled() && (hasGlobalEffects || hasSpanEffects)) {
             LOGGER.debug("Effect rendering: hasGlobalEffects={}, hasSpanEffects={}, spanMode={}, spans={}",
                 hasGlobalEffects, hasSpanEffects, spanMode, spans != null ? spans.size() : 0);
@@ -1360,18 +1280,31 @@ public class ImmersiveMessage {
             }
         }
 
+        boolean hasMessageEffects = messageEffects != null && !messageEffects.isEmpty();
+        if (hasMessageEffects) {
+            graphics.pose().pushPose();
+            float renderTimeSeconds = sampleAge(partialTick) / 20f;
+            MessageEffectContext meCtx = new MessageEffectContext(
+                    graphics, renderTimeSeconds, partialTick,
+                    baseWidth, baseHeight, textScale
+            );
+            for (MessageEffect me : messageEffects) {
+                me.apply(meCtx);
+            }
+        }
+
         if (onRender != null) {
             onRender.render(graphics, this, 0, 0, alpha);
         } else if (!textVisible) {
-            // Skip font rendering when alpha is in vanilla's unsafe 0..3 range.
+
         } else if (hasGlobalEffects || hasSpanEffects) {
-            // Use new effect rendering system (v2.0.0)
+
             LOGGER.debug("Calling renderWithEffects");
             renderWithEffects(graphics, lines, draw, colour, textStartX, textStartY);
         } else if (hasCharShakeSpans() && !hasInlineItems) {
             renderCharShake(graphics, lines, draw, colour, textStartX, textStartY);
         } else if (hasInlineItems) {
-            // Render spans with items/entities inline (entities static; no animations)
+
             renderSpansWithItems(graphics, textStartX, textStartY, colour, alpha);
         } else if (lines != null) {
             int drawStartX = Mth.floor(textStartX);
@@ -1384,6 +1317,9 @@ public class ImmersiveMessage {
             int drawStartY = Mth.floor(textStartY);
             graphics.drawString(font, draw, drawStartX, drawStartY, colour, shadow);
         }
+        if (hasMessageEffects) {
+            graphics.pose().popPose();
+        }
         graphics.pose().popPose();
     }
 
@@ -1391,9 +1327,8 @@ public class ImmersiveMessage {
         previousAge = age;
         age += delta;
 
-        // Typewriter progression
         if (typewriter) {
-            // Handle global typewriter (legacy mode)
+
             int next = TypewriterAnimator.calculateTypewriterIndex(age, typewriterSpeed, text.getString().length());
             if (next > typewriterIndex) {
                 typewriterIndex = next;
@@ -1405,24 +1340,21 @@ public class ImmersiveMessage {
                 }
             }
 
-            // Handle per-span typewriter (span mode)
             if (spanMode && spans != null && spanTypewriterIndices != null) {
-                // Check if ANY span has its own typewriter speed (independent typewriter)
+
                 boolean hasIndependentTypewriter = TypewriterAnimator.hasIndependentTypewriter(spans);
 
                 if (hasIndependentTypewriter) {
-                    // Original behavior: Each span with typewriter animates independently
+
                     TypewriterAnimator.updateIndependentSpanTypewriter(age, spans, spanTypewriterIndices);
                 } else {
-                    // NEW: Container-based typewriter - count chars across all spans
-                    // Use global typewriter speed and reveal chars sequentially across spans
+
                     int totalCharsToShow = Math.min(next, getFullText().length());
                     TypewriterAnimator.updateContainerTypewriter(totalCharsToShow, spans, spanTypewriterIndices);
                 }
             }
         }
 
-        // Obfuscation progression
         if (obfuscateMode != ObfuscateMode.NONE) tickObfuscation(delta);
     }
 
@@ -1457,9 +1389,6 @@ public class ImmersiveMessage {
         renderWithLayout(graphics, draw, layout, screenW, screenH, 0f);
     }
 
-    /**
-     * Checks if any spans contain items or entities to render.
-     */
     private boolean hasItemSpans() {
         if (spans == null) return false;
         return spans.stream().anyMatch(span -> span.getItemId() != null || span.getEntityId() != null);
@@ -1475,10 +1404,6 @@ public class ImmersiveMessage {
         spanCharShakeSegments = Collections.emptyList();
     }
 
-    /**
-     * Build effect segments from spans with effects (v2.0.0).
-     * This creates a mapping of character indices to their associated effects.
-     */
     private void buildEffectSegments() {
         spanEffectSegments = Collections.emptyList();
         if (spans == null) return;
@@ -1534,10 +1459,6 @@ public class ImmersiveMessage {
         }
     }
 
-    /**
-     * Segment mapping for visual effects (v2.0.0).
-     * Maps character ranges to their associated effects.
-     */
     private static class EffectSegment {
         final int startIndex;
         final int endIndex;
@@ -1552,9 +1473,6 @@ public class ImmersiveMessage {
         }
     }
 
-    /**
-     * Renders spans with inline items/entities. Entities are rendered statically (no animations).
-     */
     private void renderSpansWithItems(GuiGraphics graphics, float startX, float startY, int colour, float alpha) {
         var font = Minecraft.getInstance().font;
         var mc = Minecraft.getInstance();
@@ -1564,9 +1482,8 @@ public class ImmersiveMessage {
         for (int i = 0; i < spans.size(); i++) {
             TextSpan span = spans.get(i);
 
-            // Check if this is an item span
             if (span.getItemId() != null) {
-                // Render item icon
+
                 try {
                     ResourceLocation itemLocation = ResourceLocation.tryParse(span.getItemId());
                     if (itemLocation != null) {
@@ -1574,7 +1491,6 @@ public class ImmersiveMessage {
                         if (item != null) {
                             net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item, span.getItemCount() != null ? span.getItemCount() : 1);
 
-                            // Apply NBT data if specified (stored as CustomData component in 1.21.1)
                             if (span.getItemNbt() != null) {
                                 try {
                                     CompoundTag nbtTag = TagParser.parseTag(span.getItemNbt());
@@ -1584,12 +1500,10 @@ public class ImmersiveMessage {
                                 }
                             }
 
-                            // Render the item at 16x16 size (standard Minecraft item size)
                             int itemSize = 16;
-                            // Center item vertically with text (font height is 9, item is 16)
+
                             float itemYOffset = yOffset - (itemSize - font.lineHeight) / 2.0f;
 
-                            // Apply custom offsets if specified
                             float customOffsetX = span.getItemOffsetX() != null ? span.getItemOffsetX() : 0f;
                             float customOffsetY = span.getItemOffsetY() != null ? span.getItemOffsetY() : 0f;
 
@@ -1598,28 +1512,26 @@ public class ImmersiveMessage {
                             graphics.renderItem(stack, 0, 0);
                             graphics.pose().popPose();
 
-                            xOffset += itemSize + 2; // Add spacing after item
+                            xOffset += itemSize + 2;
                         }
                     }
                 } catch (Exception e) {
-                    // If item rendering fails, just skip it
+
                 }
             } else if (span.getEntityId() != null) {
-                // Render entity using EntityRenderer utility
+
                 float entityScale = span.getEntityScale() != null ? span.getEntityScale() : 1.0f;
                 int entitySize = (int)(16 * entityScale);
 
-                // Center entity vertically with text
                 float entityYOffset = yOffset - (entitySize - font.lineHeight) / 2.0f;
 
-                // Get parameters with defaults
                 float customOffsetX = span.getEntityOffsetX() != null ? span.getEntityOffsetX() : 0f;
                 float customOffsetY = span.getEntityOffsetY() != null ? span.getEntityOffsetY() : 0f;
                 float yaw = span.getEntityYaw() != null ? span.getEntityYaw() : 45f;
                 float pitch = span.getEntityPitch() != null ? span.getEntityPitch() : 0f;
                 float roll = span.getEntityRoll() != null ? span.getEntityRoll() : 0f;
                 int lighting = span.getEntityLighting() != null ? span.getEntityLighting() : 15;
-                Float spin = span.getEntitySpin(); // null if not set
+                Float spin = span.getEntitySpin();
 
                 int renderedWidth = net.tysontheember.emberstextapi.immersivemessages.util.EntityRenderer.render(
                         graphics,
@@ -1638,13 +1550,12 @@ public class ImmersiveMessage {
                 );
 
                 if (renderedWidth > 0) {
-                    xOffset += renderedWidth + 2; // Add spacing after entity
+                    xOffset += renderedWidth + 2;
                 }
             } else {
-                // Render text span
+
                 String content = span.getContent();
 
-                // Handle typewriter effect
                 if (typewriter && spanTypewriterIndices != null && i < spanTypewriterIndices.length) {
                     int spanTypewriterIndex = spanTypewriterIndices[i];
                     if (spanTypewriterIndex < content.length()) {
@@ -1792,15 +1703,10 @@ public class ImmersiveMessage {
         }
     }
 
-    /**
-     * Render with effects applied per-character (v2.0.0).
-     * This method applies both span-level and global effects to each character.
-     */
     private void renderWithEffects(GuiGraphics graphics, List<FormattedCharSequence> lines, Component draw, int baseColour, float baseX, float baseY) {
         var font = Minecraft.getInstance().font;
         int[] index = {0};
 
-        // Extract base color components from baseColour
         float baseAlpha = ((baseColour >> 24) & 0xFF) / 255f;
         float baseRed = ((baseColour >> 16) & 0xFF) / 255f;
         float baseGreen = ((baseColour >> 8) & 0xFF) / 255f;
@@ -1832,17 +1738,12 @@ public class ImmersiveMessage {
         }
     }
 
-    /**
-     * Render a single character with effects applied.
-     */
     private void renderCharWithEffects(GuiGraphics graphics, net.minecraft.client.gui.Font font,
                                         int codePoint, net.minecraft.network.chat.Style style,
                                         float baseX, float baseY,
                                         float baseR, float baseG, float baseB, float baseA,
                                         int charIndex, boolean isShadow, float[] xAdvanceOut) {
-        // Use the character's style color (from span styling) as the base RGB,
-        // falling back to the message-level color. This ensures effects like rainbow
-        // compose correctly on top of span colors.
+
         float effR = baseR, effG = baseG, effB = baseB;
         if (style.getColor() != null) {
             int styleColor = style.getColor().getValue();
@@ -1852,11 +1753,11 @@ public class ImmersiveMessage {
         }
 
         var settings = new net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings(
-                0f, 0f,  // x, y offsets start at 0
+                0f, 0f,
                 effR, effG, effB, baseA,
                 charIndex, codePoint, isShadow
         );
-        // Set obfuscate identity and span bounds when applicable
+
         EffectSegment obfSegment = findEffectSegmentForChar(charIndex);
         if (obfSegment != null) {
             settings.obfuscateSpanStart = obfSegment.startIndex;
@@ -1864,28 +1765,25 @@ public class ImmersiveMessage {
             settings.obfuscateKey = new ObfKey(this.messageContextId, obfSegment.spanIndex);
             settings.obfuscateStableKey = settings.obfuscateKey;
         } else {
-            // Fallback: persist across frames while this message is displayed
+
             settings.obfuscateKey = this;
         }
 
-        // Apply global effects first
         if (globalEffects != null && !globalEffects.isEmpty()) {
             net.tysontheember.emberstextapi.immersivemessages.effects.EffectContext.applyEffects(globalEffects, settings);
         }
 
-        // Apply span-level effects (v2.0.0)
         if (!spanEffectSegments.isEmpty()) {
-            // Find the effect segment for this character index
+
             for (EffectSegment segment : spanEffectSegments) {
                 if (charIndex >= segment.startIndex && charIndex < segment.endIndex) {
-                    // Use span-relative index for animation effects (typewriter, obfuscate)
-                    // so they operate on 0..spanLength-1 rather than the global char position
+
                     int spanLocalIndex = charIndex - segment.startIndex;
                     settings.index = spanLocalIndex;
                     settings.absoluteIndex = spanLocalIndex;
-                    // Apply this span's effects
+
                     net.tysontheember.emberstextapi.immersivemessages.effects.EffectContext.applyEffects(segment.effects, settings);
-                    // Restore global index for any subsequent logic
+
                     settings.index = charIndex;
                     settings.absoluteIndex = charIndex;
                     break;
@@ -1893,24 +1791,19 @@ public class ImmersiveMessage {
             }
         }
 
-        // Clamp colors to valid range
         settings.clampColors();
 
-        // Determine effective codepoint and style for rendering
         int effectiveCp = settings.codepoint;
         net.minecraft.network.chat.Style effectiveStyle = style;
         if (settings.useRandomGlyph) {
-            // Use Minecraft's native §k obfuscation for authentic random glyph rendering
+
             effectiveStyle = style.applyFormat(net.minecraft.ChatFormatting.OBFUSCATED);
         }
 
-        // Render main character with effect-modified settings
         renderSingleChar(graphics, font, effectiveCp, effectiveStyle,
                 baseX + settings.x, baseY + settings.y,
                 settings.rot, settings.getPackedColor(), xAdvanceOut);
 
-        // Render sibling layers (for multi-layer effects like glitch, neon)
-        // Use getSiblingsOrEmpty() to avoid NPE when no siblings exist
         for (var sibling : settings.getSiblingsOrEmpty()) {
             sibling.clampColors();
             renderSingleChar(graphics, font, codePoint, style,
@@ -1919,25 +1812,17 @@ public class ImmersiveMessage {
         }
     }
 
-    /**
-     * Render a single character at the specified position with optional rotation.
-     */
     private void renderSingleChar(GuiGraphics graphics, net.minecraft.client.gui.Font font,
                                    int codePoint, net.minecraft.network.chat.Style style,
                                    float x, float y, float rotation, int color,
                                    float[] xAdvanceOut) {
         String ch = new String(Character.toChars(codePoint));
-        // Strip the style's color so our explicit color parameter (with effect-computed ARGB)
-        // is used by drawString. Minecraft's renderer ignores the color param when the style
-        // has its own color, which breaks typewriter (alpha=0) and fade (partial alpha).
+
         Component comp = Component.literal(ch).withStyle(style.withColor((TextColor) null));
         FormattedCharSequence charSeq = comp.getVisualOrderText();
 
-        // Calculate character width using float precision — font.width() returns int
-        // (ceiling-rounded), which causes cumulative spacing drift in per-character rendering.
         float cw = font.getSplitter().stringWidth(charSeq);
 
-        // Skip alpha values that vanilla Font can force to opaque (0..3).
         if (((color >>> 24) & 0xFF) <= 3) {
             if (xAdvanceOut != null) {
                 xAdvanceOut[0] += cw;
@@ -1947,9 +1832,8 @@ public class ImmersiveMessage {
 
         graphics.pose().pushPose();
 
-        // Apply rotation if needed (for SwingEffect, etc.)
         if (rotation != 0f) {
-            // Rotate around character center
+
             graphics.pose().translate(x + cw / 2f, y + font.lineHeight / 2f, 0);
             graphics.pose().mulPose(com.mojang.math.Axis.ZP.rotation(rotation));
             graphics.pose().translate(-(x + cw / 2f), -(y + font.lineHeight / 2f), 0);
@@ -1959,40 +1843,28 @@ public class ImmersiveMessage {
         graphics.drawString(font, charSeq, 0, 0, color, shadow);
         graphics.pose().popPose();
 
-        // Update x advance for next character
         if (xAdvanceOut != null) {
             xAdvanceOut[0] += cw;
         }
     }
 
-    // NEW: Span-based API methods (v2.0.0)
-
-    /**
-     * Returns true if this message uses span-based rendering.
-     */
     public boolean isSpanMode() {
         return spanMode;
     }
 
-    /**
-     * Gets the spans used for rendering. Only valid if isSpanMode() returns true.
-     */
     public List<TextSpan> getSpans() {
         return spanMode && spans != null ? new ArrayList<>(spans) : Collections.emptyList();
     }
 
-    /**
-     * Adds a span to this message. Converts to span mode if not already.
-     */
     public ImmersiveMessage addSpan(TextSpan span) {
         if (!spanMode) {
-            // Convert to span mode
+
             List<TextSpan> plainSpans = MarkupParser.fromPlainText(text.getString());
-            spans = new ArrayList<>(plainSpans); // Make it mutable
+            spans = new ArrayList<>(plainSpans);
             spanMode = true;
         }
         spans.add(span);
-        // Resize typewriter indices array
+
         if (spanTypewriterIndices == null) {
             spanTypewriterIndices = new int[spans.size()];
         } else {
@@ -2005,9 +1877,6 @@ public class ImmersiveMessage {
         return this;
     }
 
-    /**
-     * Gets the total text content across all spans.
-     */
     public String getFullText() {
         if (spanMode && spans != null) {
             return MarkupParser.toPlainText(spans);

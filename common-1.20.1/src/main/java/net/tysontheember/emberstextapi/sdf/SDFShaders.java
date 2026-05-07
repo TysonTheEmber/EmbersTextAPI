@@ -5,19 +5,6 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Holds references to the MSDF text shader instances.
- * <p>
- * Shader registration is handled by platform-specific entry points:
- * <ul>
- *   <li>Forge 1.20.1 / NeoForge 1.21.1: {@code RegisterShadersEvent}</li>
- *   <li>Fabric: {@code CoreShaderRegistrationCallback}</li>
- * </ul>
- * The shaders are loaded from {@code assets/minecraft/shaders/core/rendertype_eta_sdf_text.*}
- * and use the MSDF median-of-three reconstruction kernel in the fragment stage.
- *
- * @see SDFRenderTypes
- */
 public final class SDFShaders {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/SDFShaders");

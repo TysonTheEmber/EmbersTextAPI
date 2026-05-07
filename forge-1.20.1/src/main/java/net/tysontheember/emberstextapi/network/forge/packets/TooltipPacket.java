@@ -12,12 +12,6 @@ import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 
 import java.util.function.Supplier;
 
-/**
- * Networking packet that transfers an {@link ImmersiveMessage} from the server
- * to the client.  The original project uses a more feature rich networking
- * library; this version sticks with Forge's {@link SimpleChannel} for
- * simplicity.
- */
 public class TooltipPacket {
     private static final ResourceLocation ID = new ResourceLocation(EmbersTextAPI.MODID, "tooltip");
     public static final net.minecraftforge.network.simple.SimpleChannel CHANNEL = ForgeNetworkHandler.CHANNEL;

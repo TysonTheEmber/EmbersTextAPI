@@ -8,9 +8,6 @@ import net.tysontheember.emberstextapi.platform.NetworkHelper;
 
 import java.util.List;
 
-/**
- * Forge implementation of NetworkHelper.
- */
 public class ForgeNetworkHelper implements NetworkHelper {
     private final ForgeNetworkHandler handler = ForgeNetworkHandler.getInstance();
 

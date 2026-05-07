@@ -17,11 +17,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Fabric-specific network handler implementation.
- * Uses Fabric Networking API v1 payload-based system for MC 1.21.1.
- */
 public final class FabricNetworkHandler implements NetworkHandler {
+
+    private static final int MAX_QUEUE_STEPS = 1024;
+    private static final int MAX_MESSAGES_PER_STEP = 256;
 
     private static final FabricNetworkHandler INSTANCE = new FabricNetworkHandler();
 
@@ -34,7 +33,7 @@ public final class FabricNetworkHandler implements NetworkHandler {
 
     @Override
     public void register() {
-        // Register payload types for S2C packets
+
         PayloadTypeRegistry.playS2C().register(OpenMessagePayload.TYPE, OpenMessagePayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(UpdateMessagePayload.TYPE, UpdateMessagePayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(CloseMessagePayload.TYPE, CloseMessagePayload.STREAM_CODEC);
@@ -111,8 +110,6 @@ public final class FabricNetworkHandler implements NetworkHandler {
         ServerPlayNetworking.send(player, new StopQueuePayload(""));
     }
 
-    // ===== Payload Records =====
-
     public record OpenMessagePayload(UUID id, CompoundTag data) implements CustomPacketPayload {
         public static final CustomPacketPayload.Type<OpenMessagePayload> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("emberstextapi", "open_message"));
@@ -179,10 +176,6 @@ public final class FabricNetworkHandler implements NetworkHandler {
         }
     }
 
-    /**
-     * Payload for opening a named-channel queue of steps.
-     * Wire format: channel, stepCount, then for each step: msgCount, then for each message: UUID + NBT.
-     */
     public record OpenQueuePayload(String channel, List<List<UUID>> ids, List<List<CompoundTag>> stepData)
             implements CustomPacketPayload {
 
@@ -206,10 +199,16 @@ public final class FabricNetworkHandler implements NetworkHandler {
             buf -> {
                 String channel = buf.readUtf();
                 int stepCount = buf.readVarInt();
+                if (stepCount < 0 || stepCount > MAX_QUEUE_STEPS) {
+                    throw new io.netty.handler.codec.DecoderException("Invalid queue step count: " + stepCount);
+                }
                 List<List<UUID>> ids = new ArrayList<>(stepCount);
                 List<List<CompoundTag>> stepData = new ArrayList<>(stepCount);
                 for (int s = 0; s < stepCount; s++) {
                     int msgCount = buf.readVarInt();
+                    if (msgCount < 0 || msgCount > MAX_MESSAGES_PER_STEP) {
+                        throw new io.netty.handler.codec.DecoderException("Invalid queue message count: " + msgCount);
+                    }
                     List<UUID> stepIds = new ArrayList<>(msgCount);
                     List<CompoundTag> stepNbts = new ArrayList<>(msgCount);
                     for (int m = 0; m < msgCount; m++) {
@@ -229,9 +228,6 @@ public final class FabricNetworkHandler implements NetworkHandler {
         }
     }
 
-    /**
-     * Payload for clearing a channel queue. Empty channel string means clear all.
-     */
     public record ClearQueuePayload(String channel) implements CustomPacketPayload {
         public static final CustomPacketPayload.Type<ClearQueuePayload> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("emberstextapi", "clear_queue"));
@@ -247,9 +243,6 @@ public final class FabricNetworkHandler implements NetworkHandler {
         }
     }
 
-    /**
-     * Payload for force-stopping a channel queue. Empty channel string means stop all.
-     */
     public record StopQueuePayload(String channel) implements CustomPacketPayload {
         public static final CustomPacketPayload.Type<StopQueuePayload> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("emberstextapi", "stop_queue"));

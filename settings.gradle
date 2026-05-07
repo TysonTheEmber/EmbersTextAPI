@@ -12,14 +12,25 @@ pluginManagement {
 plugins {
     // Bump to ≥0.8.0 so foojay-resolver depends on Gson 2.10.1 instead of 2.9.1,
     // preventing a classpath conflict that breaks Fabric Loom on JDK 17+.
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.10.0'
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }
 
 rootProject.name = 'EmbersTextAPI'
 
 include 'common-1.20.1'
 include 'common-1.21.1'
-include 'forge-1.20.1'
+include 'common-26.1'
 include 'fabric-1.20.1'
 include 'fabric-1.21.1'
+include 'fabric-26.1'
 include 'neoforge-1.21.1'
+include 'neoforge-26.1'
+
+// forge-1.20.1 is intentionally NOT included here. ForgeGradle 6 isn't Gradle 9
+// compatible and `includeBuild` can't bridge Gradle versions, so it lives as its own
+// Gradle 8.8 build. Two ways to access it:
+//   1. CLI from root — `./gradlew forge1201Build` / `forge1201RunClient` (delegates
+//      to forge-1.20.1/gradlew via Exec — see build.gradle).
+//   2. IDE — in IntelliJ's Gradle tool window, click `+` → Link Gradle Project →
+//      pick forge-1.20.1/build.gradle. It then appears as a second root in the sidebar
+//      with full Tasks tree and run configs.

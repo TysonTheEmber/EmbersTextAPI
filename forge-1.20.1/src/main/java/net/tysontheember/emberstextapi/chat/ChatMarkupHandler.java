@@ -13,9 +13,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-/**
- * Strips markup tags from chat messages for players who are not allowed to use markup.
- */
 @Mod.EventBusSubscriber(modid = EmbersTextAPI.MODID)
 public class ChatMarkupHandler {
 
@@ -37,7 +34,6 @@ public class ChatMarkupHandler {
             return;
         }
 
-        // Strip disallowed tags (even for players who can use markup)
         List<String> disallowed = ConfigHelper.getInstance().getDisallowedMarkupTags();
         if (!disallowed.isEmpty()) {
             String filtered = MarkupStripper.stripTags(message, disallowed);

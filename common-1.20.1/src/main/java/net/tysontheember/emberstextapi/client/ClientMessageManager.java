@@ -7,35 +7,21 @@ import net.tysontheember.emberstextapi.platform.ConfigHelper;
 
 import java.util.*;
 
-/**
- * Client-side manager for all active immersive messages.
- * <p>
- * Maintains a map of active messages keyed by UUID, handles per-tick lifecycle
- * (age advancement, expiry removal), and drives rendering via the GUI overlay hook.
- * Also detects GUI scale changes and clears the {@link TextLayoutCache} accordingly.
- * </p>
- * <p>
- * This class is platform-agnostic. Loader-specific event handlers should call
- * {@link #tick(Minecraft)} and {@link #render(GuiGraphics, float)}.
- * </p>
- */
 public final class ClientMessageManager {
     private static final Map<UUID, ActiveMessage> ACTIVE = new LinkedHashMap<>();
     private static int lastGuiScale = -1;
 
-    // Queue system
     private static final Map<String, Deque<QueueStep>> CHANNEL_QUEUES = new LinkedHashMap<>();
     private static final Map<String, Set<UUID>> CHANNEL_ACTIVE_IDS = new HashMap<>();
 
     private ClientMessageManager() {
     }
 
-    public static void open(UUID id, ImmersiveMessage message) {
+    public static synchronized void open(UUID id, ImmersiveMessage message) {
         if (id == null || message == null) {
             return;
         }
 
-        // Enforce immersive messages toggle
         try {
             if (!ConfigHelper.getInstance().isImmersiveMessagesEnabled()) {
                 return;
@@ -43,7 +29,6 @@ public final class ClientMessageManager {
         } catch (Exception ignored) {
         }
 
-        // Enforce max active messages limit
         try {
             int max = ConfigHelper.getInstance().getMaxActiveMessages();
             if (max > 0 && !ACTIVE.containsKey(id) && ACTIVE.size() >= max) {
@@ -52,7 +37,6 @@ public final class ClientMessageManager {
         } catch (Exception ignored) {
         }
 
-        // Enforce maxMessageDuration cap
         try {
             int maxDuration = ConfigHelper.getInstance().getMaxMessageDuration();
             if (maxDuration > 0) {
@@ -68,7 +52,7 @@ public final class ClientMessageManager {
         ACTIVE.put(id, new ActiveMessage(id, message));
     }
 
-    public static void update(UUID id, ImmersiveMessage message) {
+    public static synchronized void update(UUID id, ImmersiveMessage message) {
         if (id == null || message == null) {
             return;
         }
@@ -80,31 +64,26 @@ public final class ClientMessageManager {
         }
     }
 
-    public static void close(UUID id) {
+    public static synchronized void close(UUID id) {
         if (id == null) {
             return;
         }
         ACTIVE.remove(id);
     }
 
-    public static int getActiveMessageCount() {
+    public static synchronized int getActiveMessageCount() {
         return ACTIVE.size();
     }
 
-    public static void closeAll() {
+    public static synchronized void closeAll() {
         ACTIVE.clear();
     }
 
-    /**
-     * Enqueue a list of steps onto a named channel. If the channel has no active
-     * messages and no pending steps, the first step starts immediately.
-     */
-    public static void enqueueSteps(String channel, List<QueueStep> steps) {
+    public static synchronized void enqueueSteps(String channel, List<QueueStep> steps) {
         if (channel == null || steps == null || steps.isEmpty()) {
             return;
         }
 
-        // Enforce maxQueueSize
         try {
             int maxQueueSize = ConfigHelper.getInstance().getMaxQueueSize();
             if (maxQueueSize > 0) {
@@ -127,7 +106,7 @@ public final class ClientMessageManager {
                 && (activeIds == null || activeIds.stream().noneMatch(ACTIVE::containsKey));
 
         if (channelIdle) {
-            // Start step 0 immediately
+
             QueueStep first = steps.get(0);
             Set<UUID> newActiveIds = new LinkedHashSet<>();
             for (QueuedMessage qm : first.messages()) {
@@ -136,14 +115,13 @@ public final class ClientMessageManager {
             }
             CHANNEL_ACTIVE_IDS.put(channel, newActiveIds);
 
-            // Enqueue remaining steps
             Deque<QueueStep> newQueue = new ArrayDeque<>();
             for (int i = 1; i < steps.size(); i++) {
                 newQueue.add(steps.get(i));
             }
             CHANNEL_QUEUES.put(channel, newQueue);
         } else {
-            // Append all steps
+
             if (queue == null) {
                 queue = new ArrayDeque<>();
                 CHANNEL_QUEUES.put(channel, queue);
@@ -152,11 +130,7 @@ public final class ClientMessageManager {
         }
     }
 
-    /**
-     * Clear pending (not-yet-started) steps from a channel queue.
-     * The currently active step plays to completion.
-     */
-    public static void clearQueue(String channel) {
+    public static synchronized void clearQueue(String channel) {
         if (channel == null) {
             return;
         }
@@ -172,11 +146,7 @@ public final class ClientMessageManager {
         }
     }
 
-    /**
-     * Stop a channel queue immediately: close the currently active messages for
-     * that channel and clear all pending steps.
-     */
-    public static void stopQueue(String channel) {
+    public static synchronized void stopQueue(String channel) {
         if (channel == null) {
             return;
         }
@@ -187,30 +157,19 @@ public final class ClientMessageManager {
         CHANNEL_QUEUES.remove(channel);
     }
 
-    /**
-     * Clear pending (not-yet-started) steps from all channel queues.
-     * Currently active steps play to completion.
-     */
-    public static void clearAllQueuesPending() {
+    public static synchronized void clearAllQueuesPending() {
         for (String channel : new ArrayList<>(CHANNEL_QUEUES.keySet())) {
             clearQueue(channel);
         }
     }
 
-    /**
-     * Clear all channel queues and immediately close all active messages.
-     */
-    public static void clearAllQueues() {
+    public static synchronized void clearAllQueues() {
         closeAll();
         CHANNEL_QUEUES.clear();
         CHANNEL_ACTIVE_IDS.clear();
     }
 
-    /**
-     * Tick all active messages. Should be called from platform-specific client tick event.
-     * @param minecraft The Minecraft client instance
-     */
-    public static void tick(Minecraft minecraft) {
+    public static synchronized void tick(Minecraft minecraft) {
         if (minecraft == null || minecraft.isPaused()) {
             return;
         }
@@ -228,7 +187,6 @@ public final class ClientMessageManager {
             }
         }
 
-        // Advance channel queues
         for (String channel : new ArrayList<>(CHANNEL_QUEUES.keySet())) {
             Set<UUID> activeIds = CHANNEL_ACTIVE_IDS.get(channel);
             boolean stepDone = activeIds == null || activeIds.stream().noneMatch(ACTIVE::containsKey);
@@ -244,7 +202,7 @@ public final class ClientMessageManager {
                         }
                         CHANNEL_ACTIVE_IDS.put(channel, newActiveIds);
                     } else {
-                        // Queue exhausted — auto-clear channel entry
+
                         CHANNEL_QUEUES.remove(channel);
                         CHANNEL_ACTIVE_IDS.remove(channel);
                     }
@@ -253,12 +211,7 @@ public final class ClientMessageManager {
         }
     }
 
-    /**
-     * Render all active messages. Should be called from platform-specific GUI render event.
-     * @param guiGraphics The GUI graphics context
-     * @param partialTick The partial tick time
-     */
-    public static void render(GuiGraphics guiGraphics, float partialTick) {
+    public static synchronized void render(GuiGraphics guiGraphics, float partialTick) {
         if (ACTIVE.isEmpty()) {
             return;
         }

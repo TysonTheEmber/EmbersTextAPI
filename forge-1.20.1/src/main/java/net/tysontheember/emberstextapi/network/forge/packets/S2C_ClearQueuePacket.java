@@ -8,10 +8,6 @@ import net.tysontheember.emberstextapi.client.ClientMessageManager;
 
 import java.util.function.Supplier;
 
-/**
- * Packet to clear a named channel queue on the client.
- * An empty channel string clears all queues immediately.
- */
 public record S2C_ClearQueuePacket(String channel) {
 
     public static void encode(S2C_ClearQueuePacket packet, FriendlyByteBuf buf) {

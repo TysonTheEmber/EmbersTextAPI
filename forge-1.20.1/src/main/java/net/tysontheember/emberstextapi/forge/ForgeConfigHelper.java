@@ -5,18 +5,10 @@ import net.tysontheember.emberstextapi.platform.ConfigHelper;
 
 import java.util.List;
 
-/**
- * Forge implementation of ConfigHelper.
- */
 public class ForgeConfigHelper implements ConfigHelper {
     @Override
     public void register() {
         ModConfig.register();
-    }
-
-    @Override
-    public boolean isWelcomeMessageEnabled() {
-        return ModConfig.isWelcomeMessageEnabled();
     }
 
     @Override

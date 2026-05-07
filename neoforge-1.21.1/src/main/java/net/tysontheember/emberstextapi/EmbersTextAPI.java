@@ -10,6 +10,9 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.tysontheember.emberstextapi.commands.MessageCommands;
+import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.MessageEffectRegistry;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.attr.MessageAttributeRegistry;
 import net.tysontheember.emberstextapi.network.neoforge.NeoForgeNetworkHandler;
 import net.tysontheember.emberstextapi.platform.ConfigHelper;
 import net.tysontheember.emberstextapi.platform.NetworkHelper;
@@ -24,19 +27,14 @@ public class EmbersTextAPI {
     public EmbersTextAPI(IEventBus modEventBus) {
         LOGGER.info("EmbersTextAPI NeoForge 1.21.1 initializing...");
 
-        // Register config
         ConfigHelper.getInstance().register();
 
-        // Setup event
         modEventBus.addListener(this::commonSetup);
 
-        // Network registration
         modEventBus.addListener(this::registerPayloads);
 
-        // Register server commands
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
 
-        // Check for incompatible mods
         checkIncompatibleMods();
     }
 
@@ -48,6 +46,11 @@ public class EmbersTextAPI {
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
+        event.enqueueWork(() -> {
+            EffectRegistry.initializeDefaultEffects();
+            MessageEffectRegistry.initializeDefaultEffects();
+            MessageAttributeRegistry.initializeDefaultAttributes();
+        });
         LOGGER.info("EmbersTextAPI common setup complete");
     }
 
@@ -56,7 +59,6 @@ public class EmbersTextAPI {
             .versioned("3")
             .optional();
 
-        // Register client-bound packets with StreamCodecs (NeoForge 1.21.1 API)
         registrar.playToClient(
             NeoForgeNetworkHandler.TooltipPayload.TYPE,
             NeoForgeNetworkHandler.TooltipPayload.STREAM_CODEC,

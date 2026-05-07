@@ -19,19 +19,12 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-/**
- * Shared utility for applying ETA effects and rendering characters with those effects.
- * Used by both StringRenderOutputMixin (vanilla path) and EmojiCharacterRendererMixin (Emojiful compat).
- */
 public final class EffectApplicator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/EffectApplicator");
 
     private EffectApplicator() {}
 
-    /**
-     * Build an EffectSettings from the current rendering context and ETAStyle.
-     */
     public static EffectSettings buildSettings(
             ETAStyle etaStyle, Style style, int index, int codepoint,
             float x, float y, float shadowOffset,
@@ -69,9 +62,6 @@ public final class EffectApplicator {
         return settings;
     }
 
-    /**
-     * Apply all effects from the style to the settings, including siblings.
-     */
     public static void applyEffects(List<Effect> effects, EffectSettings settings) {
         for (Effect effect : effects) {
             try {
@@ -86,9 +76,6 @@ public final class EffectApplicator {
         }
     }
 
-    /**
-     * Render a single character with the given effect settings.
-     */
     public static void renderChar(
             EffectSettings settings,
             int originalCodepoint,

@@ -8,9 +8,6 @@ import net.tysontheember.emberstextapi.platform.PlatformHelper;
 
 import java.nio.file.Path;
 
-/**
- * Forge implementation of PlatformHelper.
- */
 public class ForgePlatformHelper implements PlatformHelper {
     @Override
     public boolean isClient() {

@@ -13,37 +13,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
-/**
- * Parses SDF font provider definitions from font JSON files.
- * <p>
- * This class intentionally does NOT import any {@code org.lwjgl.util.freetype} classes
- * at the class level. FreeType-dependent code is isolated in {@link FreeTypeManager} and
- * {@link SDFGlyphProvider}, which are only loaded after a runtime availability check.
- * This prevents {@link NoClassDefFoundError} on platforms where LWJGL FreeType is not
- * on the classpath (e.g., Forge 1.20.1 which ships LWJGL 3.3.1 without the freetype module).
- */
 public final class SDFGlyphProviderDefinition {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/SDFGlyphProviderDef");
 
-    /** Cached result of FreeType availability check */
     private static Boolean freeTypeAvailable;
 
     public static final String TYPE_ID = "emberstextapi:sdf";
 
     private SDFGlyphProviderDefinition() {}
 
-    /**
-     * Check if a JSON provider entry is an SDF provider.
-     */
     public static boolean isSdfProvider(JsonObject json) {
         return json.has("type") && TYPE_ID.equals(json.get("type").getAsString());
     }
 
-    /**
-     * Check if the LWJGL FreeType module is available at runtime.
-     * Uses Class.forName() to avoid importing FreeType classes directly.
-     */
     public static boolean isFreeTypeAvailable() {
         if (freeTypeAvailable == null) {
             try {
@@ -59,13 +42,6 @@ public final class SDFGlyphProviderDefinition {
         return freeTypeAvailable;
     }
 
-    /**
-     * Parse an SDF provider definition from JSON and load the font.
-     *
-     * @param json            The provider JSON object
-     * @param resourceManager MC resource manager for loading font files
-     * @return The GlyphProvider, or null if loading fails
-     */
     @Nullable
     public static GlyphProvider load(JsonObject json, ResourceManager resourceManager) {
         if (!isFreeTypeAvailable()) {
@@ -78,7 +54,7 @@ public final class SDFGlyphProviderDefinition {
         }
 
         try {
-            // Parse configuration
+
             String fileStr = json.get("file").getAsString();
             ResourceLocation fontFile = ResourceLocation.parse(fileStr);
 
@@ -89,12 +65,11 @@ public final class SDFGlyphProviderDefinition {
             float oversample = getFloat(json, "oversample", 1.0f);
             String skip = getString(json, "skip", "");
 
-            // New MSDF-specific fields with backward compat
             float pxRange;
             if (json.has("px_range")) {
                 pxRange = getFloat(json, "px_range", 8.0f);
             } else {
-                // Backward compat: convert old spread to pxRange
+
                 pxRange = spread * 2.0f;
             }
             float angleThreshold = getFloat(json, "angle_threshold", 3.0f);
@@ -111,7 +86,6 @@ public final class SDFGlyphProviderDefinition {
             SDFConfig config = new SDFConfig(sdfResolution, padding, spread, size, oversample,
                     shift, skip, pxRange, angleThreshold);
 
-            // Load font file from resources
             ResourceLocation fontResourceLoc = ResourceLocation.fromNamespaceAndPath(
                     fontFile.getNamespace(), "font/" + fontFile.getPath());
 
@@ -121,7 +95,6 @@ public final class SDFGlyphProviderDefinition {
                 return null;
             }
 
-            // Delegate to FreeType-dependent code (safe because isFreeTypeAvailable() passed)
             return SDFGlyphProviderFactory.create(fontData, config);
 
         } catch (Exception e) {

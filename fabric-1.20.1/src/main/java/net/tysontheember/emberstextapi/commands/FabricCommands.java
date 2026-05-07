@@ -1,22 +1,16 @@
 package net.tysontheember.emberstextapi.commands;
 
-import com.mojang.brigadier.arguments.BoolArgumentType;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.tysontheember.emberstextapi.fabric.EmbersTextAPIFabric;
-import net.tysontheember.emberstextapi.fabric.FabricConfigHelper;
-import net.tysontheember.emberstextapi.platform.ConfigHelper;
 
-/**
- * Registers all commands for Fabric.
- */
 public class FabricCommands {
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            // Register full command name
+
             dispatcher.register(
                 Commands.literal("emberstextapi")
                     .then(FabricMessageCommands.testSubcommand())
@@ -27,7 +21,6 @@ public class FabricCommands {
                     .then(FabricMessageCommands.closeAllSubcommand())
             );
 
-            // Register short alias with all subcommands
             dispatcher.register(
                 Commands.literal("eta")
                     .executes(context -> {
@@ -39,23 +32,6 @@ public class FabricCommands {
                             showHelp(context);
                             return 1;
                         })
-                    )
-                    .then(Commands.literal("welcome")
-                        .then(Commands.literal("enable")
-                            .then(Commands.argument("enabled", BoolArgumentType.bool())
-                                .executes(context -> {
-                                    boolean enabled = BoolArgumentType.getBool(context, "enabled");
-                                    ConfigHelper config = ConfigHelper.getInstance();
-                                    if (config instanceof FabricConfigHelper fabricConfig) {
-                                        fabricConfig.setWelcomeMessageEnabled(enabled);
-                                    }
-                                    context.getSource().sendSuccess(() ->
-                                        Component.literal("Welcome message " + (enabled ? "enabled" : "disabled")),
-                                        true);
-                                    return 1;
-                                })
-                            )
-                        )
                     )
                     .then(FabricMessageCommands.testSubcommand())
                     .then(FabricMessageCommands.sendSubcommand())
@@ -124,13 +100,6 @@ public class FabricCommands {
             Component.literal("  /eta help")
                 .withStyle(style -> style.withColor(0x55FF55))
                 .append(Component.literal(" - Show this help message")
-                    .withStyle(style -> style.withColor(0xAAAAAA))),
-            false);
-
-        context.getSource().sendSuccess(() ->
-            Component.literal("  /eta welcome enable <true | false>")
-                .withStyle(style -> style.withColor(0x55FF55))
-                .append(Component.literal(" - Toggle welcome message (Op)")
                     .withStyle(style -> style.withColor(0xAAAAAA))),
             false);
 

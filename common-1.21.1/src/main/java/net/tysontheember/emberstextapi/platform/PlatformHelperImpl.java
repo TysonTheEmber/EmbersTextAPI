@@ -2,9 +2,6 @@ package net.tysontheember.emberstextapi.platform;
 
 import java.util.ServiceLoader;
 
-/**
- * Internal helper to load PlatformHelper implementation via ServiceLoader.
- */
 final class PlatformHelperImpl {
     static final PlatformHelper INSTANCE;
 

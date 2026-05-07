@@ -15,20 +15,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Forge-specific network handler implementation.
- * <p>
- * Uses Forge's SimpleChannel for packet registration and transmission.
- * </p>
- */
 public final class ForgeNetworkHandler implements NetworkHandler {
     private static final String PROTOCOL = "5";
     private static final ResourceLocation ID = new ResourceLocation(EmbersTextAPI.MODID, "tooltip");
 
-    /**
-     * The Forge SimpleChannel used for network communication.
-     * Made public for backward compatibility with existing code.
-     */
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
         ID,
         () -> PROTOCOL,
@@ -41,9 +31,6 @@ public final class ForgeNetworkHandler implements NetworkHandler {
     private ForgeNetworkHandler() {
     }
 
-    /**
-     * Get the singleton instance.
-     */
     public static ForgeNetworkHandler getInstance() {
         return INSTANCE;
     }

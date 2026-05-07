@@ -15,14 +15,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-/**
- * Server-to-client packet that sends an ordered queue of steps on a named channel.
- * <p>
- * Each step contains one or more simultaneously-displayed messages. The next step
- * starts only after every message in the current step has expired.
- * </p>
- */
 public record S2C_OpenQueuePacket(String channel, List<List<UUID>> ids, List<List<CompoundTag>> stepData) {
+
+    private static final int MAX_QUEUE_STEPS = 1024;
+    private static final int MAX_MESSAGES_PER_STEP = 256;
 
     public static void encode(S2C_OpenQueuePacket packet, FriendlyByteBuf buf) {
         buf.writeUtf(packet.channel);
@@ -41,10 +37,16 @@ public record S2C_OpenQueuePacket(String channel, List<List<UUID>> ids, List<Lis
     public static S2C_OpenQueuePacket decode(FriendlyByteBuf buf) {
         String channel = buf.readUtf();
         int stepCount = buf.readVarInt();
+        if (stepCount < 0 || stepCount > MAX_QUEUE_STEPS) {
+            throw new io.netty.handler.codec.DecoderException("Invalid queue step count: " + stepCount);
+        }
         List<List<UUID>> ids = new ArrayList<>(stepCount);
         List<List<CompoundTag>> stepData = new ArrayList<>(stepCount);
         for (int s = 0; s < stepCount; s++) {
             int msgCount = buf.readVarInt();
+            if (msgCount < 0 || msgCount > MAX_MESSAGES_PER_STEP) {
+                throw new io.netty.handler.codec.DecoderException("Invalid queue message count: " + msgCount);
+            }
             List<UUID> stepIds = new ArrayList<>(msgCount);
             List<CompoundTag> msgs = new ArrayList<>(msgCount);
             for (int m = 0; m < msgCount; m++) {

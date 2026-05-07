@@ -2,9 +2,6 @@ package net.tysontheember.emberstextapi.platform;
 
 import java.util.ServiceLoader;
 
-/**
- * Internal helper to load ConfigHelper implementation via ServiceLoader.
- */
 final class ConfigHelperImpl {
     static final ConfigHelper INSTANCE;
 

@@ -1,25 +1,5 @@
 package net.tysontheember.emberstextapi.sdf;
 
-/**
- * Configuration for SDF/MSDF glyph generation.
- *
- * @param sdfResolution Base resolution of the SDF texture per glyph (default 48).
- *                      Controls the detail level of the MSDF — higher values produce
- *                      more detailed distance fields but use more atlas space.
- * @param padding       Extra pixels around the glyph in the SDF texture (default 4)
- * @param spread        Distance field spread in glyph units (default 4.0).
- *                      Deprecated: use {@code pxRange} instead. If spread is set but
- *                      pxRange is not, pxRange = spread * 2 (approximate mapping).
- * @param fontSize      Font size in points for FreeType rendering (default 16.0)
- * @param oversample    Display scale divisor: glyphs render at fontSize/oversample MC units.
- *                      Higher values = smaller display. Default 1.0.
- * @param shift         UV shift [x, y] (default [0, 0])
- * @param skip          Characters to skip (default "")
- * @param pxRange       MSDF pixel range — how many output pixels the distance field spans
- *                      on each side of the edge. Controls anti-aliasing width. Default 4.0.
- * @param angleThreshold Corner angle threshold in radians for MSDF edge coloring.
- *                       Angles sharper than this are treated as corners. Default 3.0 (≈171.9°).
- */
 public record SDFConfig(
         int sdfResolution,
         int padding,
@@ -33,10 +13,6 @@ public record SDFConfig(
 ) {
     public static final int MAX_SDF_RESOLUTION = 128;
 
-    /**
-     * Backward-compatible constructor (pre-MSDF).
-     * Maps spread to pxRange via approximate conversion.
-     */
     public SDFConfig(int sdfResolution, int padding, float spread,
                      float fontSize, float oversample, float[] shift, String skip) {
         this(sdfResolution, padding, spread, fontSize, oversample, shift, skip,

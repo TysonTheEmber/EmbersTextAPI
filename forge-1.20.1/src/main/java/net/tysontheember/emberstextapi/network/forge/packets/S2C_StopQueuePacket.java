@@ -8,11 +8,6 @@ import net.tysontheember.emberstextapi.client.ClientMessageManager;
 
 import java.util.function.Supplier;
 
-/**
- * Packet to force-stop a named channel queue on the client.
- * Closes the currently-active messages for that channel and clears pending steps.
- * An empty channel string stops all queues (equivalent to clearAllQueues).
- */
 public record S2C_StopQueuePacket(String channel) {
 
     public static void encode(S2C_StopQueuePacket packet, FriendlyByteBuf buf) {

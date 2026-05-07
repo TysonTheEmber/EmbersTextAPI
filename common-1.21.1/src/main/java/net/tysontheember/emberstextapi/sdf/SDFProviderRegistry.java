@@ -7,27 +7,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Static registry that holds SDF glyph providers loaded during font reload.
- * <p>
- * Populated by {@code FontManagerMixin} during resource reload, consumed by
- * {@code FontSetMixin} (1.21.1) or directly by the {@code FontManagerMixin}
- * apply hook (1.20.1) to inject SDF providers into the appropriate font sets.
- * <p>
- * Each font {@link ResourceLocation} (e.g., {@code emberstextapi:norse}) maps
- * to a list of {@link GlyphProvider} instances. Providers are closed and cleared
- * at the start of each font reload cycle.
- */
 public final class SDFProviderRegistry {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/SDFProviderRegistry");
-    private static final Map<ResourceLocation, List<GlyphProvider>> PROVIDERS = new HashMap<>();
+    private static final Map<ResourceLocation, List<GlyphProvider>> PROVIDERS = new ConcurrentHashMap<>();
 
     private SDFProviderRegistry() {}
 
     public static void clear() {
-        // Close any existing providers before clearing
+
         for (List<GlyphProvider> list : PROVIDERS.values()) {
             for (GlyphProvider provider : list) {
                 provider.close();

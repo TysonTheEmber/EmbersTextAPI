@@ -1,0 +1,96 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.15.5'
+}
+
+base {
+    archivesName = 'emberstextapi-fabric-26.1'
+}
+
+// Handle duplicates from common module
+tasks.withType(AbstractCopyTask).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+    withSourcesJar()
+}
+
+// Add common source sets directly
+sourceSets {
+    main {
+        java {
+            srcDirs project(':common-26.1').sourceSets.main.java.srcDirs
+        }
+        resources {
+            srcDir project(':common-26.1').sourceSets.main.resources.srcDirs
+        }
+    }
+}
+
+dependencies {
+    // Minecraft & Fabric — MC 26.1 is unobfuscated, no mappings needed
+    minecraft "com.mojang:minecraft:${findProperty('minecraft_version_26_1') ?: '26.1'}"
+    implementation "net.fabricmc:fabric-loader:${findProperty('fabric_loader_version_26_1') ?: '0.18.4'}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${findProperty('fabric_api_version_26_1') ?: '0.144.4+26.1'}"
+
+    // Caffeine (bundled)
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+    include 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    inputs.property 'version', project.version
+
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    from('LICENSE') {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId = rootProject.group
+            artifactId = project.base.archivesName.get()
+            version = project.version
+
+            artifact jar
+            artifact sourcesJar
+
+            pom {
+                name = "Ember's Text API (Fabric 26.1)"
+                description = 'Advanced text rendering API with visual effects and animations for Minecraft mods'
+                url = 'https://github.com/TysonTheEmber/EmbersTextAPI'
+                licenses {
+                    license {
+                        name = "Ember's Modding Licence v1.2"
+                        url = 'https://tysontheember.dev/modding-licence/'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'tysontheember'
+                        name = 'TysonTheEmber'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/TysonTheEmber/EmbersTextAPI.git'
+                    developerConnection = 'scm:git:ssh://github.com/TysonTheEmber/EmbersTextAPI.git'
+                    url = 'https://github.com/TysonTheEmber/EmbersTextAPI'
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = 'LocalMaven'
+            url = uri("file://${findProperty('mavenRepoPath') ?: "${rootProject.layout.buildDirectory.get().asFile}/maven-repo"}")
+        }
+    }
+}

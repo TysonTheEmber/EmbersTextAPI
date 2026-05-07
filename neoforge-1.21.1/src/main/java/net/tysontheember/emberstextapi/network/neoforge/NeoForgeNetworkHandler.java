@@ -12,6 +12,8 @@ import net.tysontheember.emberstextapi.client.QueueStep;
 import net.tysontheember.emberstextapi.client.QueuedMessage;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,11 +21,14 @@ import java.util.UUID;
 
 public final class NeoForgeNetworkHandler {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/Network");
+    private static final int MAX_QUEUE_STEPS = 1024;
+    private static final int MAX_MESSAGES_PER_STEP = 256;
     private static final String PROTOCOL_VERSION = "3";
     public static final ResourceLocation CHANNEL = ResourceLocation.fromNamespaceAndPath("emberstextapi", "tooltip");
 
     public static void register() {
-        // Network registration is handled via @PayloadRegistrar in main mod class
+
     }
 
     public static void sendMessage(ServerPlayer player, ImmersiveMessage message) {
@@ -78,8 +83,6 @@ public final class NeoForgeNetworkHandler {
     public static void sendStopAllQueues(ServerPlayer player) {
         PacketDistributor.sendToPlayer(player, new StopQueuePayload(""));
     }
-
-    // Payload records
 
     public record TooltipPayload(CompoundTag data) implements CustomPacketPayload {
         public static final CustomPacketPayload.Type<TooltipPayload> TYPE =
@@ -162,10 +165,6 @@ public final class NeoForgeNetworkHandler {
         }
     }
 
-    /**
-     * Payload for opening a named-channel queue of steps.
-     * Wire format: channel, stepCount, then for each step: msgCount, then for each message: UUID + NBT.
-     */
     public record OpenQueuePayload(String channel, List<List<UUID>> ids, List<List<CompoundTag>> stepData)
             implements CustomPacketPayload {
 
@@ -189,10 +188,16 @@ public final class NeoForgeNetworkHandler {
             buf -> {
                 String channel = buf.readUtf();
                 int stepCount = buf.readVarInt();
+                if (stepCount < 0 || stepCount > MAX_QUEUE_STEPS) {
+                    throw new io.netty.handler.codec.DecoderException("Invalid queue step count: " + stepCount);
+                }
                 List<List<UUID>> ids = new ArrayList<>(stepCount);
                 List<List<CompoundTag>> stepData = new ArrayList<>(stepCount);
                 for (int s = 0; s < stepCount; s++) {
                     int msgCount = buf.readVarInt();
+                    if (msgCount < 0 || msgCount > MAX_MESSAGES_PER_STEP) {
+                        throw new io.netty.handler.codec.DecoderException("Invalid queue message count: " + msgCount);
+                    }
                     List<UUID> stepIds = new ArrayList<>(msgCount);
                     List<CompoundTag> stepNbts = new ArrayList<>(msgCount);
                     for (int m = 0; m < msgCount; m++) {
@@ -212,9 +217,6 @@ public final class NeoForgeNetworkHandler {
         }
     }
 
-    /**
-     * Payload for clearing a channel queue. Empty channel string means clear all.
-     */
     public record ClearQueuePayload(String channel) implements CustomPacketPayload {
         public static final CustomPacketPayload.Type<ClearQueuePayload> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("emberstextapi", "clear_queue"));
@@ -230,9 +232,6 @@ public final class NeoForgeNetworkHandler {
         }
     }
 
-    /**
-     * Payload for force-stopping a channel queue. Empty channel string means stop all.
-     */
     public record StopQueuePayload(String channel) implements CustomPacketPayload {
         public static final CustomPacketPayload.Type<StopQueuePayload> TYPE =
             new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("emberstextapi", "stop_queue"));
@@ -248,9 +247,10 @@ public final class NeoForgeNetworkHandler {
         }
     }
 
-    // Client handlers
-
     public static void handleTooltip(TooltipPayload payload, IPayloadContext context) {
+        if (payload.data == null) {
+            return;
+        }
         context.enqueueWork(() -> {
             net.minecraft.core.HolderLookup.Provider provider = context.player().registryAccess();
             ImmersiveMessage message = ImmersiveMessage.fromNbt(payload.data, provider);
@@ -259,6 +259,9 @@ public final class NeoForgeNetworkHandler {
     }
 
     public static void handleOpenMessage(OpenMessagePayload payload, IPayloadContext context) {
+        if (payload.data == null) {
+            return;
+        }
         context.enqueueWork(() -> {
             net.minecraft.core.HolderLookup.Provider provider = context.player().registryAccess();
             ImmersiveMessage message = ImmersiveMessage.fromNbt(payload.data, provider);
@@ -267,19 +270,33 @@ public final class NeoForgeNetworkHandler {
     }
 
     public static void handleUpdateMessage(UpdateMessagePayload payload, IPayloadContext context) {
+        if (payload.data == null) {
+            return;
+        }
+        UUID id;
+        try {
+            id = UUID.fromString(payload.messageId);
+        } catch (IllegalArgumentException e) {
+            LOGGER.warn("Received update message with invalid UUID: {}", payload.messageId);
+            return;
+        }
         context.enqueueWork(() -> {
             net.minecraft.core.HolderLookup.Provider provider = context.player().registryAccess();
-            UUID id = UUID.fromString(payload.messageId);
             ImmersiveMessage message = ImmersiveMessage.fromNbt(payload.data, provider);
             net.tysontheember.emberstextapi.client.ClientMessageManager.update(id, message);
         });
     }
 
     public static void handleCloseMessage(CloseMessagePayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> {
-            UUID id = UUID.fromString(payload.messageId);
-            net.tysontheember.emberstextapi.client.ClientMessageManager.close(id);
-        });
+        UUID id;
+        try {
+            id = UUID.fromString(payload.messageId);
+        } catch (IllegalArgumentException e) {
+            LOGGER.warn("Received close message with invalid UUID: {}", payload.messageId);
+            return;
+        }
+        context.enqueueWork(() ->
+            net.tysontheember.emberstextapi.client.ClientMessageManager.close(id));
     }
 
     public static void handleCloseAllMessages(CloseAllMessagesPayload payload, IPayloadContext context) {

@@ -14,32 +14,10 @@ import java.nio.file.Path;
 
 import java.util.function.Function;
 
-/**
- * {@link GlyphInfo} implementation for MSDF (Multi-Channel Signed Distance Field) glyphs.
- * <p>
- * Each instance represents a single glyph from an SDF font provider. On {@link #bake},
- * the glyph outline is extracted via FreeType, edge-colored, and rendered as a 3-channel
- * MSDF texture by {@link MSDFGenerator}. The result is wrapped in an {@link SDFSheetGlyphInfo}
- * for atlas upload. {@code FontTextureMixin} detects this and swaps render types to SDF shaders.
- * <p>
- * <b>Debug mode:</b> Launch with {@code -Deta.sdf.debug=true} to dump each generated MSDF
- * texture as a PNG file to {@code <game_dir>/debug-sdf/}. Useful for diagnosing rendering
- * artifacts — inspect the dump to determine whether stray pixels originate in the MSDF data
- * or in atlas packing/shader rendering.
- *
- * @see SDFSheetGlyphInfo
- * @see SDFGlyphProvider
- * @see MSDFGenerator
- */
 public class SDFGlyphInfo implements GlyphInfo {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/SDFGlyph");
 
-    /**
-     * When {@code true}, each baked glyph's MSDF texture is written to disk as a PNG.
-     * Enabled via JVM property {@code -Deta.sdf.debug=true}.
-     * Output directory: {@code <game_dir>/debug-sdf/glyph_<char>_gi<index>.png}
-     */
     private static final boolean SDF_DEBUG = Boolean.getBoolean("eta.sdf.debug");
 
     private final float advance;
@@ -75,7 +53,7 @@ public class SDFGlyphInfo implements GlyphInfo {
 
     @Override
     public BakedGlyph bake(Function<SheetGlyphInfo, BakedGlyph> baker) {
-        // Check pre-bake cache first to avoid expensive MSDF computation on the render thread
+
         PreBakedMSDF preBaked = provider != null ? provider.getPreBaked(codepoint) : null;
         if (preBaked != null) {
             LOGGER.debug("Using pre-baked MSDF for '{}' (cp={})", (char) codepoint, codepoint);
@@ -90,16 +68,14 @@ public class SDFGlyphInfo implements GlyphInfo {
 
         FreeTypeManager ft = FreeTypeManager.getInstance();
 
-        // Extract glyph outline (in font units, no scaling)
         GlyphOutline outline = ft.extractOutline(ftFace, glyphIndex);
 
         if (outline == null || outline.contours().isEmpty()) {
-            // Empty glyph (space, etc.) — use a minimal sheet glyph
+
             return baker.apply(new SDFSheetGlyphInfo(
                     new byte[3], 1, 1, 0, 0, 1.0f));
         }
 
-        // Compute MSDF texture dimensions based on glyph metrics
         float glyphW = outline.width();
         float glyphH = outline.height();
         float maxDim = Math.max(glyphW, glyphH);
@@ -108,7 +84,6 @@ public class SDFGlyphInfo implements GlyphInfo {
         float pxRange = config.pxRange();
         int sdfRes = config.sdfResolution();
 
-        // Texture size scales with glyph aspect ratio
         int texW, texH;
         if (glyphW >= glyphH) {
             texW = sdfRes;
@@ -117,15 +92,13 @@ public class SDFGlyphInfo implements GlyphInfo {
             texH = sdfRes;
             texW = Math.max(1, Math.round(sdfRes * glyphW / glyphH));
         }
-        // Add padding for the pixel range
+
         int padPx = (int) Math.ceil(pxRange);
         texW += 2 * padPx;
         texH += 2 * padPx;
 
-        // Edge coloring
         EdgeColoring.ColoredContour[] colored = EdgeColoring.colorEdges(outline, config.angleThreshold());
 
-        // Generate 3-channel MSDF
         byte[] msdfData = MSDFGenerator.generate(
                 outline, colored,
                 texW, texH,
@@ -134,20 +107,13 @@ public class SDFGlyphInfo implements GlyphInfo {
                 pxRange
         );
 
-        // DEBUG: Dump MSDF texture to PNG for inspection
         if (SDF_DEBUG) {
             debugDumpMSDF(msdfData, texW, texH, codepoint);
         }
 
-        // Compute oversample and bearings
         float effectivePixelSize = (Math.max(texW, texH) - pxRange) * unitsPerEM / maxDim;
         float oversample = effectivePixelSize * config.oversample() / config.fontSize();
 
-        // MC 1.21.1 bearing convention:
-        //   up = 7.0f - getBearingTop()
-        //   left = getBearingLeft()
-        // bearingLeft = ftBearingX / oversample (in MC units)
-        // bearingTop = ftBearingY / oversample (in MC units, positive = above baseline)
         float scaleToPixel = effectivePixelSize / unitsPerEM;
         float ftBearingX = outline.minX() * scaleToPixel - padPx;
         float ftBearingY = outline.maxY() * scaleToPixel + padPx;
@@ -155,7 +121,6 @@ public class SDFGlyphInfo implements GlyphInfo {
         float bearingLeft = ftBearingX / oversample;
         float bearingTop = ftBearingY / oversample;
 
-        // Apply shift from config (in MC units)
         bearingLeft += config.shift()[0];
         bearingTop += config.shift()[1];
 
@@ -172,14 +137,6 @@ public class SDFGlyphInfo implements GlyphInfo {
         ));
     }
 
-    /**
-     * Writes the MSDF texture data to a PNG file for visual inspection.
-     *
-     * @param msdfData  raw MSDF byte array (row-major, 3 bytes per texel: RGB)
-     * @param width     texture width in pixels
-     * @param height    texture height in pixels
-     * @param codepoint Unicode codepoint of the glyph
-     */
     private void debugDumpMSDF(byte[] msdfData, int width, int height, int codepoint) {
         try {
             String charStr = Character.isLetterOrDigit(codepoint)
@@ -197,7 +154,7 @@ public class SDFGlyphInfo implements GlyphInfo {
                         int r = idx < msdfData.length ? (msdfData[idx] & 0xFF) : 0;
                         int g = idx + 1 < msdfData.length ? (msdfData[idx + 1] & 0xFF) : 0;
                         int b = idx + 2 < msdfData.length ? (msdfData[idx + 2] & 0xFF) : 0;
-                        // ABGR format for NativeImage
+
                         int pixel = 0xFF000000 | (b << 16) | (g << 8) | r;
                         image.setPixelRGBA(px, py, pixel);
                     }

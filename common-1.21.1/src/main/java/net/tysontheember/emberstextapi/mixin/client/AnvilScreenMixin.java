@@ -7,9 +7,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-/**
- * Increases the anvil rename character limit to the value configured in the mod config.
- */
 @Mixin(AnvilScreen.class)
 public class AnvilScreenMixin {
 

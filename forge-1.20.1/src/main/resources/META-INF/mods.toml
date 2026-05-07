@@ -31,3 +31,6 @@ displayTest="MATCH_VERSION"
     versionRange="*"
     ordering="NONE"
     side="CLIENT"
+
+[[mixins]]
+    config="emberstextapi-forge.mixins.json"

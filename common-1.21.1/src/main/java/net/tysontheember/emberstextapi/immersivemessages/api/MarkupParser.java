@@ -3,6 +3,10 @@ package net.tysontheember.emberstextapi.immersivemessages.api;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.MessageEffect;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.MessageEffectRegistry;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.attr.MessageAttribute;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.attr.MessageAttributeRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.effects.preset.PresetDefinition;
 import net.tysontheember.emberstextapi.immersivemessages.effects.preset.PresetRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.util.ColorParser;
@@ -15,37 +19,103 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Parses markup text into TextSpan objects with nested styling support.
- * Supports tags like &lt;grad from=#ff0000 to=#00ff00&gt;, &lt;bold&gt;, &lt;shake&gt;, etc.
- */
 public class MarkupParser {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MarkupParser.class);
 
-    // Updated pattern to handle self-closing tags: captures trailing / before >
-    // Attribute values must not include / to avoid capturing it as part of the value
     private static final Pattern TAG_PATTERN = Pattern.compile("<(/?)([a-zA-Z0-9_][a-zA-Z0-9_]*)((?:\\s+[a-zA-Z][a-zA-Z0-9]*(?:[=:](?:[\"'][^\"']*[\"']|[^\\s>/]+))?)*)(/?)>");
     private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile("([a-zA-Z][a-zA-Z0-9]*)(?:[=:](?:([\"'])([^\"']*)\\2|([^\\s>/]+)))?");
-    
-    /**
-     * Parses markup text into a list of TextSpan objects.
-     * Handles nested tags by creating a stack-based approach.
-     */
+    private static final Pattern MESSAGE_TAG_PATTERN = Pattern.compile(
+        "\\[([a-zA-Z0-9_]+)((?:\\s+(?:[a-zA-Z][a-zA-Z0-9]*(?:[=:](?:[\"'][^\"']*[\"']|[^\\s\\]]+))?|[^\\s\\]]+))*)\\s*\\]"
+    );
+
+    public static ParseResult parseFull(String markup) {
+        if (markup == null || markup.isEmpty()) {
+            return ParseResult.empty();
+        }
+
+        List<int[]> angleRegions = collectAngleRegions(markup);
+        List<MessageEffect> messageEffects = new ArrayList<>();
+        List<MessageAttribute> messageAttributes = new ArrayList<>();
+        List<int[]> extractedRegions = new ArrayList<>();
+
+        Matcher m = MESSAGE_TAG_PATTERN.matcher(markup);
+        while (m.find()) {
+            int start = m.start();
+            int end = m.end();
+            if (overlapsAngleRegion(start, end, angleRegions)) {
+                LOGGER.warn("[{}] inside <...> region — bracket tags must appear outside <...> tags; rendering as literal text",
+                        m.group(1));
+                continue;
+            }
+
+            String tagName = m.group(1).toLowerCase();
+            String attributes = m.group(2);
+            String tagContent = (attributes == null || attributes.trim().isEmpty())
+                    ? tagName : tagName + attributes;
+
+            if (MessageEffectRegistry.isRegistered(tagName)) {
+                try {
+                    messageEffects.add(MessageEffectRegistry.parseTag(tagContent));
+                    extractedRegions.add(new int[]{start, end});
+                } catch (IllegalArgumentException e) {
+                    LOGGER.warn("Failed to construct message effect '{}': {}", tagName, e.getMessage());
+                }
+            } else if (MessageAttributeRegistry.isRegistered(tagName)) {
+                try {
+                    messageAttributes.add(MessageAttributeRegistry.parseTag(tagContent));
+                    extractedRegions.add(new int[]{start, end});
+                } catch (IllegalArgumentException e) {
+                    LOGGER.warn("Failed to construct message attribute '{}': {}", tagName, e.getMessage());
+                }
+            }
+        }
+
+        String stripped = stripRanges(markup, extractedRegions);
+        List<TextSpan> spans = parse(stripped);
+        return new ParseResult(spans, messageEffects, messageAttributes, stripped);
+    }
+
+    private static List<int[]> collectAngleRegions(String markup) {
+        List<int[]> regions = new ArrayList<>();
+        Matcher m = TAG_PATTERN.matcher(markup);
+        while (m.find()) {
+            regions.add(new int[]{m.start(), m.end()});
+        }
+        return regions;
+    }
+
+    private static boolean overlapsAngleRegion(int start, int end, List<int[]> regions) {
+        for (int[] r : regions) {
+            if (start < r[1] && end > r[0]) return true;
+        }
+        return false;
+    }
+
+    private static String stripRanges(String source, List<int[]> ranges) {
+        if (ranges.isEmpty()) return source;
+        StringBuilder sb = new StringBuilder(source.length());
+        int cursor = 0;
+        for (int[] r : ranges) {
+            sb.append(source, cursor, r[0]);
+            cursor = r[1];
+        }
+        sb.append(source, cursor, source.length());
+        return sb.toString();
+    }
+
     public static List<TextSpan> parse(String markup) {
         if (markup == null || markup.isEmpty()) {
             return Collections.emptyList();
         }
-        
+
         List<TextSpan> result = new ArrayList<>();
         Stack<TextSpan> styleStack = new Stack<>();
-        TextSpan globalAttrsCollector = new TextSpan(""); // accumulates global attrs from any tag position
 
         Matcher matcher = TAG_PATTERN.matcher(markup);
         int lastEnd = 0;
-        
+
         while (matcher.find()) {
-            // Add any text before this tag
             if (matcher.start() > lastEnd) {
                 String content = markup.substring(lastEnd, matcher.start());
                 if (!content.isEmpty()) {
@@ -53,19 +123,16 @@ public class MarkupParser {
                     result.add(span);
                 }
             }
-            
+
             String isClosing = matcher.group(1);
             String tagName = matcher.group(2).toLowerCase();
             String attributes = matcher.group(3);
-            String isSelfClosing = matcher.group(4); // Capture trailing / for self-closing tags
+            String isSelfClosing = matcher.group(4);
 
-            // Handle self-closing tags like <item id=.../>
             if ("/".equals(isSelfClosing)) {
-                // Self-closing tag: treat as both opening and immediate closing
                 TextSpan currentStyle = styleStack.isEmpty() ? new TextSpan("") : styleStack.peek().inherit();
                 applyTagToSpan(currentStyle, tagName, attributes);
 
-                // For item and entity tags, create the span immediately
                 if ("item".equals(tagName) && currentStyle.getItemId() != null) {
                     TextSpan itemSpan = new TextSpan("");
                     itemSpan.item(currentStyle.getItemId(), currentStyle.getItemCount() != null ? currentStyle.getItemCount() : 1);
@@ -108,20 +175,13 @@ public class MarkupParser {
                         entitySpan.entityNbt(currentStyle.getEntityNbt());
                     }
                     result.add(entitySpan);
-                } else {
-                    // Self-closing non-container tags: collect any global attrs but don't push/pop
-                    if (currentStyle.hasGlobalAttributes()) {
-                        mergeGlobalAttrs(globalAttrsCollector, currentStyle);
-                    }
                 }
             } else if ("/".equals(isClosing)) {
-                // Closing tag - pop from stack
-                // Special case: if this is an item or entity closing tag and the last span on stack has one,
-                // create the span now
+
                 if ("item".equals(tagName) && !styleStack.isEmpty()) {
                     TextSpan itemStyle = styleStack.peek();
                     if (itemStyle.getItemId() != null) {
-                        // Create an empty-content span for the item
+
                         TextSpan itemSpan = new TextSpan("");
                         itemSpan.item(itemStyle.getItemId(), itemStyle.getItemCount() != null ? itemStyle.getItemCount() : 1);
                         if (itemStyle.getItemOffsetX() != null || itemStyle.getItemOffsetY() != null) {
@@ -138,7 +198,7 @@ public class MarkupParser {
                 } else if ("entity".equals(tagName) && !styleStack.isEmpty()) {
                     TextSpan entityStyle = styleStack.peek();
                     if (entityStyle.getEntityId() != null) {
-                        // Create an empty-content span for the entity
+
                         TextSpan entitySpan = new TextSpan("");
                         entitySpan.entity(entityStyle.getEntityId(), entityStyle.getEntityScale() != null ? entityStyle.getEntityScale() : 1.0f);
                         if (entityStyle.getEntityOffsetX() != null || entityStyle.getEntityOffsetY() != null) {
@@ -147,10 +207,11 @@ public class MarkupParser {
                                 entityStyle.getEntityOffsetY() != null ? entityStyle.getEntityOffsetY() : 0f
                             );
                         }
-                        if (entityStyle.getEntityYaw() != null || entityStyle.getEntityPitch() != null) {
+                        if (entityStyle.getEntityYaw() != null || entityStyle.getEntityPitch() != null || entityStyle.getEntityRoll() != null) {
                             entitySpan.entityRotation(
                                 entityStyle.getEntityYaw() != null ? entityStyle.getEntityYaw() : 45f,
-                                entityStyle.getEntityPitch() != null ? entityStyle.getEntityPitch() : 0f
+                                entityStyle.getEntityPitch() != null ? entityStyle.getEntityPitch() : 0f,
+                                entityStyle.getEntityRoll() != null ? entityStyle.getEntityRoll() : 0f
                             );
                         }
                         if (entityStyle.getEntityAnimation() != null) {
@@ -166,19 +227,15 @@ public class MarkupParser {
                     styleStack.pop();
                 }
             } else {
-                // Opening tag - push new style to stack
+
                 TextSpan currentStyle = styleStack.isEmpty() ? new TextSpan("") : styleStack.peek().inherit();
                 applyTagToSpan(currentStyle, tagName, attributes);
-                if (currentStyle.hasGlobalAttributes()) {
-                    mergeGlobalAttrs(globalAttrsCollector, currentStyle);
-                }
                 styleStack.push(currentStyle);
             }
-            
+
             lastEnd = matcher.end();
         }
-        
-        // Add any remaining text
+
         if (lastEnd < markup.length()) {
             String content = markup.substring(lastEnd);
             if (!content.isEmpty()) {
@@ -187,25 +244,16 @@ public class MarkupParser {
             }
         }
 
-        // Prepend accumulated global attrs so ImmersiveMessage always finds them,
-        // even when global attr tags appear after text or are self-closing.
-        if (globalAttrsCollector.hasGlobalAttributes()) {
-            result.add(0, globalAttrsCollector);
-        }
-
         return result;
     }
-    
+
     private static TextSpan createSpanWithCurrentStyles(String content, Stack<TextSpan> styleStack) {
         TextSpan span = new TextSpan(content);
 
-        // Apply all styles from the stack (inheritance)
-        for (TextSpan style : styleStack) {
-            inheritStyles(span, style);
+        if (!styleStack.isEmpty()) {
+            inheritStyles(span, styleStack.peek());
         }
 
-        // Auto-resolve bold font variant: if bold and a custom font are both set,
-        // try switching to the _bold variant (e.g. emberstextapi:norse -> emberstextapi:norse_bold)
         if (Boolean.TRUE.equals(span.getBold()) && span.getFont() != null) {
             String fontPath = span.getFont().getPath();
             if (!fontPath.endsWith("_bold") && FontAliasRegistry.hasBoldVariant(span.getFont())) {
@@ -218,7 +266,7 @@ public class MarkupParser {
 
         return span;
     }
-    
+
     private static void inheritStyles(TextSpan target, TextSpan source) {
         if (source.getColor() != null) target.color(source.getColor());
         if (source.getBold() != null) target.bold(source.getBold());
@@ -232,9 +280,9 @@ public class MarkupParser {
                 target.addEffect(effect);
             }
         }
-        // DON'T inherit typewriter - it should be a container effect, not per-span
+
         if (source.getObfuscateMode() != null) {
-            target.obfuscate(source.getObfuscateMode(), 
+            target.obfuscate(source.getObfuscateMode(),
                 source.getObfuscateSpeed() != null ? source.getObfuscateSpeed() : 1.0f);
         }
         if (source.getBackgroundColor() != null) {
@@ -243,8 +291,7 @@ public class MarkupParser {
         if (source.getBackgroundGradient() != null) {
             target.backgroundGradient(source.getBackgroundGradient());
         }
-        
-        // Inherit item properties
+
         if (source.getItemId() != null) {
             target.item(source.getItemId(), source.getItemCount() != null ? source.getItemCount() : 1);
             if (source.getItemOffsetX() != null || source.getItemOffsetY() != null) {
@@ -254,108 +301,39 @@ public class MarkupParser {
                 );
             }
         }
-        
-        // Inherit global message attributes (these typically aren't inherited, but just in case)
-        if (source.getGlobalBackground() != null) {
-            target.globalBackground(source.getGlobalBackground());
-        }
-        if (source.getGlobalBackgroundColor() != null) {
-            target.globalBackgroundColor(source.getGlobalBackgroundColor());
-        }
-        if (source.getGlobalBackgroundGradient() != null) {
-            target.globalBackgroundGradient(source.getGlobalBackgroundGradient());
-        }
-        if (source.getGlobalBorderStart() != null) {
-            target.globalBorder(source.getGlobalBorderStart(), source.getGlobalBorderEnd());
-        }
-        if (source.getGlobalXOffset() != null || source.getGlobalYOffset() != null) {
-            target.globalOffset(
-                source.getGlobalXOffset() != null ? source.getGlobalXOffset() : 0f,
-                source.getGlobalYOffset() != null ? source.getGlobalYOffset() : 0f
-            );
-        }
-        if (source.getGlobalAnchor() != null) {
-            target.globalAnchor(source.getGlobalAnchor());
-        }
-        if (source.getGlobalAlign() != null) {
-            target.globalAlign(source.getGlobalAlign());
-        }
-        if (source.getGlobalScale() != null) {
-            target.globalScale(source.getGlobalScale());
-        }
-        if (source.getGlobalShadow() != null) {
-            target.globalShadow(source.getGlobalShadow());
-        }
-        if (source.getGlobalFadeInTicks() != null) {
-            target.globalFadeIn(source.getGlobalFadeInTicks());
-        }
-        if (source.getGlobalFadeOutTicks() != null) {
-            target.globalFadeOut(source.getGlobalFadeOutTicks());
-        }
-        if (source.getGlobalTypewriterSpeed() != null) {
-            target.globalTypewriter(source.getGlobalTypewriterSpeed(),
-                source.getGlobalTypewriterCenter() != null ? source.getGlobalTypewriterCenter() : false);
-        }
-    }
-    
-    /**
-     * Merges global message attributes from {@code source} into {@code target}.
-     * Only non-null fields in source are copied, preserving any previously merged values.
-     */
-    private static void mergeGlobalAttrs(TextSpan target, TextSpan source) {
-        if (source.getGlobalBackground() != null) target.globalBackground(source.getGlobalBackground());
-        if (source.getGlobalBackgroundColor() != null) target.globalBackgroundColor(source.getGlobalBackgroundColor());
-        if (source.getGlobalBackgroundGradient() != null) target.globalBackgroundGradient(source.getGlobalBackgroundGradient());
-        if (source.getGlobalBorderStart() != null) target.globalBorder(source.getGlobalBorderStart(), source.getGlobalBorderEnd());
-        if (source.getGlobalXOffset() != null || source.getGlobalYOffset() != null) {
-            target.globalOffset(
-                source.getGlobalXOffset() != null ? source.getGlobalXOffset() : 0f,
-                source.getGlobalYOffset() != null ? source.getGlobalYOffset() : 0f
-            );
-        }
-        if (source.getGlobalAnchor() != null) target.globalAnchor(source.getGlobalAnchor());
-        if (source.getGlobalAlign() != null) target.globalAlign(source.getGlobalAlign());
-        if (source.getGlobalScale() != null) target.globalScale(source.getGlobalScale());
-        if (source.getGlobalShadow() != null) target.globalShadow(source.getGlobalShadow());
-        if (source.getGlobalFadeInTicks() != null) target.globalFadeIn(source.getGlobalFadeInTicks());
-        if (source.getGlobalFadeOutTicks() != null) target.globalFadeOut(source.getGlobalFadeOutTicks());
-        if (source.getGlobalTypewriterSpeed() != null) target.globalTypewriter(
-            source.getGlobalTypewriterSpeed(),
-            source.getGlobalTypewriterCenter() != null ? source.getGlobalTypewriterCenter() : false
-        );
     }
 
     private static void applyTagToSpan(TextSpan span, String tagName, String attributes) {
         Map<String, String> attrs = parseAttributes(attributes);
-        
+
         switch (tagName) {
             case "bold", "b" -> span.bold(true);
             case "italic", "i" -> span.italic(true);
             case "underline", "u" -> span.underline(true);
             case "strikethrough", "s" -> span.strikethrough(true);
             case "obfuscated", "obf" -> span.obfuscated(true);
-            
+
             case "color", "c" -> {
-                if (attrs.containsKey("col") || attrs.containsKey("value")) {
-                    // Effect-based color (stackable with other effects)
+                String valueAttr = attrs.get("value");
+                boolean isGradient = attrs.containsKey("col") || (valueAttr != null && valueAttr.contains(","));
+                if (isGradient) {
                     String tagContent = buildEffectTag("color", attributes);
                     span.effect(tagContent);
                 } else {
-                    // Direct color setting (legacy: <c color=FF0000>)
                     String colorValue = attrs.get("color");
+                    if (colorValue == null) colorValue = valueAttr;
                     if (colorValue != null) span.color(colorValue);
                 }
             }
-            
+
             case "font" -> {
-                // Support multiple attribute names: id, value, font, name
+
                 String fontValue = attrs.get("id");
                 if (fontValue == null) fontValue = attrs.get("value");
                 if (fontValue == null) fontValue = attrs.get("font");
                 if (fontValue == null) fontValue = attrs.get("name");
                 if (fontValue != null) {
-                    // Resolve via alias registry first (e.g. "norse", "cinzel"),
-                    // then fall back to direct ResourceLocation parse for full IDs.
+
                     ResourceLocation font = FontAliasRegistry.resolve(fontValue);
                     if (font != null) {
                         span.font(font);
@@ -364,199 +342,40 @@ public class MarkupParser {
                     }
                 }
             }
-            
+
             case "grad", "gradient" -> {
-                // Always use new GradientEffect (v2.0.0)
+
                 String tagContent = buildEffectTag("grad", attributes);
                 span.effect(tagContent);
             }
-            
+
             case "typewriter", "type" -> {
-                // Use new TypewriterEffect (v2.0.0)
-                // Parameters: s (speed), d (delay), c (cycle)
+
                 String tagContent = buildEffectTag("typewriter", attributes);
                 span.effect(tagContent);
             }
-            
+
             case "shake" -> {
-                // Check if using old ShakeType system (deprecated)
-                String typeStr = attrs.get("type");
-
-                if (typeStr != null) {
-                    // OLD SYSTEM: Map type parameter to new effects
-                    String effectName = switch (typeStr.toLowerCase()) {
-                        case "wave" -> "wave";
-                        case "circle" -> "circle";
-                        default -> "shake"; // "random" or any other value
-                    };
-                    String tagContent = buildEffectTag(effectName, attributes);
-                    span.effect(tagContent);
-                } else {
-                    // NEW SYSTEM: Use ShakeEffect directly (v2.0.0)
-                    String tagContent = buildEffectTag("shake", attributes);
-                    span.effect(tagContent);
-                }
-            }
-            
-            case "charshake" -> {
-                // DEPRECATED: All new effects are per-character by default
-                // Map old charshake to new effect system
-                String typeStr = attrs.getOrDefault("type", "random");
-
-                String effectName = switch (typeStr.toLowerCase()) {
-                    case "wave" -> "wave";
-                    case "circle" -> "circle";
-                    default -> "shake"; // "random" or any other value
-                };
-
-                String tagContent = buildEffectTag(effectName, attributes);
+                String tagContent = buildEffectTag("shake", attributes);
                 span.effect(tagContent);
             }
-            
+
             case "wave" -> {
-                // Use new WaveEffect (v2.0.0) instead of charShake-based wave
+
                 String tagContent = buildEffectTag("wave", attributes);
                 span.effect(tagContent);
             }
-            
-            // Global message attributes
-            case "background", "bg" -> {
-                String colorStr = attrs.get("color");
-                String borderColorStr = attrs.get("bordercolor");
-                String borderStartStr = attrs.get("borderstart");
-                String borderEndStr = attrs.get("borderend");
-                
-                if (colorStr != null) {
-                    ImmersiveColor bgColor = parseImmersiveColor(colorStr);
-                    if (bgColor != null) {
-                        span.globalBackgroundColor(bgColor);
-                    }
-                } else {
-                    span.globalBackground(true);
-                }
-                
-                if (borderColorStr != null) {
-                    ImmersiveColor borderColor = parseImmersiveColor(borderColorStr);
-                    if (borderColor != null) {
-                        span.globalBorder(borderColor, borderColor);
-                    }
-                }
-                
-                if (borderStartStr != null && borderEndStr != null) {
-                    ImmersiveColor borderStart = parseImmersiveColor(borderStartStr);
-                    ImmersiveColor borderEnd = parseImmersiveColor(borderEndStr);
-                    if (borderStart != null && borderEnd != null) {
-                        span.globalBorder(borderStart, borderEnd);
-                    }
-                }
-            }
-            
-            case "backgroundgradient", "bggradient" -> {
-                String fromStr = attrs.get("from");
-                String toStr = attrs.get("to");
-                if (fromStr != null && toStr != null) {
-                    ImmersiveColor from = parseImmersiveColor(fromStr);
-                    ImmersiveColor to = parseImmersiveColor(toStr);
-                    if (from != null && to != null) {
-                        span.globalBackgroundGradient(from, to);
-                    }
-                }
-            }
-            
-            case "scale" -> {
-                String scaleStr = attrs.getOrDefault("value", "1.0");
-                try {
-                    float scale = Float.parseFloat(scaleStr);
-                    span.globalScale(scale);
-                } catch (NumberFormatException e) {
-                    LOGGER.debug("Failed to parse scale value '{}': {}", scaleStr, e.getMessage());
-                }
-            }
-            
-            case "offset" -> {
-                String xStr = attrs.getOrDefault("x", "0.0");
-                String yStr = attrs.getOrDefault("y", "0.0");
-                try {
-                    float x = Float.parseFloat(xStr);
-                    float y = Float.parseFloat(yStr);
-                    span.globalOffset(x, y);
-                } catch (NumberFormatException e) {
-                    LOGGER.debug("Failed to parse offset values x='{}', y='{}': {}", xStr, yStr, e.getMessage());
-                }
-            }
-            
-            case "anchor" -> {
-                String anchorStr = attrs.getOrDefault("value", "TOP_CENTER");
-                try {
-                    TextAnchor anchor = TextAnchor.valueOf(anchorStr.toUpperCase());
-                    span.globalAnchor(anchor);
-                } catch (IllegalArgumentException e) {
-                    LOGGER.debug("Invalid anchor value '{}': {}", anchorStr, e.getMessage());
-                }
-            }
 
-            case "align" -> {
-                String alignStr = attrs.getOrDefault("value", "LEFT");
-                try {
-                    TextAlign align = TextAlign.valueOf(alignStr.toUpperCase());
-                    span.globalAlign(align);
-                } catch (IllegalArgumentException e) {
-                    LOGGER.debug("Invalid align value '{}': {}", alignStr, e.getMessage());
-                }
-            }
-            
             case "shadow" -> {
-                // Check if this is using new ShadowEffect parameters (x, y, c, r, g, b, a)
-                boolean isNewEffect = attrs.containsKey("x") || attrs.containsKey("y") ||
-                                     attrs.containsKey("c") || attrs.containsKey("r") ||
-                                     attrs.containsKey("g") || attrs.containsKey("b");
-
-                if (isNewEffect) {
-                    // Use new ShadowEffect (v2.0.0)
-                    String tagContent = buildEffectTag("shadow", attributes);
-                    span.effect(tagContent);
-                } else {
-                    // OLD system: global shadow enable/disable
-                    String shadowStr = attrs.getOrDefault("value", "true");
-                    boolean shadow = "true".equalsIgnoreCase(shadowStr);
-                    span.globalShadow(shadow);
-                }
+                String tagContent = buildEffectTag("shadow", attributes);
+                span.effect(tagContent);
             }
 
             case "fade" -> {
-                // Check if this is using new FadeEffect parameters (a, f, w)
-                boolean isNewEffect = attrs.containsKey("a") || attrs.containsKey("f") ||
-                                     attrs.containsKey("w");
-
-                if (isNewEffect) {
-                    // Use new FadeEffect (v2.0.0)
-                    String tagContent = buildEffectTag("fade", attributes);
-                    span.effect(tagContent);
-                } else {
-                    // OLD system: global fade in/out
-                    String inStr = attrs.get("in");
-                    String outStr = attrs.get("out");
-
-                    if (inStr != null) {
-                        try {
-                            int inTicks = Integer.parseInt(inStr);
-                            span.globalFadeIn(inTicks);
-                        } catch (NumberFormatException e) {
-                            LOGGER.debug("Failed to parse fade-in value '{}': {}", inStr, e.getMessage());
-                        }
-                    }
-
-                    if (outStr != null) {
-                        try {
-                            int outTicks = Integer.parseInt(outStr);
-                            span.globalFadeOut(outTicks);
-                        } catch (NumberFormatException e) {
-                            LOGGER.debug("Failed to parse fade-out value '{}': {}", outStr, e.getMessage());
-                        }
-                    }
-                }
+                String tagContent = buildEffectTag("fade", attributes);
+                span.effect(tagContent);
             }
-            
+
             case "item" -> {
                 String itemId = attrs.getOrDefault("value", attrs.get("id"));
                 String sizeStr = attrs.getOrDefault("size", attrs.getOrDefault("count", "1"));
@@ -573,7 +392,6 @@ public class MarkupParser {
                         span.item(itemId);
                     }
 
-                    // Parse offsets
                     try {
                         float offsetX = Float.parseFloat(offsetXStr);
                         float offsetY = Float.parseFloat(offsetYStr);
@@ -584,13 +402,12 @@ public class MarkupParser {
                         LOGGER.debug("Failed to parse item offset x='{}', y='{}': {}", offsetXStr, offsetYStr, e.getMessage());
                     }
 
-                    // Parse NBT data
                     if (nbtStr != null && !nbtStr.isEmpty()) {
                         span.itemNbt(nbtStr);
                     }
                 }
             }
-            
+
             case "entity" -> {
                 String entityId = attrs.getOrDefault("value", attrs.get("id"));
                 String scaleStr = attrs.getOrDefault("scale", "1.0");
@@ -612,7 +429,6 @@ public class MarkupParser {
                         span.entity(entityId);
                     }
 
-                    // Parse offsets
                     try {
                         float offsetX = Float.parseFloat(offsetXStr);
                         float offsetY = Float.parseFloat(offsetYStr);
@@ -623,7 +439,6 @@ public class MarkupParser {
                         LOGGER.debug("Failed to parse entity offset x='{}', y='{}': {}", offsetXStr, offsetYStr, e.getMessage());
                     }
 
-                    // Parse rotation (yaw, pitch, roll)
                     try {
                         float yaw = Float.parseFloat(yawStr);
                         float pitch = Float.parseFloat(pitchStr);
@@ -633,7 +448,6 @@ public class MarkupParser {
                         LOGGER.debug("Failed to parse entity rotation yaw='{}', pitch='{}', roll='{}': {}", yawStr, pitchStr, rollStr, e.getMessage());
                     }
 
-                    // Parse lighting
                     try {
                         int lighting = Integer.parseInt(lightingStr);
                         span.entityLighting(lighting);
@@ -641,7 +455,6 @@ public class MarkupParser {
                         LOGGER.debug("Failed to parse entity lighting '{}', using default: {}", lightingStr, e.getMessage());
                     }
 
-                    // Parse spin (continuous rotation speed)
                     if (spinStr != null) {
                         try {
                             float spin = Float.parseFloat(spinStr);
@@ -651,12 +464,10 @@ public class MarkupParser {
                         }
                     }
 
-                    // Set animation
                     if (animation != null && !animation.isEmpty()) {
                         span.entityAnimation(animation);
                     }
 
-                    // Parse NBT data
                     String entityNbtStr = attrs.get("nbt");
                     if (entityNbtStr != null && !entityNbtStr.isEmpty()) {
                         span.entityNbt(entityNbtStr);
@@ -664,10 +475,8 @@ public class MarkupParser {
                 }
             }
 
-            // NEW: Visual effects (v2.0.0)
-            // These are recognized effect names that get delegated to the effect system
             case "rainbow", "rainb" -> {
-                // Build tag content from effect name and attributes
+
                 String tagContent = buildEffectTag("rainbow", attributes);
                 span.effect(tagContent);
             }
@@ -712,11 +521,6 @@ public class MarkupParser {
                 span.effect(tagContent);
             }
 
-            case "scroll" -> {
-                String tagContent = buildEffectTag("scroll", attributes);
-                span.effect(tagContent);
-            }
-
             case "neon", "glow" -> {
                 String tagContent = buildEffectTag("neon", attributes);
                 span.effect(tagContent);
@@ -727,14 +531,12 @@ public class MarkupParser {
                 span.effect(tagContent);
             }
 
-            // Note: "wave" already exists above as charShake-based effect
-            // To use the new WaveEffect, users can use <effect>wave</effect> or we keep the old for compatibility
-            // Note: "shake" already exists above as charShake-based effect
-            // To use the new ShakeEffect, users can use <effect>shake</effect> or we keep the old for compatibility
-            // Note: "fade" and "shadow" handle both old and new systems dynamically based on parameters
+            case "scroll" -> {
+                String tagContent = buildEffectTag("scroll", attributes);
+                span.effect(tagContent);
+            }
 
             default -> {
-                // Check if this tag name matches a registered effect preset
                 PresetDefinition preset = PresetRegistry.get(tagName);
                 if (preset != null) {
                     applyPresetToSpan(span, preset, attrs);
@@ -743,11 +545,7 @@ public class MarkupParser {
         }
     }
 
-    /**
-     * Apply an effect preset to a span: sets style overrides then adds each effect.
-     */
     private static void applyPresetToSpan(TextSpan span, PresetDefinition preset, Map<String, String> attributes) {
-        // Apply style overrides
         PresetDefinition.StyleOverrides styles = preset.getStyles();
         if (styles != null) {
             if (styles.bold() != null) span.bold(styles.bold());
@@ -766,7 +564,6 @@ public class MarkupParser {
             }
         }
 
-        // Apply each effect entry
         for (PresetDefinition.EffectEntry entry : preset.getEffects()) {
             StringBuilder tagContent = new StringBuilder(entry.type());
             for (Map.Entry<String, Object> param : entry.params().entrySet()) {
@@ -776,17 +573,13 @@ public class MarkupParser {
         }
     }
 
-    /**
-     * Helper method to build effect tag content from tag name and attributes.
-     * Reconstructs the tag format expected by EffectRegistry.parseTag().
-     */
     private static String buildEffectTag(String effectName, String attributes) {
         if (attributes == null || attributes.trim().isEmpty()) {
             return effectName;
         }
         return effectName + attributes;
     }
-    
+
     private static Map<String, String> parseAttributes(String attributeString) {
         Map<String, String> attributes = new HashMap<>();
         if (attributeString == null || attributeString.trim().isEmpty()) {
@@ -794,28 +587,25 @@ public class MarkupParser {
         }
 
         Matcher matcher = ATTRIBUTE_PATTERN.matcher(attributeString);
+        boolean first = true;
         while (matcher.find()) {
             String key = matcher.group(1);
             String value = matcher.group(3) != null ? matcher.group(3) : matcher.group(4);
 
-            // If value is null, treat it as a boolean flag (true)
             if (value == null) {
-                attributes.put(key.toLowerCase(), "true");
+                if (first) {
+                    attributes.put("value", key);
+                } else {
+                    attributes.put(key.toLowerCase(), "true");
+                }
             } else {
                 attributes.put(key.toLowerCase(), value);
             }
+            first = false;
         }
-
         return attributes;
     }
-    
-    /**
-     * Parse a color string to ImmersiveColor.
-     * Delegates to centralized ColorParser utility.
-     *
-     * @param value Color string to parse
-     * @return ImmersiveColor or null if parsing fails
-     */
+
     private static ImmersiveColor parseImmersiveColor(String value) {
         ImmersiveColor result = ColorParser.parseImmersiveColor(value);
         if (result == null && value != null && !value.trim().isEmpty()) {
@@ -823,25 +613,19 @@ public class MarkupParser {
         }
         return result;
     }
-    
-    /**
-     * Converts a list of spans back to a plain text string (removes markup).
-     */
+
     public static String toPlainText(List<TextSpan> spans) {
         if (spans == null || spans.isEmpty()) {
             return "";
         }
-        
+
         StringBuilder result = new StringBuilder();
         for (TextSpan span : spans) {
             result.append(span.getContent());
         }
         return result.toString();
     }
-    
-    /**
-     * Utility method to create a simple single-span list from plain text.
-     */
+
     public static List<TextSpan> fromPlainText(String text) {
         if (text == null || text.isEmpty()) {
             return Collections.emptyList();
@@ -849,16 +633,6 @@ public class MarkupParser {
         return Collections.singletonList(new TextSpan(text));
     }
 
-    /**
-     * Extracts a {@code <dur:N>} tag from a markup string.
-     *
-     * @param markup The raw markup string
-     * @return A two-element array: {@code [durValue, strippedMarkup]} where
-     *         {@code durValue} is encoded as a float (bits reinterpreted via
-     *         {@link Float#floatToRawIntBits} is not used — the value is the
-     *         actual duration). Returns {@code -1f} for durValue if the tag
-     *         is absent.
-     */
     public static Object[] extractDuration(String markup) {
         if (markup == null) {
             return new Object[]{-1f, ""};

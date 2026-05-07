@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "effects": [
+    { "type": "neon", "params": { "c": "9944FF" } },
+    { "type": "turbulence", "params": { "a": 0.6, "f": 0.8 } }
+  ],
+  "styles": {
+    "color": "BB88FF",
+    "font": "emberstextapi:cinzel"
+  }
+}

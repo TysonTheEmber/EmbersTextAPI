@@ -6,10 +6,6 @@ import com.google.common.cache.CacheBuilder;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Lightweight cache for {@link ObfuscateTrack} instances keyed by context (style, message, etc.).
- * Mirrors the TypewriterTracks behavior with a short expiry to avoid leaking tooltip sessions.
- */
 public class ObfuscateTracks {
     private static final ObfuscateTracks INSTANCE = new ObfuscateTracks();
     private static final int MAX_CACHE_SIZE = 512;

@@ -8,10 +8,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Tests for MSDF texture generation (Phase 3).
- * Verifies the complete pipeline: outline → edge coloring → MSDF texture.
- */
 class MSDFGenerationTest {
 
     @Test
@@ -37,7 +33,6 @@ class MSDFGenerationTest {
         byte[] msdf = MSDFGenerator.generate(outline, colored, w, h,
                 0, 0, 100, 100, 4.0);
 
-        // Center pixel should be "inside" in all channels
         int cx = w / 2, cy = h / 2;
         int idx = (cy * w + cx) * 3;
         int r = msdf[idx] & 0xFF;
@@ -59,7 +54,6 @@ class MSDFGenerationTest {
         byte[] msdf = MSDFGenerator.generate(outline, colored, w, h,
                 0, 0, 100, 100, 4.0);
 
-        // Corner pixel (0,0) should be "outside"
         int idx = 0;
         int r = msdf[idx] & 0xFF;
         int g = msdf[idx + 1] & 0xFF;
@@ -73,7 +67,7 @@ class MSDFGenerationTest {
     @Test
     @DisplayName("Generate MSDF for triangle - median transitions from outside to inside")
     void testTriangleMSDFTransition() {
-        // CCW triangle
+
         List<Segment> segments = List.of(
                 new Line(0, 0, 100, 0),
                 new Line(100, 0, 50, 86.6f),
@@ -89,7 +83,6 @@ class MSDFGenerationTest {
         byte[] msdf = MSDFGenerator.generate(outline, colored, w, h,
                 0, 0, 100, 86.6, 4.0);
 
-        // Sample along a horizontal line through the middle
         int midY = h / 2;
         boolean foundInside = false;
         boolean foundOutside = false;
@@ -117,10 +110,6 @@ class MSDFGenerationTest {
         byte[] msdf = MSDFGenerator.generate(outline, colored, w, h,
                 0, 0, 100, 100, 4.0);
 
-        // At corners of the square, the RGB channels should diverge (MSDF's key feature)
-        // Sample near where the square corner would be in texture space
-        // The square occupies roughly the center 80% of the texture, so corner is around
-        // pixel (w*0.15, h*0.85) for bottom-left corner
         boolean foundDivergent = false;
         for (int py = 0; py < h; py++) {
             for (int px = 0; px < w; px++) {
@@ -128,7 +117,7 @@ class MSDFGenerationTest {
                 int r = msdf[idx] & 0xFF;
                 int g = msdf[idx + 1] & 0xFF;
                 int b = msdf[idx + 2] & 0xFF;
-                // Check if channels diverge significantly (> 10 difference)
+
                 int maxDiff = Math.max(Math.abs(r - g), Math.max(Math.abs(g - b), Math.abs(r - b)));
                 if (maxDiff > 10) {
                     foundDivergent = true;
@@ -162,7 +151,6 @@ class MSDFGenerationTest {
         byte[] msdf = MSDFGenerator.generate(outline, colored, w, h,
                 -r, -r, r, r, 4.0);
 
-        // With WHITE coloring (no corners), all channels should be very similar
         int divergentCount = 0;
         for (int py = 0; py < h; py++) {
             for (int px = 0; px < w; px++) {
@@ -175,7 +163,6 @@ class MSDFGenerationTest {
             }
         }
 
-        // Allow very few divergent pixels (error correction artifacts)
         assertTrue(divergentCount < w * h * 0.05,
                 "Circle MSDF should have mostly uniform channels, but found " + divergentCount + " divergent pixels");
     }
@@ -190,10 +177,8 @@ class MSDFGenerationTest {
         byte[] msdf = MSDFGenerator.generate(outline, colored, w, h,
                 0, 0, 100, 100, 4.0);
 
-        // Check the border rows/columns — these should be solidly "outside"
-        // (all channels < 128) since they're well outside the glyph
         for (int x = 0; x < w; x++) {
-            // Top row
+
             {
                 int idx = x * 3;
                 int r = msdf[idx] & 0xFF;
@@ -203,7 +188,7 @@ class MSDFGenerationTest {
                 assertTrue(median < 128,
                         String.format("Top border pixel (%d,0) should be outside (median=%.1f)", x, median));
             }
-            // Bottom row
+
             {
                 int idx = ((h - 1) * w + x) * 3;
                 int r = msdf[idx] & 0xFF;
@@ -215,10 +200,6 @@ class MSDFGenerationTest {
             }
         }
     }
-
-    // =========================================================================
-    // Helper
-    // =========================================================================
 
     private static GlyphOutline makeSquareOutline(float x0, float y0, float x1, float y1) {
         List<Segment> segments = List.of(

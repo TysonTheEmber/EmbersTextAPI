@@ -12,12 +12,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Registers client-side packet handlers for Fabric.
- */
 public class FabricClientPacketHandlers {
+
+    private static final int MAX_QUEUE_STEPS = 1024;
+    private static final int MAX_MESSAGES_PER_STEP = 256;
+
     public static void register() {
-        // Open message packet
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.OPEN_MESSAGE_PACKET, (client, handler, buf, responseSender) -> {
             UUID id = buf.readUUID();
             CompoundTag data = buf.readNbt();
@@ -30,7 +30,6 @@ public class FabricClientPacketHandlers {
             });
         });
 
-        // Update message packet
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.UPDATE_MESSAGE_PACKET, (client, handler, buf, responseSender) -> {
             UUID id = buf.readUUID();
             CompoundTag data = buf.readNbt();
@@ -43,18 +42,15 @@ public class FabricClientPacketHandlers {
             });
         });
 
-        // Close message packet
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.CLOSE_MESSAGE_PACKET, (client, handler, buf, responseSender) -> {
             UUID id = buf.readUUID();
             client.execute(() -> ClientMessageManager.close(id));
         });
 
-        // Close all messages packet
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.CLOSE_ALL_MESSAGES_PACKET, (client, handler, buf, responseSender) -> {
             client.execute(ClientMessageManager::closeAll);
         });
 
-        // Clear queue packet — empty channel means clear all pending
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.CLEAR_QUEUE_PACKET, (client, handler, buf, responseSender) -> {
             String channel = buf.readUtf();
             client.execute(() -> {
@@ -66,7 +62,6 @@ public class FabricClientPacketHandlers {
             });
         });
 
-        // Stop queue packet — closes current message + clears pending steps; empty channel means stop all
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.STOP_QUEUE_PACKET, (client, handler, buf, responseSender) -> {
             String channel = buf.readUtf();
             client.execute(() -> {
@@ -78,14 +73,19 @@ public class FabricClientPacketHandlers {
             });
         });
 
-        // Open queue packet
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.OPEN_QUEUE_PACKET, (client, handler, buf, responseSender) -> {
             String channel = buf.readUtf();
             int stepCount = buf.readVarInt();
+            if (stepCount < 0 || stepCount > MAX_QUEUE_STEPS) {
+                throw new io.netty.handler.codec.DecoderException("Invalid queue step count: " + stepCount);
+            }
             List<List<UUID>> ids = new ArrayList<>(stepCount);
             List<List<CompoundTag>> stepData = new ArrayList<>(stepCount);
             for (int s = 0; s < stepCount; s++) {
                 int msgCount = buf.readVarInt();
+                if (msgCount < 0 || msgCount > MAX_MESSAGES_PER_STEP) {
+                    throw new io.netty.handler.codec.DecoderException("Invalid queue message count: " + msgCount);
+                }
                 List<UUID> stepIds = new ArrayList<>(msgCount);
                 List<CompoundTag> msgs = new ArrayList<>(msgCount);
                 for (int m = 0; m < msgCount; m++) {

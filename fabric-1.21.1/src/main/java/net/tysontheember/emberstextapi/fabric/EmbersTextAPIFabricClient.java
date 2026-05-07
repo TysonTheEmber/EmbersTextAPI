@@ -10,24 +10,22 @@ import net.minecraft.resources.ResourceLocation;
 import net.tysontheember.emberstextapi.client.ClientMessageManager;
 import net.tysontheember.emberstextapi.immersivemessages.api.FontAliasRegistry;
 import net.tysontheember.emberstextapi.immersivemessages.effects.EffectRegistry;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.MessageEffectRegistry;
+import net.tysontheember.emberstextapi.immersivemessages.effects.message.attr.MessageAttributeRegistry;
 import net.tysontheember.emberstextapi.sdf.SDFShaders;
 import net.tysontheember.emberstextapi.network.fabric.packets.FabricClientPacketHandlers;
 
-/**
- * Client-side mod initializer for Fabric 1.21.1.
- * Handles client-specific setup and event registration.
- */
 public class EmbersTextAPIFabricClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         EmbersTextAPIFabric.LOGGER.info("Initializing EmbersTextAPI client for Fabric");
 
-        // Initialize effect registry and font alias registry
         EffectRegistry.initializeDefaultEffects();
+        MessageEffectRegistry.initializeDefaultEffects();
+        MessageAttributeRegistry.initializeDefaultAttributes();
         FontAliasRegistry.initBuiltins();
         EmbersTextAPIFabric.LOGGER.info("Initialized visual effects system");
 
-        // Register SDF text shaders
         CoreShaderRegistrationCallback.EVENT.register(context -> {
             context.register(
                 ResourceLocation.fromNamespaceAndPath("minecraft", "rendertype_eta_sdf_text"),
@@ -41,17 +39,12 @@ public class EmbersTextAPIFabricClient implements ClientModInitializer {
             );
         });
 
-        // Register network packet handlers
         FabricClientPacketHandlers.register();
 
-        // Register client tick event
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ClientMessageManager.tick(client);
         });
 
-        // HudRenderCallback runs after InGameHud.render (including chat), but before Screen.render.
-        // This keeps immersive text in front of non-GUI chat, but behind opened GUIs.
-        // MC 1.21.1: HudRenderCallback passes DeltaTracker instead of float
         HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
@@ -59,7 +52,6 @@ public class EmbersTextAPIFabricClient implements ClientModInitializer {
             RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
             drawContext.setColor(1f, 1f, 1f, 1f);
 
-            // Keep immersive messages in front of chat quads/glyphs if HUD layers share this callback.
             drawContext.pose().pushPose();
             drawContext.pose().translate(0f, 0f, 200f);
             ClientMessageManager.render(drawContext, tickCounter.getGameTimeDeltaPartialTick(false));

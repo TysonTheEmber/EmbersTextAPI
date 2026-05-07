@@ -16,6 +16,8 @@ body:
         - Fabric 1.20.1
         - NeoForge 1.21.1
         - Fabric 1.21.1
+        - NeoForge 26.1
+        - Fabric 26.1
     validations:
       required: true
 

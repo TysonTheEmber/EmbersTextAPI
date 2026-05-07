@@ -3,7 +3,6 @@ package net.tysontheember.emberstextapi.immersivemessages.util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
 
-/** Utility methods for drawing simple shapes. */
 public final class RenderUtil {
     private RenderUtil() {}
 
@@ -11,21 +10,6 @@ public final class RenderUtil {
         graphics.fillGradient(x1, y1, x2, y2, top, bottom);
     }
 
-    /**
-     * Draws a tooltip-style background identical to the original
-     * ImmersiveMessages implementation. A 1px border is rendered on all
-     * sides with a gradient that travels around the border from
-     * {@code borderStart} to {@code borderEnd}.
-     *
-     * @param graphics target GUI graphics
-     * @param x top-left x of the text area
-     * @param y top-left y of the text area
-     * @param width width of the text area
-     * @param height height of the text area
-     * @param background ARGB colour of the background fill
-     * @param borderStart ARGB colour for the starting corner (top-left)
-     * @param borderEnd ARGB colour for the opposite corner (bottom-right)
-     */
     public static void drawBackground(
             GuiGraphics graphics,
             int x,
@@ -46,14 +30,12 @@ public final class RenderUtil {
         int yMaxB = y + height + 4;
         int yMinB = y + height + 3;
 
-        // main background (center, top, bottom, left, right)
         graphics.fillGradient(xMaxL, yMinT, xMinR, yMaxT, background, background);
         graphics.fillGradient(xMaxL, yMinB, xMinR, yMaxB, background, background);
         graphics.fillGradient(xMaxL, yMaxT, xMinR, yMinB, background, background);
         graphics.fillGradient(xMinL, yMaxT, xMaxL, yMinB, background, background);
         graphics.fillGradient(xMinR, yMaxT, xMaxR, yMinB, background, background);
 
-        // top/bottom borders
         int topWidth = xMinR - xMaxL;
         for (int i = 0; i < topWidth; i++) {
             float t = topWidth <= 1 ? 0f : (float) i / (topWidth - 1);
@@ -62,7 +44,6 @@ public final class RenderUtil {
             graphics.fill(xMinR - 1 - i, yMinB - 1, xMinR - i, yMinB, col);
         }
 
-        // side borders
         int sideHeight = yMinB - yMaxT - 2;
         for (int i = 0; i < sideHeight; i++) {
             float t = sideHeight <= 1 ? 0f : (float) i / (sideHeight - 1);
@@ -114,14 +95,12 @@ public final class RenderUtil {
         int darkerTop = lerpColour(0xFF000000, borderTop, 0.5f);
         int darkerBottom = lerpColour(0xFF000000, borderBottom, 0.5f);
 
-        // main background (center, top, bottom, left, right) — using multi-stop gradient
         fillHorizontalGradient(graphics, xMaxL, yMinT, xMinR, yMaxT, gradient);
         fillHorizontalGradient(graphics, xMaxL, yMinB, xMinR, yMaxB, gradient);
         fillHorizontalGradient(graphics, xMaxL, yMaxT, xMinR, yMinB, gradient);
         fillHorizontalGradient(graphics, xMinL, yMaxT, xMaxL, yMinB, gradient);
         fillHorizontalGradient(graphics, xMinR, yMaxT, xMaxR, yMinB, gradient);
 
-        // inner top/bottom borders
         int topWidth = xMinR - xMaxL;
         for (int i = 0; i < topWidth; i++) {
             float t = topWidth <= 1 ? 0f : (float) i / (topWidth - 1);
@@ -130,7 +109,6 @@ public final class RenderUtil {
             graphics.fill(xMinR - 1 - i, yMinB - 1, xMinR - i, yMinB, col);
         }
 
-        // inner side borders
         int sideHeight = yMinB - yMaxT - 2;
         for (int i = 0; i < sideHeight; i++) {
             float t = sideHeight <= 1 ? 0f : (float) i / (sideHeight - 1);
@@ -140,7 +118,6 @@ public final class RenderUtil {
             graphics.fill(xMaxL, yMaxT + 1 + i, xMaxL + 1, yMaxT + 2 + i, leftCol);
         }
 
-        // outer (halo) border — darker version based on inner gradient
         int outerTopWidth = xMaxR - xMinL;
         for (int i = 0; i < outerTopWidth; i++) {
             float tInner = topWidth <= 1 ? 0f : (float) Mth.clamp(i - 1, 0, topWidth - 1) / (topWidth - 1);

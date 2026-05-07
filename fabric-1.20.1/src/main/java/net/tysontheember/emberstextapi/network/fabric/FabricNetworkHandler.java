@@ -15,10 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Fabric-specific network handler implementation.
- * Uses Fabric Networking API for packet transmission.
- */
 public final class FabricNetworkHandler implements NetworkHandler {
     public static final ResourceLocation TOOLTIP_PACKET = new ResourceLocation(EmbersTextAPIFabric.MODID, "tooltip");
     public static final ResourceLocation OPEN_MESSAGE_PACKET = new ResourceLocation(EmbersTextAPIFabric.MODID, "open_message");
@@ -40,7 +36,7 @@ public final class FabricNetworkHandler implements NetworkHandler {
 
     @Override
     public void register() {
-        // Fabric client-side packet handlers are registered in the client initializer
+
         EmbersTextAPIFabric.LOGGER.info("Fabric network handler registered");
     }
 

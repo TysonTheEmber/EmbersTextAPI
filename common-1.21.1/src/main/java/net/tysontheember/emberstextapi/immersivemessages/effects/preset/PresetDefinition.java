@@ -7,14 +7,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Immutable definition of an effect preset loaded from JSON.
- * <p>
- * A preset bundles multiple effects and optional style overrides under a single
- * tag name, allowing users to write {@code <legendary>} instead of composing
- * multiple tags manually.
- * </p>
- */
 public final class PresetDefinition {
 
     private final String name;
@@ -48,9 +40,6 @@ public final class PresetDefinition {
         return styles;
     }
 
-    /**
-     * A single effect entry within a preset: an effect type name and optional parameters.
-     */
     public record EffectEntry(@NotNull String type, @NotNull Map<String, Object> params) {
         public EffectEntry(@NotNull String type, @NotNull Map<String, Object> params) {
             this.type = type;
@@ -62,9 +51,6 @@ public final class PresetDefinition {
         }
     }
 
-    /**
-     * Optional style overrides applied by the preset. Null fields mean "don't override".
-     */
     public record StyleOverrides(
             @Nullable Boolean bold,
             @Nullable Boolean italic,

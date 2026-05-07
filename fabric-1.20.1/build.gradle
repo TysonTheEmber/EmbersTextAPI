@@ -1,5 +1,8 @@
 plugins {
-    id 'fabric-loom' version '1.7.4'
+    // fabric-loom-remap (vs vanilla fabric-loom on fabric-26.1) — the standard plugin
+    // refuses to use Mojang mappings in a non-obfuscated environment, which this
+    // multi-loader workspace is. -remap relaxes that check.
+    id 'net.fabricmc.fabric-loom-remap' version '1.15.5'
 }
 
 base {
@@ -102,8 +105,8 @@ publishing {
                 url = 'https://github.com/TysonTheEmber/EmbersTextAPI'
                 licenses {
                     license {
-                        name = 'GNU General Public License v3.0'
-                        url = 'https://www.gnu.org/licenses/gpl-3.0.html'
+                        name = "Ember's Modding Licence v1.2"
+                        url = 'https://tysontheember.dev/modding-licence/'
                     }
                 }
                 developers {
@@ -123,7 +126,7 @@ publishing {
     repositories {
         maven {
             name = 'LocalMaven'
-            url = uri("file://${findProperty('mavenRepoPath') ?: "${rootProject.buildDir}/maven-repo"}")
+            url = uri("file://${findProperty('mavenRepoPath') ?: "${rootProject.layout.buildDirectory.get().asFile}/maven-repo"}")
         }
     }
 }

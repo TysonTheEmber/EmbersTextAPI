@@ -18,15 +18,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Mixin on FontTexture to swap the GlyphRenderTypes on BakedGlyph instances
- * that were created from SDF glyph data. This routes SDF glyphs through our
- * SDF shader without modifying any of the effects rendering code.
- * <p>
- * Also clears the atlas GL texture to zero before the first SDF glyph upload
- * to prevent bilinear filtering from sampling uninitialized memory at glyph
- * bounding box edges, which produces dark outline artifacts on shadows.
- */
 @Mixin(FontTexture.class)
 public abstract class FontTextureMixin {
 
@@ -37,15 +28,6 @@ public abstract class FontTextureMixin {
     @Unique
     private boolean emberstextapi$atlasCleared = false;
 
-    /**
-     * Before the first SDF glyph is added to this atlas, zero-fill the entire
-     * GL texture. FontTexture allocates its texture via glTexImage2D(null),
-     * leaving the contents undefined. With GL_LINEAR filtering (required for SDF),
-     * the bilinear sampler at glyph bounding box edges can read the adjacent
-     * undefined texel, producing non-zero median values that show as a faint
-     * dark outline on shadows. Subsequent glyphs aren't affected because their
-     * neighbors are already zero-filled padding from earlier uploads.
-     */
     @Inject(method = "add", at = @At("HEAD"))
     private void emberstextapi$clearAtlasBeforeFirstSdf(SheetGlyphInfo glyphInfo, CallbackInfoReturnable<BakedGlyph> cir) {
         if (!emberstextapi$atlasCleared && glyphInfo instanceof SDFSheetGlyphInfo) {

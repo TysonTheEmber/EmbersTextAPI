@@ -1,0 +1,77 @@
+package net.tysontheember.emberstextapi.mixin.client;
+
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.gui.font.glyphs.BakedSheetGlyph;
+import net.tysontheember.emberstextapi.accessor.ETABakedGlyph;
+import net.tysontheember.emberstextapi.immersivemessages.effects.EffectSettings;
+import org.joml.Matrix4f;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+
+@Mixin(BakedSheetGlyph.class)
+public class BakedGlyphMixin implements ETABakedGlyph {
+
+    @Shadow @Final private float left;
+    @Shadow @Final private float right;
+    @Shadow @Final private float up;
+    @Shadow @Final private float down;
+    @Shadow @Final private float u0;
+    @Shadow @Final private float v0;
+    @Shadow @Final private float u1;
+    @Shadow @Final private float v1;
+
+    @Override
+    public void emberstextapi$render(
+            EffectSettings settings,
+            boolean italic,
+            float boldOffset,
+            Matrix4f pose,
+            VertexConsumer buffer,
+            int packedLight) {
+
+        float x = settings.x + boldOffset;
+
+        float leftX = x + this.left;
+        float rightX = x + this.right;
+        float upY = settings.y + this.up;
+        float downY = settings.y + this.down;
+
+        float italicOffsetUp = italic ? 1.0f - 0.25f * this.up : 0.0f;
+        float italicOffsetDown = italic ? 1.0f - 0.25f * this.down : 0.0f;
+
+        float u0 = this.u0;
+        float u1 = this.u1;
+        float v0 = this.v0;
+        float v1 = this.v1;
+
+        if (settings.maskTop != 0) {
+            v0 += (this.v1 - this.v0) * settings.maskTop;
+            upY += (this.down - this.up) * settings.maskTop;
+        }
+        if (settings.maskBottom != 0) {
+            v1 -= (this.v1 - this.v0) * settings.maskBottom;
+            downY -= (this.down - this.up) * settings.maskBottom;
+        }
+
+        buffer.addVertex(leftX + italicOffsetUp, upY, 0.0f)
+                .setColor(settings.r, settings.g, settings.b, settings.a)
+                .setUv(u0, v0)
+                .setLight(packedLight);
+
+        buffer.addVertex(leftX + italicOffsetDown, downY, 0.0f)
+                .setColor(settings.r, settings.g, settings.b, settings.a)
+                .setUv(u0, v1)
+                .setLight(packedLight);
+
+        buffer.addVertex(rightX + italicOffsetDown, downY, 0.0f)
+                .setColor(settings.r, settings.g, settings.b, settings.a)
+                .setUv(u1, v1)
+                .setLight(packedLight);
+
+        buffer.addVertex(rightX + italicOffsetUp, upY, 0.0f)
+                .setColor(settings.r, settings.g, settings.b, settings.a)
+                .setUv(u1, v0)
+                .setLight(packedLight);
+    }
+}

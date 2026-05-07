@@ -11,10 +11,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Fabric implementation of ConfigHelper.
- * Uses simple JSON file for configuration.
- */
 public class FabricConfigHelper implements ConfigHelper {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String CONFIG_FILE = "emberstextapi.json";
@@ -32,7 +28,7 @@ public class FabricConfigHelper implements ConfigHelper {
                 if (config == null) {
                     config = new Config();
                 }
-                // Re-save to pick up any new fields with defaults
+
                 save();
             } else {
                 config = new Config();
@@ -44,19 +40,6 @@ public class FabricConfigHelper implements ConfigHelper {
             EmbersTextAPIFabric.LOGGER.error("Failed to load config, using defaults", e);
             config = new Config();
         }
-    }
-
-    @Override
-    public boolean isWelcomeMessageEnabled() {
-        return config != null && config.welcomeMessageEnabled;
-    }
-
-    public void setWelcomeMessageEnabled(boolean enabled) {
-        if (config == null) {
-            config = new Config();
-        }
-        config.welcomeMessageEnabled = enabled;
-        save();
     }
 
     @Override
@@ -105,8 +88,6 @@ public class FabricConfigHelper implements ConfigHelper {
         }
     }
 
-    // --- New COMMON accessors ---
-
     @Override
     public int getMaxServerMessageDuration() {
         return config != null ? config.maxServerMessageDuration : 1200;
@@ -132,8 +113,6 @@ public class FabricConfigHelper implements ConfigHelper {
         return config != null && config.disallowedMarkupTags != null ? config.disallowedMarkupTags : new ArrayList<>();
     }
 
-    // --- New CLIENT accessors ---
-
     @Override
     public boolean isReduceMotionEnabled() {
         return config != null && config.reduceMotion;
@@ -154,11 +133,7 @@ public class FabricConfigHelper implements ConfigHelper {
         return config == null || config.sdfEnabled;
     }
 
-    /**
-     * Config data class.
-     */
     private static class Config {
-        public boolean welcomeMessageEnabled = true;
         public boolean immersiveMessagesEnabled = true;
         public List<String> disabledEffects = new ArrayList<>();
         public String markupPermissionMode = "NONE";
@@ -166,17 +141,17 @@ public class FabricConfigHelper implements ConfigHelper {
         public int maxMessageDuration = 0;
         public int maxActiveMessages = 0;
         public int anvilNameMaxLength = 50;
-        // Server-side message limits
+
         public int maxServerMessageDuration = 1200;
         public int maxServerActiveMessages = 10;
         public int maxQueueSize = 50;
         public List<String> allowedEffects = new ArrayList<>();
-        // Markup
+
         public List<String> disallowedMarkupTags = new ArrayList<>();
-        // Accessibility
+
         public boolean reduceMotion = false;
         public int maxNeonQuality = 3;
-        // Performance
+
         public int textLayoutCacheSize = 256;
         public boolean sdfEnabled = true;
     }

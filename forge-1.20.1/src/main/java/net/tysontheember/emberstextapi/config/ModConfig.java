@@ -8,26 +8,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Configuration manager for EmbersTextAPI.
- * Uses Forge's config system to create TOML config files.
- * <p>
- * Server-side options (welcome message, markup permissions) go in COMMON config.
- * Client-side options (immersive messages, effects, limits) go in CLIENT config.
- */
 public class ModConfig {
 
-    // === COMMON config (server-side) ===
     private static final ForgeConfigSpec.Builder COMMON_BUILDER = new ForgeConfigSpec.Builder();
     public static final ForgeConfigSpec COMMON_SPEC;
 
-    public static final ForgeConfigSpec.BooleanValue WELCOME_MESSAGE_ENABLED;
-
-    // Player Markup Access
     public static final ForgeConfigSpec.ConfigValue<String> MARKUP_PERMISSION_MODE;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> MARKUP_PLAYER_LIST;
 
-    // === CLIENT config ===
     private static final ForgeConfigSpec.Builder CLIENT_BUILDER = new ForgeConfigSpec.Builder();
     public static final ForgeConfigSpec CLIENT_SPEC;
 
@@ -36,37 +24,22 @@ public class ModConfig {
     public static final ForgeConfigSpec.IntValue MAX_MESSAGE_DURATION;
     public static final ForgeConfigSpec.IntValue MAX_ACTIVE_MESSAGES;
 
-    // Server-side message limits
     public static final ForgeConfigSpec.IntValue MAX_SERVER_MESSAGE_DURATION;
     public static final ForgeConfigSpec.IntValue MAX_SERVER_ACTIVE_MESSAGES;
     public static final ForgeConfigSpec.IntValue MAX_QUEUE_SIZE;
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> ALLOWED_EFFECTS;
 
-    // Markup
     public static final ForgeConfigSpec.ConfigValue<List<? extends String>> DISALLOWED_MARKUP_TAGS;
 
-    // === CLIENT extras ===
-    // Accessibility
     public static final ForgeConfigSpec.BooleanValue REDUCE_MOTION;
     public static final ForgeConfigSpec.IntValue MAX_NEON_QUALITY;
 
-    // Performance
     public static final ForgeConfigSpec.IntValue TEXT_LAYOUT_CACHE_SIZE;
     public static final ForgeConfigSpec.BooleanValue SDF_ENABLED;
 
-    // === COMMON (anvil) ===
     public static final ForgeConfigSpec.IntValue ANVIL_NAME_MAX_LENGTH;
 
     static {
-        // --- COMMON ---
-        COMMON_BUILDER.comment("EmbersTextAPI Server Configuration").push("general");
-
-        WELCOME_MESSAGE_ENABLED = COMMON_BUILDER
-            .comment("Enable the welcome message shown to players on first join")
-            .define("welcomeMessageEnabled", true);
-
-        COMMON_BUILDER.pop();
-
         COMMON_BUILDER.comment("Player Markup Access", "Controls which players can use markup tags like <rainbow> in chat").push("markup");
 
         MARKUP_PERMISSION_MODE = COMMON_BUILDER
@@ -112,7 +85,6 @@ public class ModConfig {
         COMMON_BUILDER.pop();
         COMMON_SPEC = COMMON_BUILDER.build();
 
-        // --- CLIENT ---
         CLIENT_BUILDER.comment("EmbersTextAPI Client Configuration").push("general");
 
         IMMERSIVE_MESSAGES_ENABLED = CLIENT_BUILDER
@@ -164,24 +136,10 @@ public class ModConfig {
         CLIENT_SPEC = CLIENT_BUILDER.build();
     }
 
-    /**
-     * Register both config files.
-     */
     @SuppressWarnings("deprecation")
     public static void register() {
         ModLoadingContext.get().registerConfig(Type.COMMON, COMMON_SPEC, "emberstextapi-common.toml");
         ModLoadingContext.get().registerConfig(Type.CLIENT, CLIENT_SPEC, "emberstextapi-client.toml");
-    }
-
-    // --- COMMON accessors ---
-
-    public static boolean isWelcomeMessageEnabled() {
-        return WELCOME_MESSAGE_ENABLED.get();
-    }
-
-    public static void setWelcomeMessageEnabled(boolean enabled) {
-        WELCOME_MESSAGE_ENABLED.set(enabled);
-        COMMON_SPEC.save();
     }
 
     public static String getMarkupPermissionMode() {
@@ -192,8 +150,6 @@ public class ModConfig {
     public static List<String> getMarkupPlayerList() {
         return (List<String>) (List<?>) MARKUP_PLAYER_LIST.get();
     }
-
-    // --- CLIENT accessors (return defaults if client config not loaded) ---
 
     public static boolean isImmersiveMessagesEnabled() {
         try {
@@ -232,8 +188,6 @@ public class ModConfig {
         return ANVIL_NAME_MAX_LENGTH.get();
     }
 
-    // --- New COMMON accessors ---
-
     public static int getMaxServerMessageDuration() {
         return MAX_SERVER_MESSAGE_DURATION.get();
     }
@@ -255,8 +209,6 @@ public class ModConfig {
     public static List<String> getDisallowedMarkupTags() {
         return (List<String>) (List<?>) DISALLOWED_MARKUP_TAGS.get();
     }
-
-    // --- New CLIENT accessors ---
 
     public static boolean isReduceMotionEnabled() {
         try {

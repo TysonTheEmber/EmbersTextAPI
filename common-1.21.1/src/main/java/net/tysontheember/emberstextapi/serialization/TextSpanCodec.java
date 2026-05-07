@@ -18,35 +18,17 @@ import java.util.List;
 
 import static net.tysontheember.emberstextapi.serialization.SerializationUtil.*;
 
-/**
- * Network serialization codec for TextSpan instances.
- * <p>
- * Handles encoding and decoding of TextSpan objects for network transmission
- * between server and client. This separation allows platform-specific buffer
- * implementations (Forge's FriendlyByteBuf vs Fabric's PacketByteBuf).
- * </p>
- */
 public final class TextSpanCodec {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    /**
-     * Private constructor to prevent instantiation.
-     */
     private TextSpanCodec() {
         throw new UnsupportedOperationException("Codec class");
     }
 
-    /**
-     * Encode a TextSpan to a network buffer.
-     *
-     * @param span The TextSpan to encode
-     * @param buf The buffer to write to
-     */
     public static void encode(TextSpan span, FriendlyByteBuf buf) {
         buf.writeUtf(span.getContent());
 
-        // Encode style properties (using null-safe booleans)
         buf.writeBoolean(span.getBold() != null && span.getBold());
         buf.writeBoolean(span.getItalic() != null && span.getItalic());
         buf.writeBoolean(span.getUnderline() != null && span.getUnderline());
@@ -62,7 +44,6 @@ public final class TextSpanCodec {
             buf.writeResourceLocation(span.getFont());
         }
 
-        // Encode other effect properties
         buf.writeBoolean(span.getTypewriterSpeed() != null);
         if (span.getTypewriterSpeed() != null) {
             buf.writeFloat(span.getTypewriterSpeed());
@@ -89,68 +70,6 @@ public final class TextSpanCodec {
             }
         }
 
-        // Encode global message attributes
-        buf.writeBoolean(span.getGlobalBackground() != null && span.getGlobalBackground());
-        buf.writeBoolean(span.getGlobalBackgroundColor() != null);
-        if (span.getGlobalBackgroundColor() != null) {
-            buf.writeInt(span.getGlobalBackgroundColor().getARGB());
-        }
-
-        buf.writeBoolean(span.getGlobalBackgroundGradient() != null);
-        if (span.getGlobalBackgroundGradient() != null) {
-            buf.writeVarInt(span.getGlobalBackgroundGradient().length);
-            for (ImmersiveColor bgColor : span.getGlobalBackgroundGradient()) {
-                buf.writeInt(bgColor.getARGB());
-            }
-        }
-
-        buf.writeBoolean(span.getGlobalBorderStart() != null);
-        if (span.getGlobalBorderStart() != null) {
-            buf.writeInt(span.getGlobalBorderStart().getARGB());
-        }
-        buf.writeBoolean(span.getGlobalBorderEnd() != null);
-        if (span.getGlobalBorderEnd() != null) {
-            buf.writeInt(span.getGlobalBorderEnd().getARGB());
-        }
-
-        buf.writeBoolean(span.getGlobalXOffset() != null);
-        if (span.getGlobalXOffset() != null) {
-            buf.writeFloat(span.getGlobalXOffset());
-        }
-        buf.writeBoolean(span.getGlobalYOffset() != null);
-        if (span.getGlobalYOffset() != null) {
-            buf.writeFloat(span.getGlobalYOffset());
-        }
-
-        buf.writeBoolean(span.getGlobalAnchor() != null);
-        if (span.getGlobalAnchor() != null) {
-            buf.writeEnum(span.getGlobalAnchor());
-        }
-        buf.writeBoolean(span.getGlobalAlign() != null);
-        if (span.getGlobalAlign() != null) {
-            buf.writeEnum(span.getGlobalAlign());
-        }
-
-        buf.writeBoolean(span.getGlobalScale() != null);
-        if (span.getGlobalScale() != null) {
-            buf.writeFloat(span.getGlobalScale());
-        }
-
-        buf.writeBoolean(span.getGlobalShadow() != null);
-        if (span.getGlobalShadow() != null) {
-            buf.writeBoolean(span.getGlobalShadow());
-        }
-
-        buf.writeBoolean(span.getGlobalFadeInTicks() != null);
-        if (span.getGlobalFadeInTicks() != null) {
-            buf.writeInt(span.getGlobalFadeInTicks());
-        }
-        buf.writeBoolean(span.getGlobalFadeOutTicks() != null);
-        if (span.getGlobalFadeOutTicks() != null) {
-            buf.writeInt(span.getGlobalFadeOutTicks());
-        }
-
-        // Encode per-span fade effects
         buf.writeBoolean(span.getFadeInTicks() != null);
         if (span.getFadeInTicks() != null) {
             buf.writeInt(span.getFadeInTicks());
@@ -160,7 +79,6 @@ public final class TextSpanCodec {
             buf.writeInt(span.getFadeOutTicks());
         }
 
-        // Encode item rendering
         buf.writeBoolean(span.getItemId() != null);
         if (span.getItemId() != null) {
             buf.writeUtf(span.getItemId());
@@ -179,7 +97,6 @@ public final class TextSpanCodec {
             }
         }
 
-        // Encode entity rendering
         buf.writeBoolean(span.getEntityId() != null);
         if (span.getEntityId() != null) {
             buf.writeUtf(span.getEntityId());
@@ -222,7 +139,6 @@ public final class TextSpanCodec {
             }
         }
 
-        // Encode effects (v2.0.0)
         List<Effect> effects = span.getEffects();
         buf.writeVarInt(effects == null ? 0 : effects.size());
         if (effects != null && !effects.isEmpty()) {
@@ -232,19 +148,11 @@ public final class TextSpanCodec {
         }
     }
 
-    /**
-     * Decode a TextSpan from a network buffer.
-     *
-     * @param buf The buffer to read from
-     * @return The decoded TextSpan
-     * @throws IllegalArgumentException if buffer contains invalid data
-     */
     public static TextSpan decode(FriendlyByteBuf buf) {
-        // Validate and read content with length limit
+
         String content = buf.readUtf(MAX_CONTENT_LENGTH);
         TextSpan span = new TextSpan(content);
 
-        // Decode style properties
         if (buf.readBoolean()) span.bold(true);
         if (buf.readBoolean()) span.italic(true);
         if (buf.readBoolean()) span.underline(true);
@@ -258,14 +166,13 @@ public final class TextSpanCodec {
             span.font(buf.readResourceLocation());
         }
 
-        // Decode other effect properties
         if (buf.readBoolean()) {
             span.typewriter(clampFloat(buf.readFloat(), 0.001f, 1000f));
             span.setTypewriterCenter(buf.readBoolean());
         }
 
         if (buf.readBoolean()) {
-            span.setObfuscateMode(buf.readEnum(ObfuscateMode.class));
+            span.setObfuscateMode(readEnumSafe(buf, ObfuscateMode.class));
             span.setObfuscateSpeed(clampFloat(buf.readFloat(), 0f, 1000f));
         }
 
@@ -276,7 +183,6 @@ public final class TextSpanCodec {
             span.background(new ImmersiveColor(buf.readInt()));
         }
 
-        // Decode background gradient with size validation
         if (buf.readBoolean()) {
             int bgColorCount = buf.readVarInt();
             if (bgColorCount < 0 || bgColorCount > MAX_ARRAY_SIZE) {
@@ -289,64 +195,6 @@ public final class TextSpanCodec {
             span.backgroundGradient(bgColors);
         }
 
-        // Decode global message attributes
-        if (buf.readBoolean()) {
-            span.setGlobalBackground(true);
-        }
-        if (buf.readBoolean()) {
-            span.globalBackgroundColor(new ImmersiveColor(buf.readInt()));
-        }
-
-        // Decode global background gradient with size validation
-        if (buf.readBoolean()) {
-            int globalBgColorCount = buf.readVarInt();
-            if (globalBgColorCount < 0 || globalBgColorCount > MAX_ARRAY_SIZE) {
-                throw new IllegalArgumentException("Invalid global background gradient color count: " + globalBgColorCount);
-            }
-            ImmersiveColor[] globalBgColors = new ImmersiveColor[globalBgColorCount];
-            for (int i = 0; i < globalBgColorCount; i++) {
-                globalBgColors[i] = new ImmersiveColor(buf.readInt());
-            }
-            span.globalBackgroundGradient(globalBgColors);
-        }
-
-        if (buf.readBoolean()) {
-            span.setGlobalBorderStart(new ImmersiveColor(buf.readInt()));
-        }
-        if (buf.readBoolean()) {
-            span.setGlobalBorderEnd(new ImmersiveColor(buf.readInt()));
-        }
-
-        if (buf.readBoolean()) {
-            span.setGlobalXOffset(clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET));
-        }
-        if (buf.readBoolean()) {
-            span.setGlobalYOffset(clampFloat(buf.readFloat(), -MAX_OFFSET, MAX_OFFSET));
-        }
-
-        if (buf.readBoolean()) {
-            span.setGlobalAnchor(buf.readEnum(TextAnchor.class));
-        }
-        if (buf.readBoolean()) {
-            span.setGlobalAlign(buf.readEnum(TextAlign.class));
-        }
-
-        if (buf.readBoolean()) {
-            span.globalScale(clampFloat(buf.readFloat(), 0.01f, MAX_SCALE));
-        }
-
-        if (buf.readBoolean()) {
-            span.globalShadow(buf.readBoolean());
-        }
-
-        if (buf.readBoolean()) {
-            span.globalFadeIn(Math.max(0, buf.readInt()));
-        }
-        if (buf.readBoolean()) {
-            span.globalFadeOut(Math.max(0, buf.readInt()));
-        }
-
-        // Decode per-span fade effects
         if (buf.readBoolean()) {
             span.fadeIn(Math.max(0, buf.readInt()));
         }
@@ -354,7 +202,6 @@ public final class TextSpanCodec {
             span.fadeOut(Math.max(0, buf.readInt()));
         }
 
-        // Decode item rendering with validation
         if (buf.readBoolean()) {
             String itemId = buf.readUtf(MAX_ID_LENGTH);
             int itemCount = Math.min(Math.max(1, buf.readVarInt()), MAX_ITEM_COUNT);
@@ -371,7 +218,6 @@ public final class TextSpanCodec {
             }
         }
 
-        // Decode entity rendering with validation
         if (buf.readBoolean()) {
             String entityId = buf.readUtf(MAX_ID_LENGTH);
             float entityScale = clampFloat(buf.readFloat(), 0.01f, MAX_SCALE);
@@ -397,7 +243,7 @@ public final class TextSpanCodec {
                 span.entityLighting(Math.max(0, Math.min(15, buf.readVarInt())));
             }
             if (buf.readBoolean()) {
-                span.entitySpin(buf.readFloat()); // No clamping - allow any rotation speed
+                span.entitySpin(buf.readFloat());
             }
             if (buf.readBoolean()) {
                 span.setEntityAnimation(buf.readUtf(MAX_ID_LENGTH));
@@ -407,7 +253,6 @@ public final class TextSpanCodec {
             }
         }
 
-        // Decode effects with count and length validation (v2.0.0)
         int effectCount = buf.readVarInt();
         if (effectCount < 0 || effectCount > MAX_ARRAY_SIZE) {
             throw new IllegalArgumentException("Invalid effect count: " + effectCount);
@@ -419,7 +264,7 @@ public final class TextSpanCodec {
                     Effect effect = EffectRegistry.parseTag(effectTag);
                     span.addEffect(effect);
                 } catch (IllegalArgumentException e) {
-                    // Skip unknown effects (forward compatibility)
+
                     LOGGER.warn("Failed to decode effect: {}", effectTag, e);
                 }
             }

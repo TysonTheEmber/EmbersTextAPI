@@ -14,10 +14,6 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Mixin on FontSet to inject SDF glyph providers alongside vanilla providers.
- * Uses @ModifyVariable to safely replace the provider list (the original may be unmodifiable).
- */
 @Mixin(FontSet.class)
 public abstract class FontSetMixin {
 
@@ -33,7 +29,6 @@ public abstract class FontSetMixin {
             return providers;
         }
 
-        // Create a new mutable list: SDF providers first (highest priority), then vanilla
         List<GlyphProvider.Conditional> merged = new ArrayList<>(sdfProviders.size() + providers.size());
         for (GlyphProvider sdf : sdfProviders) {
             merged.add(new GlyphProvider.Conditional(sdf, FontOption.Filter.ALWAYS_PASS));

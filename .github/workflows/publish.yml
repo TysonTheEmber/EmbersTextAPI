@@ -15,13 +15,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Forge 1.20.1
-            subproject: forge-1.20.1
-            gradle_task: ":forge-1.20.1:build"
-            jar_glob: "forge-1.20.1/build/libs/emberstextapi-forge-1.20.1-*-all.jar"
-            mc_version: "1.20.1"
-            loader: forge
-
           - name: Fabric 1.20.1
             subproject: fabric-1.20.1
             gradle_task: ":fabric-1.20.1:build"
@@ -43,6 +36,34 @@ jobs:
             mc_version: "1.21.1"
             loader: fabric
 
+          - name: NeoForge 26.1
+            subproject: neoforge-26.1
+            gradle_task: ":neoforge-26.1:build"
+            jar_glob: "neoforge-26.1/build/libs/emberstextapi-neoforge-26.1-*.jar"
+            mc_version: |
+              26.1
+              26.1.1
+              26.1.2
+            loader: neoforge
+
+          - name: Fabric 26.1
+            subproject: fabric-26.1
+            gradle_task: ":fabric-26.1:build"
+            jar_glob: "fabric-26.1/build/libs/emberstextapi-fabric-26.1-*.jar"
+            mc_version: |
+              26.1
+              26.1.1
+              26.1.2
+            loader: fabric
+
+          - name: Forge 1.20.1
+            subproject: forge-1.20.1
+            gradle_task: "build"
+            jar_glob: "forge-1.20.1/build/libs/emberstextapi-forge-1.20.1-*-all.jar"
+            mc_version: "1.20.1"
+            loader: forge
+            standalone: true
+
     name: Publish ${{ matrix.name }}
 
     steps:
@@ -61,6 +82,12 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -76,8 +103,31 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Using version: $VERSION"
 
+      - name: Determine version-type
+        id: vt
+        run: |
+          case "${{ steps.version.outputs.version }}" in
+            *-alpha*) echo "type=alpha" >> "$GITHUB_OUTPUT" ;;
+            *-beta*)  echo "type=beta"  >> "$GITHUB_OUTPUT" ;;
+            *)        echo "type=release" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Detect dry-run tag
+        id: dryrun
+        run: |
+          if [[ "${{ github.ref_name }}" == "v3.0.0-alpha.0" ]]; then
+            echo "skip_publish=true" >> "$GITHUB_OUTPUT"
+            echo "Dry-run tag detected; mc-publish will be skipped"
+          fi
+
       - name: Build ${{ matrix.name }}
-        run: ./gradlew ${{ matrix.gradle_task }} -Pmod_version=${{ steps.version.outputs.version }} --no-daemon
+        run: |
+          if [[ "${{ matrix.standalone }}" == "true" ]]; then
+            cd "${{ matrix.subproject }}"
+            ./gradlew build -Pmod_version=${{ steps.version.outputs.version }} --no-daemon
+          else
+            ./gradlew ${{ matrix.gradle_task }} -Pmod_version=${{ steps.version.outputs.version }} --no-daemon
+          fi
 
       - name: Resolve jar path
         id: jar
@@ -113,6 +163,7 @@ jobs:
           echo "Resolved jar: $JAR"
 
       - name: Publish ${{ matrix.name }}
+        if: steps.dryrun.outputs.skip_publish != 'true'
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
@@ -122,7 +173,7 @@ jobs:
           files: ${{ steps.jar.outputs.jar_path }}
           name: "Ember's Text API ${{ steps.version.outputs.version }} (${{ matrix.name }})"
           version: ${{ steps.version.outputs.version }}+${{ matrix.subproject }}
-          version-type: release
+          version-type: ${{ steps.vt.outputs.type }}
           changelog-file: CHANGELOG.md
           game-versions: ${{ matrix.mc_version }}
           loaders: ${{ matrix.loader }}
@@ -146,6 +197,12 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -175,10 +232,11 @@ jobs:
       - name: Publish all artifacts to Maven repo
         run: |
           ./gradlew \
-            :forge-1.20.1:publishMavenJavaPublicationToLocalMavenRepository \
             :fabric-1.20.1:publishMavenJavaPublicationToLocalMavenRepository \
             :fabric-1.21.1:publishMavenJavaPublicationToLocalMavenRepository \
             :neoforge-1.21.1:publishMavenJavaPublicationToLocalMavenRepository \
+            :neoforge-26.1:publishMavenJavaPublicationToLocalMavenRepository \
+            :fabric-26.1:publishMavenJavaPublicationToLocalMavenRepository \
             -Pmod_version=${{ steps.version.outputs.version }} \
             -PmavenRepoPath="${{ github.workspace }}/maven-pages" \
             --no-daemon

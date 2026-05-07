@@ -2,7 +2,6 @@ package net.tysontheember.emberstextapi.commands;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -17,7 +16,6 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.tysontheember.emberstextapi.EmbersTextAPI;
-import net.tysontheember.emberstextapi.config.ModConfig;
 import net.tysontheember.emberstextapi.immersivemessages.api.ImmersiveMessage;
 import net.tysontheember.emberstextapi.immersivemessages.api.MarkupParser;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextAnchor;
@@ -34,7 +32,7 @@ public class MessageCommands {
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        // Register full command name
+
         dispatcher.register(
             Commands.literal("emberstextapi")
                 .then(testSubcommand())
@@ -45,7 +43,6 @@ public class MessageCommands {
                 .then(closeAllSubcommand())
         );
 
-        // Register short alias with help and welcome subcommands
         dispatcher.register(
             Commands.literal("eta")
                 .executes(context -> {
@@ -57,20 +54,6 @@ public class MessageCommands {
                         showHelp(context);
                         return 1;
                     })
-                )
-                .then(Commands.literal("welcome")
-                    .then(Commands.literal("enable")
-                        .then(Commands.argument("enabled", BoolArgumentType.bool())
-                            .executes(context -> {
-                                boolean enabled = BoolArgumentType.getBool(context, "enabled");
-                                ModConfig.setWelcomeMessageEnabled(enabled);
-                                context.getSource().sendSuccess(() ->
-                                    Component.literal("Welcome message " + (enabled ? "enabled" : "disabled")),
-                                    true);
-                                return 1;
-                            })
-                        )
-                    )
                 )
                 .then(testSubcommand())
                 .then(sendSubcommand())
@@ -139,13 +122,6 @@ public class MessageCommands {
                     .withStyle(style -> style.withColor(0xAAAAAA))),
             false);
 
-        context.getSource().sendSuccess(() ->
-            Component.literal("  /eta welcome enable <true | false>")
-                .withStyle(style -> style.withColor(0x55FF55))
-                .append(Component.literal(" - Toggle welcome message (Op)")
-                    .withStyle(style -> style.withColor(0xAAAAAA))),
-            false);
-
         context.getSource().sendSuccess(() -> Component.literal(""), false);
     }
 
@@ -178,9 +154,8 @@ public class MessageCommands {
         float duration = FloatArgumentType.getFloat(ctx, "duration");
         String text = StringArgumentType.getString(ctx, "text");
 
-        // Support markup in basic send command
         ImmersiveMessage msg;
-        if (text.contains("<") && text.contains(">")) {
+        if ((text.contains("<") && text.contains(">")) || (text.contains("[") && text.contains("]"))) {
             msg = ImmersiveMessage.fromMarkup(duration, text);
         } else {
             msg = ImmersiveMessage.builder(duration, text);
@@ -203,25 +178,23 @@ public class MessageCommands {
                             String channel = StringArgumentType.getString(ctx, "channel");
                             String queueDef = StringArgumentType.getString(ctx, "queue_definition");
 
-                            // Split on " | " to get steps
                             String[] rawSteps = queueDef.split(" \\| ");
                             List<List<ImmersiveMessage>> steps = new ArrayList<>();
 
                             for (String rawStep : rawSteps) {
-                                // Split on " & " to get simultaneous messages in a step
+
                                 String[] rawMessages = rawStep.split(" & ");
                                 List<ImmersiveMessage> stepMsgs = new ArrayList<>();
 
                                 for (String rawMsg : rawMessages) {
                                     String text = rawMsg.trim();
-                                    // Strip surrounding quotes
+
                                     if (text.length() >= 2
                                             && ((text.startsWith("\"") && text.endsWith("\""))
                                             || (text.startsWith("'") && text.endsWith("'")))) {
                                         text = text.substring(1, text.length() - 1);
                                     }
 
-                                    // Extract <dur:N> tag
                                     Object[] extracted = MarkupParser.extractDuration(text);
                                     float duration = (float) extracted[0];
                                     String markup = (String) extracted[1];
@@ -295,7 +268,7 @@ public class MessageCommands {
                 .executes(ctx -> {
                     Collection<ServerPlayer> targets = EntityArgument.getPlayers(ctx, "player");
                     for (ServerPlayer target : targets) {
-                        NetworkHelper.getInstance().sendStopAllQueues(target);
+                        NetworkHelper.getInstance().sendCloseAllMessages(target);
                     }
                     return Command.SINGLE_SUCCESS;
                 }));
@@ -303,7 +276,6 @@ public class MessageCommands {
 
     private static void runTest(ServerPlayer player, int id) {
         switch (id) {
-            // --- Group 1: Layout & Display (1-7) ---
             case 1 -> EmbersTextAPI.sendMessage(player,
                     ImmersiveMessage.builder(100f, "Plain text message")
                             .anchor(TextAnchor.MIDDLE)
@@ -340,7 +312,6 @@ public class MessageCommands {
                             .offset(0f, -40f)
                             .scale(2f));
 
-            // --- Group 2: Text Formatting (8-13) ---
             case 8 -> EmbersTextAPI.sendMessage(player,
                     ImmersiveMessage.fromMarkup(100f, "<bold>Bold</bold>  <italic>Italic</italic>  <c value=#FF5555>Red</c>")
                             .anchor(TextAnchor.MIDDLE)
@@ -369,7 +340,6 @@ public class MessageCommands {
                 EmbersTextAPI.sendMessage(player, new ImmersiveMessage(spans, 100f).background(true).scale(1.5f).anchor(TextAnchor.MIDDLE));
             }
 
-            // --- Group 3: Text Animation (14-19) ---
             case 14 -> EmbersTextAPI.sendMessage(player,
                     ImmersiveMessage.fromMarkup(140f, "<type speed=50>Typewriter reveal effect!</type>")
                             .scale(1.5f)
@@ -398,7 +368,6 @@ public class MessageCommands {
                             .scale(2f)
                             .anchor(TextAnchor.MIDDLE));
 
-            // --- Group 4: Motion Effects (20-25) ---
             case 20 -> EmbersTextAPI.sendMessage(player,
                     ImmersiveMessage.fromMarkup(100f, "<wave>Wave vertical motion</wave>")
                             .scale(2f)
@@ -424,7 +393,6 @@ public class MessageCommands {
                             .scale(2f)
                             .anchor(TextAnchor.MIDDLE));
 
-            // --- Group 5: Items & Entities (26-29) ---
             case 26 -> EmbersTextAPI.sendMessage(player,
                     ImmersiveMessage.fromMarkup(120f,
                             "Found <item value=\"minecraft:diamond\" size=1></item> x3 and <item value=\"minecraft:gold_ingot\" size=1></item> x5!")
@@ -448,7 +416,6 @@ public class MessageCommands {
                 EmbersTextAPI.sendMessage(player, new ImmersiveMessage(spans, 100f).scale(3f).anchor(TextAnchor.MIDDLE));
             }
 
-            // --- Group 6: Combinations & Queue (30-33) ---
             case 30 -> EmbersTextAPI.sendMessage(player,
                     ImmersiveMessage.fromMarkup(120f, "<grad from=FF0000 to=0000FF><wave><neon>Gradient + Wave + Neon</neon></wave></grad>")
                             .scale(2f)

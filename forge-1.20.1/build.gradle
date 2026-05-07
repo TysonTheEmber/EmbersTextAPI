@@ -1,10 +1,29 @@
 plugins {
+    id 'java-library'
+    id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
     id 'org.parchmentmc.librarian.forgegradle' version '1.+'
     id 'org.spongepowered.mixin' version '0.7.+'
 }
 
+group = 'net.tysontheember.emberstextapi'
+version = findProperty('mod_version') ?: '3.0.0-devbuild'
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(17) }
+    withSourcesJar()
+}
+
 repositories {
+    mavenCentral()
+    maven { url = 'https://maven.minecraftforge.net' }
+    maven { url = 'https://maven.parchmentmc.org' }
+    maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+    maven { url = 'https://cursemaven.com' }
+    maven { url = 'https://api.modrinth.com/maven' }
+    maven { url = 'https://maven.shedaniel.me/' }
+    maven { url = 'https://maven.terraformersmc.com/' }
+    maven { url = 'https://maven.moddingx.org' }
     flatDir { dirs 'libs' }
 }
 
@@ -31,7 +50,6 @@ minecraft {
             mods {
                 emberstextapi {
                     source sourceSets.main
-                    source project(':common-1.20.1').sourceSets.main
                 }
             }
         }
@@ -91,14 +109,16 @@ tasks.named('jarJar').configure {
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
-// Add common source sets directly
+// Add common-1.20.1 sources directly. Path is relative because forge-1.20.1 is its
+// own Gradle build (ForgeGradle 6 can't run on the root's Gradle 9 wrapper) and is
+// pulled into the root via includeBuild — there is no `:common-1.20.1` project here.
 sourceSets {
     main {
         java {
-            srcDirs += project(':common-1.20.1').file('src/main/java')
+            srcDirs += file('../common-1.20.1/src/main/java')
         }
         resources {
-            srcDirs += project(':common-1.20.1').file('src/main/resources')
+            srcDirs += file('../common-1.20.1/src/main/resources')
         }
     }
 }
@@ -160,7 +180,7 @@ tasks.named('processResources', ProcessResources).configure {
         loader_version_range: '[47,)',
         mod_id: 'emberstextapi',
         mod_name: "Ember's Text API",
-        mod_license: 'GPL-3.0',
+        mod_license: 'EML-1.2',
         mod_authors: 'TysonTheEmber',
         mod_description: 'Advanced text rendering API with visual effects and animations'
     ]
@@ -206,8 +226,8 @@ publishing {
                 url = 'https://github.com/TysonTheEmber/EmbersTextAPI'
                 licenses {
                     license {
-                        name = 'GNU General Public License v3.0'
-                        url = 'https://www.gnu.org/licenses/gpl-3.0.html'
+                        name = "Ember's Modding Licence v1.2"
+                        url = 'https://tysontheember.dev/modding-licence/'
                     }
                 }
                 developers {
@@ -227,7 +247,7 @@ publishing {
     repositories {
         maven {
             name = 'LocalMaven'
-            url = uri("file://${findProperty('mavenRepoPath') ?: "${rootProject.buildDir}/maven-repo"}")
+            url = uri("file://${findProperty('mavenRepoPath') ?: "${rootProject.layout.buildDirectory.get().asFile}/maven-repo"}")
         }
     }
 }

@@ -11,13 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Registers client-side packet handlers for Fabric 1.21.1.
- * Uses the payload-based networking API.
- */
 public class FabricClientPacketHandlers {
     public static void register() {
-        // Open message packet
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.OpenMessagePayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
                 if (payload.data() != null) {
@@ -27,7 +22,6 @@ public class FabricClientPacketHandlers {
             });
         });
 
-        // Update message packet
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.UpdateMessagePayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
                 if (payload.data() != null) {
@@ -38,7 +32,6 @@ public class FabricClientPacketHandlers {
             });
         });
 
-        // Close message packet
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.CloseMessagePayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
                 UUID id = UUID.fromString(payload.messageId());
@@ -46,12 +39,10 @@ public class FabricClientPacketHandlers {
             });
         });
 
-        // Close all messages packet
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.CloseAllMessagesPayload.TYPE, (payload, context) -> {
             context.client().execute(ClientMessageManager::closeAll);
         });
 
-        // Open queue packet
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.OpenQueuePayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
                 List<QueueStep> steps = new ArrayList<>();
@@ -69,7 +60,6 @@ public class FabricClientPacketHandlers {
             });
         });
 
-        // Clear queue packet — empty channel means clear all pending
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.ClearQueuePayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
                 if (payload.channel().isEmpty()) {
@@ -80,7 +70,6 @@ public class FabricClientPacketHandlers {
             });
         });
 
-        // Stop queue packet — closes current message + clears pending steps; empty channel means stop all
         ClientPlayNetworking.registerGlobalReceiver(FabricNetworkHandler.StopQueuePayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
                 if (payload.channel().isEmpty()) {

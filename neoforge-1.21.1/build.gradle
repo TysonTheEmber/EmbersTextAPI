@@ -1,5 +1,5 @@
 plugins {
-    id 'net.neoforged.moddev' version '2.0.140'
+    id 'net.neoforged.moddev' version '2.0.141'
 }
 
 group = rootProject.group
@@ -99,8 +99,8 @@ publishing {
                 url = 'https://github.com/TysonTheEmber/EmbersTextAPI'
                 licenses {
                     license {
-                        name = 'GNU General Public License v3.0'
-                        url = 'https://www.gnu.org/licenses/gpl-3.0.html'
+                        name = "Ember's Modding Licence v1.2"
+                        url = 'https://tysontheember.dev/modding-licence/'
                     }
                 }
                 developers {
@@ -120,7 +120,7 @@ publishing {
     repositories {
         maven {
             name = 'LocalMaven'
-            url = uri("file://${findProperty('mavenRepoPath') ?: "${rootProject.buildDir}/maven-repo"}")
+            url = uri("file://${findProperty('mavenRepoPath') ?: "${rootProject.layout.buildDirectory.get().asFile}/maven-repo"}")
         }
     }
 }

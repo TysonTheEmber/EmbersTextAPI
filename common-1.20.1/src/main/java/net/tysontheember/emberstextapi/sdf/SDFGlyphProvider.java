@@ -7,43 +7,26 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import net.minecraft.Util;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.util.freetype.FT_Face;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * {@link GlyphProvider} implementation that generates MSDF textures from TTF/OTF fonts.
- * <p>
- * Glyphs are created lazily as {@link SDFGlyphInfo} instances and cached in a
- * {@value MAX_CACHE_SIZE}-entry LRU cache. Actual MSDF texture generation happens
- * even later, during {@link SDFGlyphInfo#bake}, when the glyph is first rendered.
- * <p>
- * Lifecycle:
- * <ol>
- *   <li>{@link SDFGlyphProviderDefinition#load} parses the font JSON and calls
- *       {@link SDFGlyphProviderFactory} to create this provider</li>
- *   <li>Minecraft's font system calls {@link #getGlyph} per codepoint</li>
- *   <li>{@link SDFGlyphInfo#bake} extracts the outline, runs edge coloring
- *       and MSDF generation, then uploads the 3-channel texture to the atlas</li>
- * </ol>
- *
- * @see SDFGlyphInfo
- * @see SDFGlyphProviderDefinition
- */
 public class SDFGlyphProvider implements GlyphProvider {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("EmbersTextAPI/SDFGlyphProvider");
     private static final int MAX_CACHE_SIZE = 4096;
 
     private final FT_Face ftFace;
-    private final ByteBuffer fontData; // Must keep alive for FreeType
+    private final ByteBuffer fontData;
     private final SDFConfig config;
     private final IntSet supportedGlyphs;
     private final int unitsPerEM;
@@ -65,13 +48,12 @@ public class SDFGlyphProvider implements GlyphProvider {
 
         this.unsupportedGlyphs = new IntOpenHashSet();
 
-        // Simple LRU cache using LinkedHashMap
-        this.glyphCache = new LinkedHashMap<>(256, 0.75f, true) {
+        this.glyphCache = Collections.synchronizedMap(new LinkedHashMap<>(256, 0.75f, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry<Integer, SDFGlyphInfo> eldest) {
                 return size() > MAX_CACHE_SIZE;
             }
-        };
+        });
 
         LOGGER.info("SDF glyph provider initialized: {} supported glyphs, {} upem, ascender={}",
                 supportedGlyphs.size(), unitsPerEM, ascender);
@@ -79,14 +61,6 @@ public class SDFGlyphProvider implements GlyphProvider {
         preBakeCommonGlyphs();
     }
 
-    /**
-     * Asynchronously pre-computes MSDF texture data for ASCII printable range and
-     * common Latin-1 Supplement characters (codepoints 32–255). Runs on MC's background
-     * executor so the provider constructor returns immediately.
-     * <p>
-     * If {@link #bake SDFGlyphInfo.bake()} is called before pre-computation finishes for
-     * a given codepoint, the glyph falls through to on-demand computation.
-     */
     private void preBakeCommonGlyphs() {
         CompletableFuture.runAsync(() -> {
             FreeTypeManager ft = FreeTypeManager.getInstance();
@@ -108,17 +82,6 @@ public class SDFGlyphProvider implements GlyphProvider {
         }, Util.backgroundExecutor());
     }
 
-    /**
-     * Computes the MSDF texture data for a single codepoint.
-     * <p>
-     * This extracts the glyph outline, applies edge coloring, generates the 3-channel
-     * MSDF texture, and computes bearings — the same work that {@link SDFGlyphInfo#bake}
-     * does, but packaged as a {@link PreBakedMSDF} record for caching.
-     *
-     * @param codepoint Unicode codepoint to generate MSDF for
-     * @param ft        FreeTypeManager instance (synchronized internally)
-     * @return pre-computed MSDF data, or {@code null} for empty/unsupported glyphs
-     */
     @Nullable
     PreBakedMSDF computeMSDF(int codepoint, FreeTypeManager ft) {
         int glyphIndex = ft.getCharIndex(ftFace, codepoint);
@@ -147,7 +110,6 @@ public class SDFGlyphProvider implements GlyphProvider {
         texW += 2 * padPx;
         texH += 2 * padPx;
 
-        // Edge coloring and MSDF generation — pure functions, thread-safe
         EdgeColoring.ColoredContour[] colored = EdgeColoring.colorEdges(outline, config.angleThreshold());
         byte[] msdfData = MSDFGenerator.generate(
                 outline, colored, texW, texH,
@@ -156,7 +118,6 @@ public class SDFGlyphProvider implements GlyphProvider {
                 pxRange
         );
 
-        // Compute oversample and bearings (1.20.1 convention: bearingX, bearingY)
         float effectivePixelSize = (Math.max(texW, texH) - pxRange) * unitsPerEM / maxDim;
         float oversample = effectivePixelSize * config.oversample() / config.fontSize();
 
@@ -171,10 +132,6 @@ public class SDFGlyphProvider implements GlyphProvider {
         return new PreBakedMSDF(msdfData, texW, texH, bearingX, bearingY, oversample);
     }
 
-    /**
-     * Returns pre-computed MSDF data for the given codepoint, or {@code null} if
-     * pre-computation hasn't finished yet (or the codepoint wasn't in the pre-bake range).
-     */
     @Nullable
     PreBakedMSDF getPreBaked(int codepoint) {
         return preBakeCache.get(codepoint);
@@ -209,13 +166,6 @@ public class SDFGlyphProvider implements GlyphProvider {
         return supportedGlyphs;
     }
 
-    /**
-     * {@inheritDoc}
-     * <p>
-     * Returns a cached {@link SDFGlyphInfo} for the given codepoint, or creates and
-     * caches a new one. Returns {@code null} if the font doesn't support this codepoint
-     * or the provider has been closed.
-     */
     @Nullable
     @Override
     public GlyphInfo getGlyph(int codepoint) {
@@ -241,12 +191,9 @@ public class SDFGlyphProvider implements GlyphProvider {
 
         long advanceUnits = ft.getGlyphAdvance(ftFace, glyphIndex);
 
-        // Scale advance from font units to MC text coordinates
         float scale = config.fontSize() / unitsPerEM;
         float advance = advanceUnits * scale / config.oversample();
 
-        // Pass the FT_Face to SDFGlyphInfo — SDF rendering happens lazily in bake()
-        // Provider ref enables pre-bake cache lookup in bake()
         SDFGlyphInfo info = new SDFGlyphInfo(
                 advance,
                 ftFace,
@@ -266,6 +213,7 @@ public class SDFGlyphProvider implements GlyphProvider {
             closed = true;
             glyphCache.clear();
             FreeTypeManager.getInstance().closeFace(ftFace);
+            MemoryUtil.memFree(fontData);
             LOGGER.debug("SDF glyph provider closed");
         }
     }
