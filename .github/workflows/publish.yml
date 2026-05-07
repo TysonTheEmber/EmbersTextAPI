@@ -123,6 +123,7 @@ jobs:
       - name: Build ${{ matrix.name }}
         run: |
           if [[ "${{ matrix.standalone }}" == "true" ]]; then
+            export JAVA_HOME="$JAVA_HOME_17_X64"
             cd "${{ matrix.subproject }}"
             ./gradlew build -Pmod_version=${{ steps.version.outputs.version }} --no-daemon
           else
