@@ -23,6 +23,7 @@
     "client.FontSetMixin",
     "client.ftbquests.QuestScreenMixin",
     "client.emojiful.EmojiCharacterRendererMixin",
+    "client.patchouli.BookTextParserMixin",
     "client.AnvilScreenMixin"
   ],
   "injectors": {

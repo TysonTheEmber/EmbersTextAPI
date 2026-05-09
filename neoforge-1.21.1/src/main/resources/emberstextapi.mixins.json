@@ -22,6 +22,7 @@
     "client.GlyphRenderTypesMixin",
     "client.FontSetMixin",
     "client.emojiful.EmojiCharacterRendererMixin",
+    "client.patchouli.BookTextParserMixin",
     "client.AnvilScreenMixin"
   ],
   "injectors": {

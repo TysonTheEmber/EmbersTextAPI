@@ -21,6 +21,7 @@
     "client.FontManagerMixin",
     "client.GlyphRenderTypesMixin",
     "client.FontSetMixin",
+    "client.patchouli.BookTextParserMixin",
     "client.AnvilScreenMixin"
   ],
   "injectors": {
