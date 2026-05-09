@@ -11,6 +11,7 @@ import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterEffect;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTrack;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.TypewriterTracks;
+import net.tysontheember.emberstextapi.compat.patchouli.PatchouliBypass;
 import net.tysontheember.emberstextapi.util.StyleUtil;
 import net.tysontheember.emberstextapi.immersivemessages.effects.animation.ObfKey;
 import org.slf4j.Logger;
@@ -50,6 +51,10 @@ public abstract class TranslatableContentsMixin {
             FormattedText.StyledContentConsumer<T> consumer,
             Style style,
             CallbackInfoReturnable<Optional<T>> cir) {
+
+        if (PatchouliBypass.active()) {
+            return;
+        }
 
         String resolved = emberstextapi$resolveTranslation();
         if (resolved == null || resolved.isEmpty()) {
