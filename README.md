@@ -31,6 +31,12 @@ For full documentation, guides, and examples, visit **[tysontheember.dev](https:
 | 26.1.x            | NeoForge | Alpha (NeoForge 26.1 itself is beta)  |
 | 26.1.x            | Fabric   | Alpha (NeoForge 26.1 itself is beta)  |
 
+## Patchouli Compatibility
+
+EmbersTextAPI is compatible with [Patchouli](https://www.curseforge.com/minecraft/mc-mods/patchouli) including books that use `"i18n": true`. Patchouli's tokenizer runs without interference: user-defined book macros, `$(...)` codes, and translations behave as authored.
+
+ETA markup that survives Patchouli's pipeline still renders effects on the resulting components. To avoid clashing with user-defined Patchouli macros, prefer namespaced ETA tags inside book entries — for example `<eta-rainbow>...</eta-rainbow>` rather than `<rainbow>...</rainbow>`. If a Patchouli book defines a macro for an unprefixed name (e.g. `"<b>": "$(l)"`), the macro takes precedence; the ETA tag will not run on that text.
+
 ## Installation
 
 1. Download the appropriate jar for your Minecraft version and loader
