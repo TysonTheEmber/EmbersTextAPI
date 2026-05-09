@@ -8,6 +8,7 @@ import net.tysontheember.emberstextapi.accessor.ETAStyle;
 import net.tysontheember.emberstextapi.immersivemessages.api.MarkupParser;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import net.tysontheember.emberstextapi.util.MarkupStripper;
+import net.tysontheember.emberstextapi.compat.patchouli.PatchouliBypass;
 import net.tysontheember.emberstextapi.util.StyleUtil;
 import org.apache.commons.lang3.mutable.MutableFloat;
 import org.spongepowered.asm.mixin.Final;
@@ -31,6 +32,9 @@ public abstract class StringSplitterMixin {
             cancellable = true
     )
     private void emberstextapi$adjustWidthForItems(FormattedCharSequence seq, CallbackInfoReturnable<Float> cir) {
+        if (PatchouliBypass.active()) {
+            return;
+        }
         MutableFloat width = new MutableFloat();
         seq.accept((index, style, codePoint) -> {
             if (style instanceof ETAStyle etaStyle && etaStyle.emberstextapi$getItemId() != null) {
@@ -50,6 +54,9 @@ public abstract class StringSplitterMixin {
             cancellable = true
     )
     private void emberstextapi$markupAwareWidthFormattedText(FormattedText text, CallbackInfoReturnable<Float> cir) {
+        if (PatchouliBypass.active()) {
+            return;
+        }
         Float w = emberstextapi$measureMarkup(text.getString());
         if (w != null) cir.setReturnValue(w);
     }
@@ -60,6 +67,9 @@ public abstract class StringSplitterMixin {
             cancellable = true
     )
     private void emberstextapi$markupAwareWidthString(String text, CallbackInfoReturnable<Float> cir) {
+        if (PatchouliBypass.active()) {
+            return;
+        }
         Float w = emberstextapi$measureMarkup(text);
         if (w != null) cir.setReturnValue(w);
     }
