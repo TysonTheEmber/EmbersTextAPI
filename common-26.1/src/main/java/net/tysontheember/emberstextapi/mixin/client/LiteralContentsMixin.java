@@ -4,6 +4,7 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.contents.PlainTextContents;
 import net.tysontheember.emberstextapi.accessor.ETAStyle;
+import net.tysontheember.emberstextapi.compat.patchouli.PatchouliBypass;
 import net.tysontheember.emberstextapi.immersivemessages.api.MarkupParser;
 import net.tysontheember.emberstextapi.immersivemessages.api.TextSpan;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
@@ -45,6 +46,10 @@ public abstract class LiteralContentsMixin {
             FormattedText.StyledContentConsumer<T> consumer,
             Style style,
             CallbackInfoReturnable<Optional<T>> cir) {
+
+        if (PatchouliBypass.active()) {
+            return;
+        }
 
         if (!text.contains("<") || !text.contains(">")) {
             return;
