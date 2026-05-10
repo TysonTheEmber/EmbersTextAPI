@@ -59,6 +59,7 @@ class ClickTagTest {
         List<TextSpan> spans = MarkupParser.parse(
                 "<click action=\"copy_to_clipboard\" value=\"abc\">x</click>");
         assertEquals("copy_to_clipboard", spans.get(0).getClickAction());
+        assertEquals("abc", spans.get(0).getClickValue());
     }
 
     @Test
