@@ -12,6 +12,9 @@ import net.tysontheember.emberstextapi.immersivemessages.effects.preset.PresetRe
 import net.tysontheember.emberstextapi.immersivemessages.util.ColorParser;
 import net.tysontheember.emberstextapi.immersivemessages.util.ImmersiveColor;
 
+import net.minecraft.locale.Language;
+import net.minecraft.network.chat.Component;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,6 +111,9 @@ public class MarkupParser {
         if (markup == null || markup.isEmpty()) {
             return Collections.emptyList();
         }
+
+        LangSubstitution langSub = substituteLangTags(markup);
+        markup = langSub.substituted();
 
         List<TextSpan> result = new ArrayList<>();
         Stack<TextSpan> styleStack = new Stack<>();
@@ -243,6 +249,8 @@ public class MarkupParser {
                 result.add(span);
             }
         }
+
+        reinsertLangText(result, langSub.resolvedTexts());
 
         return result;
     }
@@ -645,5 +653,105 @@ public class MarkupParser {
             return new Object[]{dur, stripped};
         }
         return new Object[]{-1f, markup};
+    }
+
+    public interface LangResolver {
+        String resolve(String key, String[] args);
+    }
+
+    private static LangResolver langResolver = MarkupParser::defaultLangResolve;
+
+    public static void setLangResolver(LangResolver resolver) {
+        langResolver = resolver != null ? resolver : MarkupParser::defaultLangResolve;
+    }
+
+    private static String defaultLangResolve(String key, String[] args) {
+        if (key == null || key.isEmpty()) return "";
+        try {
+            if (args == null || args.length == 0) {
+                return Language.getInstance().getOrDefault(key);
+            }
+            return Component.translatable(key, (Object[]) args).getString();
+        } catch (Throwable t) {
+            return key;
+        }
+    }
+
+    private static final Pattern LANG_TAG = Pattern.compile(
+            "<lang(?::([^\\s>]+)|((?:\\s+[^>]+)?))>"
+    );
+    private static final char LANG_PLACEHOLDER_START = '';
+    private static final char LANG_PLACEHOLDER_END = '';
+
+    private record LangSubstitution(String substituted, List<String> resolvedTexts) {}
+
+    private static LangSubstitution substituteLangTags(String markup) {
+        if (markup == null || markup.indexOf("<lang") < 0) {
+            return new LangSubstitution(markup, Collections.emptyList());
+        }
+        Matcher m = LANG_TAG.matcher(markup);
+        StringBuilder out = new StringBuilder(markup.length());
+        List<String> resolved = new ArrayList<>();
+        int last = 0;
+        while (m.find()) {
+            out.append(markup, last, m.start());
+            String key;
+            String[] args = null;
+            if (m.group(1) != null) {
+                key = m.group(1);
+            } else {
+                Map<String, String> attrs = parseAttributes(m.group(2));
+                key = attrs.getOrDefault("key", attrs.get("value"));
+                String argsAttr = attrs.get("args");
+                if (argsAttr != null && !argsAttr.isEmpty()) {
+                    args = argsAttr.split(",");
+                }
+            }
+            String text = langResolver.resolve(key == null ? "" : key, args);
+            int idx = resolved.size();
+            resolved.add(text == null ? "" : text);
+            out.append(LANG_PLACEHOLDER_START).append(idx).append(LANG_PLACEHOLDER_END);
+            last = m.end();
+        }
+        out.append(markup, last, markup.length());
+        return new LangSubstitution(out.toString(), resolved);
+    }
+
+    private static void reinsertLangText(List<TextSpan> spans, List<String> resolvedTexts) {
+        if (resolvedTexts.isEmpty()) return;
+        for (TextSpan span : spans) {
+            String content = span.getContent();
+            if (content == null || content.isEmpty()) continue;
+            if (content.indexOf(LANG_PLACEHOLDER_START) < 0) continue;
+            StringBuilder rebuilt = new StringBuilder(content.length());
+            int i = 0;
+            while (i < content.length()) {
+                char c = content.charAt(i);
+                if (c == LANG_PLACEHOLDER_START) {
+                    int end = content.indexOf(LANG_PLACEHOLDER_END, i + 1);
+                    if (end < 0) {
+                        rebuilt.append(c);
+                        i++;
+                        continue;
+                    }
+                    int idx;
+                    try {
+                        idx = Integer.parseInt(content.substring(i + 1, end));
+                    } catch (NumberFormatException e) {
+                        rebuilt.append(content, i, end + 1);
+                        i = end + 1;
+                        continue;
+                    }
+                    if (idx >= 0 && idx < resolvedTexts.size()) {
+                        rebuilt.append(resolvedTexts.get(idx));
+                    }
+                    i = end + 1;
+                } else {
+                    rebuilt.append(c);
+                    i++;
+                }
+            }
+            span.setContent(rebuilt.toString());
+        }
     }
 }
