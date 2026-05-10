@@ -310,11 +310,11 @@ public class MarkupParser {
             }
         }
 
-        if (source.getClickAction() != null) {
+        if (source.getClickAction() != null && source.getClickValue() != null) {
             target.clickAction(source.getClickAction());
             target.clickValue(source.getClickValue());
         }
-        if (source.getHoverAction() != null) {
+        if (source.getHoverAction() != null && source.getHoverValue() != null) {
             target.hoverAction(source.getHoverAction());
             target.hoverValue(source.getHoverValue());
         }
