@@ -139,6 +139,17 @@ public final class TextSpanCodec {
             }
         }
 
+        buf.writeBoolean(span.getClickAction() != null && span.getClickValue() != null);
+        if (span.getClickAction() != null && span.getClickValue() != null) {
+            buf.writeUtf(span.getClickAction());
+            buf.writeUtf(span.getClickValue());
+        }
+        buf.writeBoolean(span.getHoverAction() != null && span.getHoverValue() != null);
+        if (span.getHoverAction() != null && span.getHoverValue() != null) {
+            buf.writeUtf(span.getHoverAction());
+            buf.writeUtf(span.getHoverValue());
+        }
+
         List<Effect> effects = span.getEffects();
         buf.writeVarInt(effects == null ? 0 : effects.size());
         if (effects != null && !effects.isEmpty()) {
@@ -251,6 +262,15 @@ public final class TextSpanCodec {
             if (buf.readBoolean()) {
                 span.entityNbt(buf.readUtf(MAX_EFFECT_TAG_LENGTH));
             }
+        }
+
+        if (buf.readBoolean()) {
+            span.clickAction(buf.readUtf(MAX_ID_LENGTH));
+            span.clickValue(buf.readUtf(MAX_EFFECT_TAG_LENGTH));
+        }
+        if (buf.readBoolean()) {
+            span.hoverAction(buf.readUtf(MAX_ID_LENGTH));
+            span.hoverValue(buf.readUtf(MAX_EFFECT_TAG_LENGTH));
         }
 
         int effectCount = buf.readVarInt();
