@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `<lang:KEY>` markup tag resolves vanilla translation keys in each viewer's
+  client locale. Shorthand `<lang:item.minecraft.diamond>` or attribute form
+  `<lang key=KEY>` / `<lang key=KEY args=A,B,C>` for placeholder substitution.
+  Missing keys render literally; translation file content is not re-parsed for
+  ETA tags. Closes #2.
+- `ImmersiveMessage.decode` re-parses `markupSource` on the client (1.20.1 and
+  1.21.1) to ensure server-issued messages resolve markup in the receiving
+  client's locale, matching the existing behavior on 26.1.
+
 ## v3.0.0-alpha.1 — 2026-05-07
 
 First public alpha of v3. Multi-loader release across Fabric, NeoForge, and Forge

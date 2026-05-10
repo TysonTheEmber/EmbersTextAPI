@@ -15,6 +15,7 @@ For full documentation, guides, and examples, visit **[tysontheember.dev](https:
 - **Visual Effects**: Rainbow, glitch, wave, shake, pulse, and more
 - **Animations**: Typewriter text, fade in/out, progressive reveal
 - **Markup Parser**: XML-style tags for easy text styling
+- **Translation Keys**: `<lang:KEY>` resolves to each viewer's localized text; supports `args` for `%s` substitution
 - **MSDF Font Rendering**: Crisp TrueType/OpenType fonts at any scale using Multi-Channel Signed Distance Fields with sharp corner reproduction
 - **Inline Rendering**: Items and entities within text
 - **Server-Side Control**: Send styled messages from server to clients
@@ -36,6 +37,21 @@ For full documentation, guides, and examples, visit **[tysontheember.dev](https:
 EmbersTextAPI is compatible with [Patchouli](https://www.curseforge.com/minecraft/mc-mods/patchouli) including books that use `"i18n": true`. Patchouli's tokenizer runs without interference: user-defined book macros, `$(...)` codes, and translations behave as authored.
 
 ETA markup that survives Patchouli's pipeline still renders effects on the resulting components. To avoid clashing with user-defined Patchouli macros, prefer namespaced ETA tags inside book entries — for example `<eta-rainbow>...</eta-rainbow>` rather than `<rainbow>...</rainbow>`. If a Patchouli book defines a macro for an unprefixed name (e.g. `"<b>": "$(l)"`), the macro takes precedence; the ETA tag will not run on that text.
+
+## Translation Keys
+
+Embed any vanilla translation key in markup; each viewer sees their own client locale:
+
+```
+/eta send @p 50 <lang:item.minecraft.diamond>
+```
+
+Two forms are accepted:
+
+- Shorthand: `<lang:item.minecraft.diamond>`
+- Attribute: `<lang key=item.minecraft.diamond>` or `<lang key='commands.give.success.single' args='1,Diamond,Steve'>`
+
+`args` is comma-separated; quote the whole `args` value if any token contains whitespace. Missing keys render literally (matching `Component.translatable`'s default behavior). Translation file content is treated as plain text — ETA tags written inside a translation are not re-parsed.
 
 ## Installation
 
