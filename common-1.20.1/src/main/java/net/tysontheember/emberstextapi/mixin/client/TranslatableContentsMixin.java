@@ -74,8 +74,10 @@ public abstract class TranslatableContentsMixin {
                                    (span.getObfuscated() != null && span.getObfuscated());
             boolean hasFont = span.getFont() != null;
             boolean hasItem = span.getItemId() != null;
+            boolean hasClick = span.getClickAction() != null;
+            boolean hasHover = span.getHoverAction() != null;
 
-            if (hasEffects || hasFormatting || hasFont || hasItem) {
+            if (hasEffects || hasFormatting || hasFont || hasItem || hasClick || hasHover) {
                 hasEffectsOrFormattingOrItems = true;
             }
 
