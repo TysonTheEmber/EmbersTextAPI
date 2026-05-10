@@ -62,6 +62,11 @@ public class TextSpan {
     private String entityAnimation;
     private String entityNbt;
 
+    private String clickAction;
+    private String clickValue;
+    private String hoverAction;
+    private String hoverValue;
+
     public TextSpan(String content) {
         this.content = content != null ? content : "";
     }
@@ -101,6 +106,10 @@ public class TextSpan {
         this.entitySpin = other.entitySpin;
         this.entityAnimation = other.entityAnimation;
         this.entityNbt = other.entityNbt;
+        this.clickAction = other.clickAction;
+        this.clickValue = other.clickValue;
+        this.hoverAction = other.hoverAction;
+        this.hoverValue = other.hoverValue;
     }
 
     public String getContent() { return content; }
@@ -141,6 +150,10 @@ public class TextSpan {
     public Float getEntitySpin() { return entitySpin; }
     public String getEntityAnimation() { return entityAnimation; }
     public String getEntityNbt() { return entityNbt; }
+    public String getClickAction() { return clickAction; }
+    public String getClickValue() { return clickValue; }
+    public String getHoverAction() { return hoverAction; }
+    public String getHoverValue() { return hoverValue; }
 
     public TextSpan color(TextColor color) { this.color = color; return this; }
     public TextSpan color(int rgb) { return color(TextColor.fromRgb(rgb)); }
@@ -317,6 +330,11 @@ public class TextSpan {
         this.entityNbt = nbt;
         return this;
     }
+
+    public TextSpan clickAction(String action) { this.clickAction = action; return this; }
+    public TextSpan clickValue(String value) { this.clickValue = value; return this; }
+    public TextSpan hoverAction(String action) { this.hoverAction = action; return this; }
+    public TextSpan hoverValue(String value) { this.hoverValue = value; return this; }
 
     public boolean hasCustomStyling() {
         return color != null || bold != null || italic != null || underline != null ||
