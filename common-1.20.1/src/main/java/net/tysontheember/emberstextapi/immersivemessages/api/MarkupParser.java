@@ -707,9 +707,6 @@ public class MarkupParser {
                     args = argsAttr.split(",");
                 }
             }
-            if (key == null || key.isEmpty()) {
-                LOGGER.debug("Empty <lang> tag at offset {} — emitting empty string", m.start());
-            }
             String text = langResolver.resolve(key == null ? "" : key, args);
             int idx = resolved.size();
             resolved.add(text == null ? "" : text);

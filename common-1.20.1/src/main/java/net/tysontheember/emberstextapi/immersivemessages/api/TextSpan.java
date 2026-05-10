@@ -104,7 +104,7 @@ public class TextSpan {
     }
 
     public String getContent() { return content; }
-    public void setContent(String content) { this.content = content != null ? content : ""; }
+    void setContent(String content) { this.content = content != null ? content : ""; }
     public List<Effect> getEffects() { return effects; }
     public TextColor getColor() { return color; }
     public Boolean getBold() { return bold; }

@@ -53,10 +53,13 @@ class LangTagTest {
             }
             return key;
         });
-        List<TextSpan> spans = MarkupParser.parse("<lang key=test.greeting args=Steve>");
-        assertEquals(1, spans.size());
-        assertEquals("Hello, Steve!", spans.get(0).getContent());
-        stubResolver();
+        try {
+            List<TextSpan> spans = MarkupParser.parse("<lang key=test.greeting args=Steve>");
+            assertEquals(1, spans.size());
+            assertEquals("Hello, Steve!", spans.get(0).getContent());
+        } finally {
+            stubResolver();
+        }
     }
 
     @Test
