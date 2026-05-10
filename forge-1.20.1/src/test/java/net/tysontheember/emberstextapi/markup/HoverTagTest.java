@@ -61,4 +61,13 @@ class HoverTagTest {
         assertEquals("show_text", spans.get(0).getHoverAction());
         assertEquals("hi", spans.get(0).getHoverValue());
     }
+
+    @Test
+    void nestedHoverOverrides() {
+        List<TextSpan> spans = MarkupParser.parse(
+                "<hover text=\"outer\">a<hover text=\"inner\">b</hover>c</hover>");
+        assertEquals("outer", spans.get(0).getHoverValue());
+        assertEquals("inner", spans.get(1).getHoverValue());
+        assertEquals("outer", spans.get(2).getHoverValue());
+    }
 }
