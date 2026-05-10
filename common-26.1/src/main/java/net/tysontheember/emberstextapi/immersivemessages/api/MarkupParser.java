@@ -680,6 +680,10 @@ public class MarkupParser {
     private static final Pattern LANG_TAG = Pattern.compile(
             "<lang(?::([^\\s>]+)|((?:\\s+[^>]+)?))>"
     );
+
+    public static boolean containsLangTag(String text) {
+        return text != null && LANG_TAG.matcher(text).find();
+    }
     private static final char LANG_PLACEHOLDER_START = '';
     private static final char LANG_PLACEHOLDER_END = '';
 

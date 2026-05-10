@@ -102,7 +102,7 @@ public abstract class LiteralContentsMixin {
                 }
             }
         }
-        if (!hasEffectsOrFormattingOrItems) {
+        if (!hasEffectsOrFormattingOrItems && !MarkupParser.containsLangTag(text)) {
             return;
         }
 

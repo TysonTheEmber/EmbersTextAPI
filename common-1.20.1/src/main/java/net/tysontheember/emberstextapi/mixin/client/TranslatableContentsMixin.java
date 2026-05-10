@@ -90,7 +90,7 @@ public abstract class TranslatableContentsMixin {
                 }
             }
         }
-        if (!hasEffectsOrFormattingOrItems) {
+        if (!hasEffectsOrFormattingOrItems && !MarkupParser.containsLangTag(fallback)) {
             return;
         }
 
