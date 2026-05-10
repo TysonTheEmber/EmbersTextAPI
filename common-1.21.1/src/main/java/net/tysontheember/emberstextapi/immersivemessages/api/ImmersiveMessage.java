@@ -730,6 +730,15 @@ public class ImmersiveMessage {
             msg.markupSource = tag.getString("Markup");
             msg.markupComponent = Component.literal(msg.markupSource);
 
+            List<TextSpan> parsed = MarkupParser.parse(msg.markupSource);
+            if (parsed != null && !parsed.isEmpty()) {
+                msg.spans = new ArrayList<>(parsed);
+                msg.spanMode = true;
+                msg.spanTypewriterIndices = new int[parsed.size()];
+                msg.evaluateSpanCharShake();
+                msg.buildEffectSegments();
+            }
+
             msg.typewriter = false;
         }
 
