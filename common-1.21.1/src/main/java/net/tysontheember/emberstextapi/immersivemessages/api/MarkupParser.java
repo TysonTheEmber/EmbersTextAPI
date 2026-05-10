@@ -309,6 +309,15 @@ public class MarkupParser {
                 );
             }
         }
+
+        if (source.getClickAction() != null && source.getClickValue() != null) {
+            target.clickAction(source.getClickAction());
+            target.clickValue(source.getClickValue());
+        }
+        if (source.getHoverAction() != null && source.getHoverValue() != null) {
+            target.hoverAction(source.getHoverAction());
+            target.hoverValue(source.getHoverValue());
+        }
     }
 
     private static void applyTagToSpan(TextSpan span, String tagName, String attributes) {
@@ -544,6 +553,50 @@ public class MarkupParser {
                 span.effect(tagContent);
             }
 
+            case "click" -> {
+                String link   = attrs.get("link");
+                String action = attrs.get("action");
+                String value  = attrs.get("value");
+
+                if (action != null && link != null) {
+                    LOGGER.warn("<click> has both 'link' and 'action' — using action");
+                }
+                if (action == null && link != null) { action = "open_url"; value = link; }
+
+                if (action != null) {
+                    if (value == null) {
+                        LOGGER.warn("<click action='{}'> missing value", action);
+                    } else {
+                        String canonical = canonicalClickAction(action);
+                        if (canonical == null) {
+                            LOGGER.warn("Unknown click action '{}'", action);
+                        } else {
+                            span.clickAction(canonical);
+                            span.clickValue(value);
+                        }
+                    }
+                }
+            }
+
+            case "hover" -> {
+                String text   = attrs.get("text");
+                String action = attrs.get("action");
+                String value  = attrs.get("value");
+
+                if (action == null && text != null) { action = "show_text"; value = text; }
+
+                if (action != null) {
+                    if (!"show_text".equals(action)) {
+                        LOGGER.warn("Unsupported hover action '{}'", action);
+                    } else if (value == null) {
+                        LOGGER.warn("<hover action='show_text'> missing value");
+                    } else {
+                        span.hoverAction("show_text");
+                        span.hoverValue(value);
+                    }
+                }
+            }
+
             default -> {
                 PresetDefinition preset = PresetRegistry.get(tagName);
                 if (preset != null) {
@@ -579,6 +632,17 @@ public class MarkupParser {
             }
             span.effect(tagContent.toString());
         }
+    }
+
+    private static String canonicalClickAction(String action) {
+        if (action == null) return null;
+        String a = action.toLowerCase();
+        return switch (a) {
+            case "open_url", "run_command", "suggest_command",
+                 "copy_to_clipboard", "change_page" -> a;
+            case "copy" -> "copy_to_clipboard";
+            default -> null;
+        };
     }
 
     private static String buildEffectTag(String effectName, String attributes) {
