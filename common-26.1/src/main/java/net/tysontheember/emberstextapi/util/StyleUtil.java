@@ -1,14 +1,21 @@
 package net.tysontheember.emberstextapi.util;
 
 import com.google.common.collect.ImmutableList;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.Style;
 import net.tysontheember.emberstextapi.immersivemessages.effects.Effect;
 import net.tysontheember.emberstextapi.accessor.ETAStyle;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class StyleUtil {
+
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(StyleUtil.class);
 
     public static Style cloneAndAddEffects(Style original, List<Effect> newEffects) {
         if (newEffects == null || newEffects.isEmpty()) {
@@ -119,6 +126,17 @@ public class StyleUtil {
             if (span.getEntityNbt() != null) {
                 ((ETAStyle) (Object) result).emberstextapi$setEntityNbt(span.getEntityNbt());
             }
+        }
+
+        if (span.getClickAction() != null && span.getClickValue() != null) {
+            ClickEvent click = buildClickEventModern(span.getClickAction(), span.getClickValue());
+            if (click != null) {
+                result = result.withClickEvent(click);
+            }
+        }
+        if (span.getHoverAction() != null && span.getHoverValue() != null) {
+            result = result.withHoverEvent(new HoverEvent.ShowText(
+                    Component.literal(span.getHoverValue())));
         }
 
         return result;
@@ -233,5 +251,31 @@ public class StyleUtil {
         }
 
         return cloned;
+    }
+
+    private static ClickEvent buildClickEventModern(String action, String value) {
+        if (action == null || value == null) return null;
+        return switch (action) {
+            case "open_url" -> {
+                try {
+                    yield new ClickEvent.OpenUrl(new URI(value));
+                } catch (URISyntaxException e) {
+                    LOGGER.warn("<click action='open_url'> invalid URI '{}'", value);
+                    yield null;
+                }
+            }
+            case "run_command"       -> new ClickEvent.RunCommand(value);
+            case "suggest_command"   -> new ClickEvent.SuggestCommand(value);
+            case "copy_to_clipboard" -> new ClickEvent.CopyToClipboard(value);
+            case "change_page" -> {
+                try {
+                    yield new ClickEvent.ChangePage(Integer.parseInt(value));
+                } catch (NumberFormatException e) {
+                    LOGGER.warn("<click action='change_page'> expects integer, got '{}'", value);
+                    yield null;
+                }
+            }
+            default -> null;
+        };
     }
 }
