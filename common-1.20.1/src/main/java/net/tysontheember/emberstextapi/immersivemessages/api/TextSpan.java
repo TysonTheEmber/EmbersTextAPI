@@ -15,7 +15,7 @@ import java.util.List;
 public class TextSpan {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private final String content;
+    private String content;
 
     private List<Effect> effects;
 
@@ -104,6 +104,7 @@ public class TextSpan {
     }
 
     public String getContent() { return content; }
+    public void setContent(String content) { this.content = content != null ? content : ""; }
     public List<Effect> getEffects() { return effects; }
     public TextColor getColor() { return color; }
     public Boolean getBold() { return bold; }
