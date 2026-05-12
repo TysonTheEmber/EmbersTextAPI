@@ -14,11 +14,12 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class SDFGlyphProvider implements GlyphProvider {
 
@@ -32,7 +33,7 @@ public class SDFGlyphProvider implements GlyphProvider {
     private final int unitsPerEM;
     private final int ascender;
     private final Map<Integer, SDFGlyphInfo> glyphCache;
-    private final ConcurrentHashMap<Integer, PreBakedMSDF> preBakeCache = new ConcurrentHashMap<>();
+    private final Map<Integer, PreBakedMSDF> preBakeCache;
     private final IntSet unsupportedGlyphs;
     private boolean closed;
 
@@ -55,10 +56,50 @@ public class SDFGlyphProvider implements GlyphProvider {
             }
         });
 
+        long fontHash = hashFontData(fontData);
+        PreBakedMSDFCache.CacheKey cacheKey = new PreBakedMSDFCache.CacheKey(
+                fontHash,
+                this.config.sdfResolution(),
+                this.config.padding(),
+                this.config.spread(),
+                this.config.fontSize(),
+                this.config.oversample(),
+                this.config.pxRange(),
+                this.config.angleThreshold(),
+                this.config.shift()[0],
+                this.config.shift()[1],
+                this.config.skip());
+        this.preBakeCache = PreBakedMSDFCache.getOrCreate(cacheKey);
+
         LOGGER.info("SDF glyph provider initialized: {} supported glyphs, {} upem, ascender={}",
                 supportedGlyphs.size(), unitsPerEM, ascender);
 
-        preBakeCommonGlyphs();
+        if (!isPreBakeCoverageComplete()) {
+            preBakeCommonGlyphs();
+        }
+    }
+
+    private static long hashFontData(ByteBuffer fontData) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update(fontData.duplicate());
+            byte[] digest = md.digest();
+            long h = 0L;
+            for (int i = 0; i < 8; i++) {
+                h = (h << 8) | (digest[i] & 0xFFL);
+            }
+            return h;
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
+    }
+
+    private boolean isPreBakeCoverageComplete() {
+        for (int cp = 32; cp <= 255; cp++) {
+            if (!supportedGlyphs.contains(cp)) continue;
+            if (!preBakeCache.containsKey(cp)) return false;
+        }
+        return true;
     }
 
     private void preBakeCommonGlyphs() {
@@ -68,10 +109,10 @@ public class SDFGlyphProvider implements GlyphProvider {
             for (int cp = 32; cp <= 255; cp++) {
                 if (closed) break;
                 if (!supportedGlyphs.contains(cp)) continue;
+                if (preBakeCache.containsKey(cp)) continue;
                 try {
                     PreBakedMSDF data = computeMSDF(cp, ft);
-                    if (data != null) {
-                        preBakeCache.put(cp, data);
+                    if (data != null && preBakeCache.putIfAbsent(cp, data) == null) {
                         count++;
                     }
                 } catch (Exception e) {
