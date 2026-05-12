@@ -35,7 +35,7 @@ public class SDFGlyphProvider implements GlyphProvider {
     private final Map<Integer, SDFGlyphInfo> glyphCache;
     private final Map<Integer, PreBakedMSDF> preBakeCache;
     private final IntSet unsupportedGlyphs;
-    private boolean closed;
+    private volatile boolean closed;
 
     public SDFGlyphProvider(FT_Face ftFace, ByteBuffer fontData, SDFConfig config) {
         this.ftFace = ftFace;
