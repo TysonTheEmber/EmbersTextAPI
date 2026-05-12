@@ -1,6 +1,5 @@
 package net.tysontheember.emberstextapi.immersivemessages;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
@@ -27,18 +26,10 @@ public class ClientEvents {
         @SubscribeEvent
         public static void register(RegisterGuiOverlaysEvent event) {
             event.registerAbove(VanillaGuiOverlay.CHAT_PANEL.id(), "legacy_immersive_messages", (gui, guiGraphics, partialTick, screenWidth, screenHeight) -> {
-
-                RenderSystem.enableBlend();
-                RenderSystem.defaultBlendFunc();
-                RenderSystem.disableDepthTest();
-                RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-                guiGraphics.setColor(1f, 1f, 1f, 1f);
-
                 guiGraphics.pose().pushPose();
                 guiGraphics.pose().translate(0f, 0f, 200f);
                 ImmersiveMessagesManager.render(guiGraphics);
                 guiGraphics.pose().popPose();
-                guiGraphics.setColor(1f, 1f, 1f, 1f);
             });
         }
     }

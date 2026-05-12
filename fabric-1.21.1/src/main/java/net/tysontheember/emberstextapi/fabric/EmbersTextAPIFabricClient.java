@@ -1,6 +1,5 @@
 package net.tysontheember.emberstextapi.fabric;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -46,17 +45,10 @@ public class EmbersTextAPIFabricClient implements ClientModInitializer {
         });
 
         HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
-            RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
-            RenderSystem.disableDepthTest();
-            RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-            drawContext.setColor(1f, 1f, 1f, 1f);
-
             drawContext.pose().pushPose();
             drawContext.pose().translate(0f, 0f, 200f);
             ClientMessageManager.render(drawContext, tickCounter.getGameTimeDeltaPartialTick(false));
             drawContext.pose().popPose();
-            drawContext.setColor(1f, 1f, 1f, 1f);
         });
 
         EmbersTextAPIFabric.LOGGER.info("EmbersTextAPI client initialization complete");
